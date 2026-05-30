@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/provider.schema.json",
+  "title": "ProviderEvents",
+  "description": "Events owned by provider-success-engine (Provider Success). Owner is the only publisher.",
+  "$defs": {
+    "ProviderScoreUpdated": {
+      "title": "ProviderScoreUpdated",
+      "description": "payload of provider.score_updated (v1) — consumed by Matching for ranking.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "success_score", "tier", "computed_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "success_score": { "$ref": "common.schema.json#/$defs/Score01" },
+        "quality_score": { "$ref": "common.schema.json#/$defs/Score01" },
+        "tier": { "type": "string", "enum": ["bronze", "silver", "gold", "platinum"] },
+        "computed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ProviderCapacityUpdated": {
+      "title": "ProviderCapacityUpdated",
+      "description": "payload of provider.capacity_updated (v1) — consumed by Matching (capacity-aware).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "utilization", "available", "updated_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "utilization": { "$ref": "common.schema.json#/$defs/Score01" },
+        "available": { "type": "boolean" },
+        "open_slots_next_7d": { "type": "integer", "minimum": 0 },
+        "updated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ProviderAtRisk": {
+      "title": "ProviderAtRisk",
+      "description": "payload of provider.at_risk (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "risk_reason", "detected_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "risk_reason": { "type": "string", "enum": ["low_acceptance", "slow_response", "low_satisfaction", "sla_breach", "complaints", "inactivity"] },
+        "success_score": { "$ref": "common.schema.json#/$defs/Score01" },
+        "detected_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ProviderLifecycleChanged": {
+      "title": "ProviderLifecycleChanged",
+      "description": "payload of provider.lifecycle_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "from_stage", "to_stage", "changed_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "from_stage": { "type": "string", "enum": ["onboarding", "ramping", "active", "top_performer", "underperforming", "probation", "offboarded"] },
+        "to_stage": { "type": "string", "enum": ["onboarding", "ramping", "active", "top_performer", "underperforming", "probation", "offboarded"] },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ProviderIncentiveAwarded": {
+      "title": "ProviderIncentiveAwarded",
+      "description": "payload of provider.incentive_awarded (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "program_id", "award", "awarded_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "program_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "award": { "$ref": "common.schema.json#/$defs/Money" },
+        "reason": { "type": "string" },
+        "awarded_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

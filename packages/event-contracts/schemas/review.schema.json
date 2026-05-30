@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/review.schema.json",
+  "title": "ReviewEvents",
+  "description": "Events owned by review-service (authoritative owner of quality_score). Owner is the only publisher.",
+  "$defs": {
+    "ReviewCreated": {
+      "title": "ReviewCreated",
+      "description": "payload of review.created (v1) — triggers Quality Score recompute; consumed by Provider Success.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "provider_id", "user_id", "rating", "created_at"],
+      "properties": {
+        "review_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "description": "Per-dimension ratings (e.g. punctuality, professionalism)."
+        },
+        "verified": { "type": "boolean" },
+        "created_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ReviewModerated": {
+      "title": "ReviewModerated",
+      "description": "payload of review.moderated (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "decision", "moderated_at"],
+      "properties": {
+        "review_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "decision": { "type": "string", "enum": ["approved", "rejected", "flagged"] },
+        "moderated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

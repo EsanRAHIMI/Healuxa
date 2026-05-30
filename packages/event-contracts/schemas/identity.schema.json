@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/identity.schema.json",
+  "title": "IdentityEvents",
+  "description": "Events owned by identity-service. Owner is the only publisher. Never carries credentials, tokens, or secrets.",
+  "$defs": {
+    "AuthUserRegistered": {
+      "title": "AuthUserRegistered",
+      "description": "payload of auth.user_registered (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id", "registered_at"],
+      "properties": {
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "channel": { "$ref": "common.schema.json#/$defs/Channel" },
+        "registered_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "AuthSessionRevoked": {
+      "title": "AuthSessionRevoked",
+      "description": "payload of auth.session_revoked (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id", "scope", "revoked_at"],
+      "properties": {
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "session_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scope": { "type": "string", "enum": ["single", "all"] },
+        "reason": { "type": "string", "enum": ["logout", "logout_all", "token_reuse", "admin", "security"] },
+        "revoked_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "AuthSecurityEvent": {
+      "title": "AuthSecurityEvent",
+      "description": "payload of auth.security_event (v1) — consumed by Monitoring.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "severity", "detected_at"],
+      "properties": {
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "kind": { "type": "string", "enum": ["brute_force", "impossible_travel", "new_device", "token_reuse", "mfa_failure", "lockout"] },
+        "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
+        "ip": { "type": "string" },
+        "detected_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

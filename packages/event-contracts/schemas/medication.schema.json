@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/medication.schema.json",
+  "title": "MedicationEvents",
+  "description": "Events owned by medication-service. Owner is the only publisher. Never carries clinical free-text or drug names (PII) — only references + adherence signals.",
+  "$defs": {
+    "MedicationIntakeMissed": {
+      "title": "MedicationIntakeMissed",
+      "description": "payload of medication.intake_missed (v1) — feeds adherence score + journey health.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prescription_id", "user_id", "scheduled_for", "missed_at"],
+      "properties": {
+        "prescription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "schedule_entry_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_for": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "missed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "MedicationRefillDue": {
+      "title": "MedicationRefillDue",
+      "description": "payload of medication.refill_due (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prescription_id", "user_id", "due_at"],
+      "properties": {
+        "prescription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "due_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

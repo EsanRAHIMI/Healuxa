@@ -1,0 +1,17 @@
+extends:
+  - recommended
+
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  operation-2xx-response: error
+  # 401/403/429 are enforced uniformly at the Traefik edge + ForwardAuth, so not every
+  # operation re-declares them. Endpoints that own a 4xx (404/409/422) still document it.
+  operation-4xx-response: off
+  no-server-trailing-slash: error
+  tag-description: off
+  info-license: off
+  security-defined: error
+  no-unused-components: warn
+  operation-tag-defined: off

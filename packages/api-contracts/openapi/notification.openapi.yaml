@@ -1,0 +1,78 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Notification Service API
+  version: 3.3.0
+  description: >
+    Notification Open Host Service (Generic). Multi-channel fan-out. Wraps SendGrid/Twilio behind
+    an ACL. Event-subscribed; also accepts direct sends. See Healuxa_DDD_Boundaries.md §3.18.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://notification-service:8015/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: notifications
+paths:
+  /notifications/send:
+    post:
+      operationId: sendNotification
+      summary: Send a notification (internal; respects consent + quiet hours)
+      tags: [notifications]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendRequest" }
+      responses:
+        "202": { description: Accepted }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /notifications/preferences/{userId}:
+    get:
+      operationId: getPreferences
+      summary: Get channel preferences + quiet hours
+      tags: [notifications]
+      x-required-permission: notifications:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    put:
+      operationId: updatePreferences
+      summary: Update channel preferences
+      tags: [notifications]
+      x-required-permission: notifications:write
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: OK }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    SendRequest:
+      type: object
+      additionalProperties: false
+      required: [user_id, channel, template]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        channel: { type: string, enum: [push, web_push, email, sms, in_app, whatsapp] }
+        template: { type: string }
+        data: { type: object, additionalProperties: true }

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/appointment.schema.json",
+  "title": "AppointmentEvents",
+  "description": "Events owned by appointment-service (Scheduling). Owner is the only publisher.",
+  "$defs": {
+    "AppointmentRequested": {
+      "title": "AppointmentRequested",
+      "description": "payload of appointment.requested (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at", "requested_at"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "requested_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "AppointmentCreated": {
+      "title": "AppointmentCreated",
+      "description": "payload of appointment.created (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "channel": { "$ref": "common.schema.json#/$defs/Channel" }
+      }
+    },
+    "AppointmentAccepted": {
+      "title": "AppointmentAccepted",
+      "description": "payload of appointment.accepted (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "response_seconds": { "type": "integer", "minimum": 0, "description": "Provider response latency — consumed by Provider Success." }
+      }
+    },
+    "AppointmentDeclined": {
+      "title": "AppointmentDeclined",
+      "description": "payload of appointment.declined (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at", "reason"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "reason": { "type": "string", "enum": ["no_capacity", "out_of_scope", "schedule_conflict", "other"] },
+        "response_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "AppointmentCompleted": {
+      "title": "AppointmentCompleted",
+      "description": "payload of appointment.completed (v1) — fan-out to Transformation, Provider Success, Commercial, Review, ML.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at", "completed_at"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "completed_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "duration_minutes": { "type": "integer", "minimum": 0 },
+        "amount": { "$ref": "common.schema.json#/$defs/Money" }
+      }
+    },
+    "AppointmentNoShow": {
+      "title": "AppointmentNoShow",
+      "description": "payload of appointment.no_show (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appointment_id", "user_id", "provider_id", "service_id", "scheduled_at", "party"],
+      "properties": {
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "service_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "scheduled_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "party": { "type": "string", "enum": ["customer", "provider"] }
+      }
+    }
+  }
+}

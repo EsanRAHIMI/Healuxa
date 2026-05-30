@@ -1,0 +1,19 @@
+{
+  "name": "@healuxa/api-contracts",
+  "version": "3.3.0",
+  "description": "Healuxa internal API contracts — OpenAPI 3.1 specs (Open Host Services) + shared components, error standard, auth, pagination, and idempotency conventions. The single source of truth for all internal service APIs.",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "redocly lint openapi/*.openapi.yaml",
+    "bundle": "node scripts/bundle.mjs",
+    "generate:ts": "node scripts/generate-clients.mjs",
+    "validate": "npm run lint"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.25.0",
+    "openapi-typescript": "^7.4.0",
+    "glob": "^11.0.0"
+  }
+}

@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Marketing Service API
+  version: 3.3.0
+  description: >
+    Marketing Automation Open Host Service. Owns campaigns, audiences, flows. Emits marketing.*.
+    Applies pricing/offers from Commercial Intelligence. See Healuxa_DDD_Boundaries.md §3.17.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://marketing-service:8014/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: marketing
+paths:
+  /marketing/campaigns:
+    get:
+      operationId: listCampaigns
+      summary: List campaigns
+      tags: [marketing]
+      x-required-permission: marketing:read
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Campaign" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    post:
+      operationId: createCampaign
+      summary: Create a campaign (emits marketing.campaign_sent on launch)
+      tags: [marketing]
+      x-required-permission: marketing:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Campaign" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Campaign" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Campaign:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        name: { type: string }
+        channel: { type: string, enum: [app, web, whatsapp, email, sms, push, in_app] }
+        segment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        offer_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: string, enum: [draft, scheduled, sending, sent, paused] }

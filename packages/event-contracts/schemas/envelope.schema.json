@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "Envelope wrapping every Healuxa domain event published to NATS JetStream. The typed `payload` is defined by the event-specific schema referenced in `schema_ref`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "type",
+    "version",
+    "schema_ref",
+    "occurred_at",
+    "tenant_id",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "$ref": "common.schema.json#/$defs/Ulid",
+      "description": "Globally unique event id. Consumers MUST dedupe/idempotency-key on this."
+    },
+    "type": {
+      "type": "string",
+      "description": "Fully-qualified event type, `<context>.<event>`.",
+      "pattern": "^[a-z]+(?:_[a-z]+)*\\.[a-z]+(?:_[a-z]+)*$",
+      "examples": ["journey.milestone_completed", "payment.succeeded"]
+    },
+    "version": {
+      "type": "integer",
+      "description": "Major schema version of this event type.",
+      "minimum": 1
+    },
+    "schema_ref": {
+      "type": "string",
+      "format": "uri",
+      "description": "Canonical $id of the payload schema for this exact version."
+    },
+    "occurred_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp",
+      "description": "When the domain fact occurred (not when published)."
+    },
+    "tenant_id": { "$ref": "common.schema.json#/$defs/TenantId" },
+    "producer": {
+      "type": "string",
+      "description": "Service that owns and emitted this event. MUST equal the registered owner.",
+      "examples": ["transformation-engine", "payment-service"]
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "OpenTelemetry trace id for correlation across services."
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Ties a logical chain of events to a single business operation."
+    },
+    "causation_id": {
+      "$ref": "common.schema.json#/$defs/Ulid",
+      "description": "event_id of the event that directly caused this one."
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Who/what triggered the underlying action.",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["user", "provider", "service", "system"] },
+        "id": { "type": "string" }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Typed event body; shape defined by the event-specific schema."
+    }
+  }
+}

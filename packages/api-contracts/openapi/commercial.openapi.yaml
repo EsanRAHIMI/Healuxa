@@ -1,0 +1,208 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Commercial Intelligence Engine API
+  version: 3.3.0
+  description: >
+    Commercial Intelligence Open Host Service. Owns commercial decisions (offers, packages,
+    pricing rules, segments, forecasts, KPIs). Reads money/plan state via events; does not own
+    the money ledger or plan definitions. See Healuxa_DDD_Boundaries.md §3.11 and TechSpec §14.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://commercial-intelligence-engine:8020/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: commercial
+paths:
+  /commercial/kpis:
+    get:
+      operationId: getCommercialKpis
+      summary: Real-time business KPIs
+      tags: [commercial]
+      x-required-permission: commercial:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Kpi" } }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /commercial/revenue:
+    get:
+      operationId: getRevenue
+      summary: MRR/ARR, NRR by plan/segment/stream
+      tags: [commercial]
+      x-required-permission: commercial:read
+      parameters:
+        - { name: by, in: query, schema: { type: string, enum: [plan, segment, stream] } }
+        - { name: from, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /commercial/forecast:
+    get:
+      operationId: getForecast
+      summary: Forecasts with confidence intervals
+      tags: [commercial]
+      x-required-permission: commercial:read
+      parameters:
+        - { name: metric, in: query, required: true, schema: { type: string, enum: [mrr, arr, churn_revenue, expansion, nrr] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Forecast" }
+  /commercial/cohorts:
+    get:
+      operationId: getCohorts
+      summary: Retention / revenue cohorts
+      tags: [commercial]
+      x-required-permission: commercial:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /commercial/segments:
+    get:
+      operationId: listSegments
+      summary: List customer segments
+      tags: [commercial]
+      x-required-permission: commercial:read
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Segment" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /commercial/offers/{userId}:
+    get:
+      operationId: getOffersForUser
+      summary: Personalized dynamic offers for a user
+      tags: [commercial]
+      x-required-permission: commercial:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Offer" } }
+  /commercial/upsell/{userId}:
+    get:
+      operationId: getUpsellForUser
+      summary: Upsell/cross-sell recommendations for a user
+      tags: [commercial]
+      x-required-permission: commercial:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { type: object, additionalProperties: true } }
+  /commercial/opportunities:
+    get:
+      operationId: getOpportunities
+      summary: Ranked growth opportunities
+      tags: [commercial]
+      x-required-permission: commercial:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { type: object, additionalProperties: true } }
+  /commercial/offers:
+    post:
+      operationId: createOffer
+      summary: Author an offer (admin)
+      tags: [commercial]
+      x-required-permission: commercial:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Offer" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Offer" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /commercial/experiments:
+    post:
+      operationId: createExperiment
+      summary: Create a price/offer/package experiment (admin)
+      tags: [commercial]
+      x-required-permission: commercial:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Created }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Kpi:
+      type: object
+      properties:
+        kpi: { type: string }
+        value: { type: number }
+        target: { type: number }
+        period: { type: string }
+    Forecast:
+      type: object
+      properties:
+        metric: { type: string }
+        points: { type: array, items: { type: object, additionalProperties: true } }
+        ci_low: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        ci_high: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+    Segment:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        name: { type: string }
+        type: { type: string, enum: [rfm, behavioral, value, lifecycle, luxury_spend] }
+        size: { type: integer }
+    Offer:
+      type: object
+      additionalProperties: false
+      required: [name, type]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        name: { type: string }
+        type: { type: string, enum: [upgrade, add_on, bundle, renewal, win_back, cross_sell] }
+        segment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        valid_from: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        valid_to: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        status: { type: string, enum: [draft, active, paused, expired] }

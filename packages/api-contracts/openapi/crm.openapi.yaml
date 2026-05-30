@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: Healuxa CRM Service API
+  version: 3.3.0
+  description: >
+    CRM Open Host Service. Owns leads, pipeline, tasks, relationships. See Healuxa_DDD_Boundaries.md §3.16.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://crm-service:8013/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: crm
+paths:
+  /crm/leads:
+    get:
+      operationId: listLeads
+      summary: List leads
+      tags: [crm]
+      x-required-permission: crm:read
+      parameters:
+        - { name: stage, in: query, schema: { type: string } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Lead" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    post:
+      operationId: createLead
+      summary: Create a lead
+      tags: [crm]
+      x-required-permission: crm:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Lead" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lead" }
+  /crm/leads/{id}:
+    patch:
+      operationId: updateLead
+      summary: Update a lead (e.g. advance stage)
+      tags: [crm]
+      x-required-permission: crm:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Lead" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lead" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Lead:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        stage: { type: string }
+        owner: { type: string }
+        score: { type: number }

@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Payment Service API
+  version: 3.3.0
+  description: >
+    Payments Open Host Service — money ledger source of truth. Owns payments, invoices,
+    commissions, dunning. Emits payment.* and commission.computed. Wraps gateways behind an ACL.
+    See Healuxa_DDD_Boundaries.md §3.13 and Healuxa_TechSpec.md §21.2.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://payment-service:8010/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: payments
+paths:
+  /payments:
+    post:
+      operationId: createPayment
+      summary: Initiate a payment (emits payment.succeeded/failed)
+      tags: [payments]
+      x-required-permission: payments:create
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePayment" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      summary: Get a payment
+      tags: [payments]
+      x-required-permission: payments:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /payments/webhooks/{gateway}:
+    post:
+      operationId: paymentWebhook
+      summary: Gateway webhook (signature-verified; ACL boundary)
+      tags: [payments]
+      security: []
+      parameters:
+        - { name: gateway, in: path, required: true, schema: { type: string, enum: [tap_payments, stripe] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "204": { description: No Content }
+        "400": { $ref: "./_shared/components.yaml#/components/responses/BadRequest" }
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      summary: Get an invoice (signed CloudFront PDF link)
+      tags: [payments]
+      x-required-permission: invoices:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  pdf_url: { type: string, format: uri }
+                  total: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    CreatePayment:
+      type: object
+      additionalProperties: false
+      required: [user_id, amount, purpose]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        subscription_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        purpose: { type: string, enum: [subscription, marketplace_order, add_on, top_up] }
+        gateway: { type: string, enum: [tap_payments, stripe] }
+    Payment:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        gateway: { type: string, enum: [tap_payments, stripe] }

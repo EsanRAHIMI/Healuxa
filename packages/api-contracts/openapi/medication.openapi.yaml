@@ -1,0 +1,81 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Medication Service API
+  version: 3.3.0
+  description: >
+    Medication Adherence Open Host Service. Owns prescriptions, schedules, adherence, refills.
+    Emits medication.intake_missed / refill_due. See Healuxa_DDD_Boundaries.md §3.15 and TechSpec §15.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://medication-service:8012/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: medications
+paths:
+  /medications:
+    get:
+      operationId: listMedications
+      summary: List the caller's medications
+      tags: [medications]
+      x-required-permission: medications:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Prescription" } }
+  /medications/{id}/confirm-intake:
+    post:
+      operationId: confirmIntake
+      summary: Confirm a scheduled intake
+      tags: [medications]
+      x-required-permission: medications:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /medications/adherence:
+    get:
+      operationId: getAdherence
+      summary: Get the caller's adherence score
+      tags: [medications]
+      x-required-permission: medications:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  adherence_score: { type: number, minimum: 0, maximum: 1 }
+  /medications/{id}/refill:
+    post:
+      operationId: requestRefill
+      summary: Request a refill (routes to pharmacy/marketplace)
+      tags: [medications]
+      x-required-permission: medications:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      responses:
+        "202": { description: Accepted }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Prescription:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: string, enum: [active, completed, cancelled] }
+        next_intake_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }

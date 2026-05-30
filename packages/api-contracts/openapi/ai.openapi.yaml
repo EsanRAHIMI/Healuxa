@@ -1,0 +1,78 @@
+openapi: 3.1.0
+info:
+  title: Healuxa AI Orchestrator API
+  version: 3.3.0
+  description: >
+    AI Execution Open Host Service (Generic). Routes to AI modules with guardrails + 3-tier memory.
+    Wraps OpenAI/Anthropic behind an ACL. Human-in-the-loop for clinical outputs.
+    See Healuxa_DDD_Boundaries.md §3.18 and Healuxa_TechSpec.md §16.1.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://ai-orchestrator:8017/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: ai
+paths:
+  /ai/concierge:
+    post:
+      operationId: aiConcierge
+      summary: Concierge chat turn (streamed via realtime-gateway)
+      tags: [ai]
+      x-required-permission: ai:use
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, message]
+              properties:
+                user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                session_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                message: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  reply: { type: string }
+                  escalated: { type: boolean }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /ai/roadmap:
+    post:
+      operationId: aiRoadmap
+      summary: Generate a roadmap draft (internal; consumed by Transformation)
+      tags: [ai]
+      security:
+        - serviceAuth: [service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, goals]
+              properties:
+                user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                goals: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"

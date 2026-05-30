@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/ml.schema.json",
+  "title": "MlEvents",
+  "description": "Events owned by ml-service. Owner is the only publisher.",
+  "$defs": {
+    "MlModelPromoted": {
+      "title": "MlModelPromoted",
+      "description": "payload of ml.model_promoted (v1) — a new model version passed A/B + guardrails and is now serving.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "version", "promoted_at"],
+      "properties": {
+        "model": { "type": "string", "enum": ["provider_ranker", "provider_churn", "customer_churn", "nba_upsell", "recommendation", "adherence_risk", "forecasting", "segmentation", "price_elasticity", "ltv"] },
+        "version": { "type": "string" },
+        "metric": { "type": "string" },
+        "metric_value": { "type": "number" },
+        "promoted_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "MlPredictionReady": {
+      "title": "MlPredictionReady",
+      "description": "payload of ml.prediction_ready (v1) — batch prediction set available for a consuming engine.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "batch_id", "count", "ready_at"],
+      "properties": {
+        "model": { "type": "string" },
+        "batch_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "count": { "type": "integer", "minimum": 0 },
+        "ready_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

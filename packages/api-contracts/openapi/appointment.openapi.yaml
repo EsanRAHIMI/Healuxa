@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Appointment Service API
+  version: 3.3.0
+  description: >
+    Scheduling Open Host Service. Owns the Appointment aggregate and emits appointment.* events.
+    See Healuxa_DDD_Boundaries.md §3.8 and Healuxa_TechSpec.md §10.7.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://appointment-service:8007/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: appointments
+paths:
+  /appointments:
+    get:
+      operationId: listAppointments
+      summary: List appointments
+      tags: [appointments]
+      x-required-permission: appointments:read
+      parameters:
+        - { name: user_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: provider_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/AppointmentStatus" } }
+        - { name: from, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+        - $ref: "./_shared/components.yaml#/components/parameters/Sort"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Appointment" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    post:
+      operationId: createAppointment
+      summary: Create an appointment (emits appointment.created)
+      tags: [appointments]
+      x-required-permission: appointments:create
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateAppointment" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+            ETag: { $ref: "./_shared/components.yaml#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Appointment" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /appointments/{id}:
+    get:
+      operationId: getAppointment
+      summary: Get an appointment
+      tags: [appointments]
+      x-required-permission: appointments:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Appointment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /appointments/{id}/status:
+    post:
+      operationId: transitionAppointment
+      summary: Transition status (accept/decline/complete/no_show) — emits appointment.* events
+      tags: [appointments]
+      x-required-permission: appointments:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+        - $ref: "./_shared/components.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transition]
+              properties:
+                transition: { type: string, enum: [accept, decline, complete, no_show, reschedule] }
+                reason: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Appointment" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    AppointmentStatus:
+      type: string
+      enum: [requested, created, accepted, declined, completed, no_show, cancelled]
+    CreateAppointment:
+      type: object
+      additionalProperties: false
+      required: [user_id, provider_id, service_id, scheduled_at]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        service_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        scheduled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    Appointment:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        service_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { $ref: "#/components/schemas/AppointmentStatus" }
+        scheduled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }

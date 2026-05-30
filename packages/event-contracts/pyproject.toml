@@ -1,0 +1,29 @@
+[project]
+name = "healuxa-event-contracts"
+version = "3.3.0"
+description = "Healuxa domain event contracts — JSON Schema + generated Pydantic models (Published Language for NATS JetStream)."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jsonschema>=4.22",
+    "datamodel-code-generator>=0.25",
+]
+
+[tool.datamodel-codegen]
+input-file-type = "jsonschema"
+output-model-type = "pydantic_v2.BaseModel"
+use-standard-collections = true
+use-union-operator = true
+field-constraints = true
+enum-field-as-literal = "all"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["healuxa_event_contracts"]

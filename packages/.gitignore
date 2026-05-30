@@ -1,0 +1,11 @@
+node_modules/
+package-lock.json
+*.tsbuildinfo
+
+# api-contracts build artifacts (regenerable via npm run bundle / generate:ts)
+api-contracts/dist/
+api-contracts/generated/
+
+# event-contracts: generated/events.ts and generated/payloads.generated.ts ARE committed
+# (consumers import them without a build step). Python output is regenerable:
+event-contracts/generated/healuxa_event_contracts/

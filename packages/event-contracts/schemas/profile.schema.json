@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/profile.schema.json",
+  "title": "ProfileEvents",
+  "description": "Events owned by profile-service (authoritative owner of profile attributes). Owner is the only publisher. Never includes raw medical/PII payloads — only references + non-sensitive scores.",
+  "$defs": {
+    "ProfileUpdated": {
+      "title": "ProfileUpdated",
+      "description": "payload of profile.updated (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id", "updated_fields", "updated_at"],
+      "properties": {
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "updated_fields": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "lifecycle_stage": { "type": "string", "enum": ["lead", "onboarding", "active", "at_risk", "churned", "reactivated"] },
+        "vip_tier": { "type": "string", "enum": ["none", "silver", "gold", "black"] },
+        "updated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

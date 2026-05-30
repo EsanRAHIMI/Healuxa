@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/journey.schema.json",
+  "title": "JourneyEvents",
+  "description": "Events owned by transformation-engine (Customer Success). Owner is the only publisher.",
+  "$defs": {
+    "JourneyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" }
+      }
+    },
+    "JourneyCreated": {
+      "title": "JourneyCreated",
+      "description": "payload of journey.created (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "primary_goals", "status", "started_at"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "primary_goals": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "status": { "type": "string", "enum": ["draft", "onboarding", "active"] },
+        "started_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "target_completion": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "ltv_projection": { "$ref": "common.schema.json#/$defs/Money" }
+      }
+    },
+    "JourneyRoadmapUpdated": {
+      "title": "JourneyRoadmapUpdated",
+      "description": "payload of journey.roadmap_updated (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "milestone_count", "reason"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_count": { "type": "integer", "minimum": 0 },
+        "reason": { "type": "string", "enum": ["assessment", "reassessment", "outcome", "manual", "ai_recommendation"] }
+      }
+    },
+    "JourneyMilestoneCompleted": {
+      "title": "JourneyMilestoneCompleted",
+      "description": "payload of journey.milestone_completed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "milestone_id", "completed_at"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "milestone_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "phase_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "outcome_delta": { "$ref": "common.schema.json#/$defs/Score01" },
+        "completed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "JourneyPhaseCompleted": {
+      "title": "JourneyPhaseCompleted",
+      "description": "payload of journey.phase_completed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "phase_id", "completed_at"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "phase_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "completed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "JourneyNextAction": {
+      "title": "JourneyNextAction",
+      "description": "payload of journey.next_action (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "action_type"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "action_type": { "type": "string", "enum": ["book", "assess", "renew", "upsell", "adherence", "follow_up", "contact"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "due_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "JourneyAtRisk": {
+      "title": "JourneyAtRisk",
+      "description": "payload of journey.at_risk (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "risk_reason", "churn_risk"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "risk_reason": { "type": "string", "enum": ["payment_failed", "low_adherence", "no_show", "negative_review", "inactivity", "churn_model"] },
+        "churn_risk": { "$ref": "common.schema.json#/$defs/Score01" }
+      }
+    },
+    "JourneyReassessmentDue": {
+      "title": "JourneyReassessmentDue",
+      "description": "payload of journey.reassessment_due (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "due_at"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "due_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "JourneyCompleted": {
+      "title": "JourneyCompleted",
+      "description": "payload of journey.completed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["journey_id", "user_id", "completed_at", "outcome_score"],
+      "properties": {
+        "journey_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "completed_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "outcome_score": { "$ref": "common.schema.json#/$defs/Score01" },
+        "realized_ltv": { "$ref": "common.schema.json#/$defs/Money" }
+      }
+    }
+  }
+}

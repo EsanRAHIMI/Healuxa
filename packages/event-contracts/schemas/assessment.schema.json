@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/assessment.schema.json",
+  "title": "AssessmentEvents",
+  "description": "Events owned by assessment-service. Owner is the only publisher.",
+  "$defs": {
+    "AssessmentCompleted": {
+      "title": "AssessmentCompleted",
+      "description": "payload of assessment.completed (v1) — Transformation builds the roadmap.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assessment_id", "user_id", "kind", "completed_at"],
+      "properties": {
+        "assessment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "kind": { "type": "string", "enum": ["beauty", "body", "wellness", "longevity", "intake", "reassessment"] },
+        "recommended_goals": { "type": "array", "items": { "type": "string" } },
+        "scores": {
+          "type": "object",
+          "additionalProperties": { "$ref": "common.schema.json#/$defs/Score01" }
+        },
+        "completed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

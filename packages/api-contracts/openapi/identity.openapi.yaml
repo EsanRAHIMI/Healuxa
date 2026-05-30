@@ -1,0 +1,265 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Identity Service API
+  version: 3.3.0
+  description: >
+    Enterprise IAM Open Host Service. Owns the security principal, sessions, tokens, roles,
+    permissions, API keys, and service clients. Upstream Conformist to all services.
+    See Healuxa_DDD_Boundaries.md §3.2 / §7 and Healuxa_TechSpec.md §8.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://identity-service:8001/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+  - name: sessions
+  - name: iam
+paths:
+  /auth/register:
+    post:
+      operationId: authRegister
+      summary: Register a new principal
+      tags: [auth]
+      security: []
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /auth/login:
+    post:
+      operationId: authLogin
+      summary: Authenticate and issue tokens
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "429": { $ref: "./_shared/components.yaml#/components/responses/RateLimited" }
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      summary: Rotate refresh token, issue new access token
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties: { refresh_token: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+  /auth/logout:
+    post:
+      operationId: authLogout
+      summary: Revoke the current session
+      tags: [auth]
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+  /auth/introspect:
+    post:
+      operationId: authIntrospect
+      summary: Token introspection (used by the edge ForwardAuth)
+      tags: [auth]
+      security:
+        - serviceAuth: [service]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Introspection" }
+  /.well-known/jwks.json:
+    get:
+      operationId: getJwks
+      summary: JWKS public keys for offline JWT validation
+      tags: [auth]
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys: { type: array, items: { type: object, additionalProperties: true } }
+  /auth/service-token:
+    post:
+      operationId: issueServiceToken
+      summary: Issue a service-to-service JWT (client credentials)
+      tags: [auth]
+      security:
+        - serviceAuth: [service]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List the caller's active sessions
+      tags: [sessions]
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Session" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+  /sessions/{id}:
+    delete:
+      operationId: revokeSession
+      summary: Revoke a session
+      tags: [sessions]
+      x-required-permission: sessions:revoke
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+      responses:
+        "204": { description: No Content }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /iam/roles:
+    get:
+      operationId: listRoles
+      summary: List roles
+      tags: [iam]
+      x-required-permission: iam:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Role" } }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+    post:
+      operationId: createRole
+      summary: Create a role
+      tags: [iam]
+      x-required-permission: iam:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Role" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Role" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier: { type: string, description: email or phone }
+        password: { type: string, minLength: 8 }
+        locale: { type: string, enum: [en, ar, fa, ru] }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier: { type: string }
+        password: { type: string }
+        mfa_code: { type: string }
+    TokenResponse:
+      type: object
+      additionalProperties: false
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_in: { type: integer }
+    Introspection:
+      type: object
+      properties:
+        active: { type: boolean }
+        sub: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        tenant: { type: string }
+        roles: { type: array, items: { type: string } }
+        perms: { type: array, items: { type: string } }
+        session_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+    Session:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        device: { type: string }
+        ip: { type: string }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        last_seen_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    Role:
+      type: object
+      additionalProperties: false
+      required: [name, permissions]
+      properties:
+        name: { type: string }
+        permissions: { type: array, items: { type: string } }
+        tenant_id: { type: string }

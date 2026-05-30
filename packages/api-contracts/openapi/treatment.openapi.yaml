@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Treatment Service API
+  version: 3.3.0
+  description: >
+    Clinical Treatment Open Host Service. Owns TreatmentPlan/steps/approvals. Feeds journey
+    milestones (consumed by Transformation). See Healuxa_DDD_Boundaries.md §3.5.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://treatment-service:8004/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: treatment-plans
+paths:
+  /treatment-plans:
+    post:
+      operationId: createTreatmentPlan
+      summary: Create a treatment plan (doctor approval required)
+      tags: [treatment-plans]
+      x-required-permission: treatment:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TreatmentPlan" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TreatmentPlan" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /treatment-plans/{id}:
+    get:
+      operationId: getTreatmentPlan
+      summary: Get a treatment plan
+      tags: [treatment-plans]
+      x-required-permission: treatment:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TreatmentPlan" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /treatment-plans/{id}/approve:
+    post:
+      operationId: approveTreatmentPlan
+      summary: Doctor approval of a plan
+      tags: [treatment-plans]
+      x-required-permission: treatment:approve
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200": { description: OK }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    TreatmentPlan:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: string, enum: [draft, pending_approval, approved, active, completed] }
+        steps: { type: array, items: { type: object, additionalProperties: true } }

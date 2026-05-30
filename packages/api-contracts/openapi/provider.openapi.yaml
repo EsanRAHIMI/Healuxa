@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Provider Service API
+  version: 3.3.0
+  description: >
+    Provider & Catalog Open Host Service. Owns typed providers, clinics, brands, services,
+    availability, geo. quality_score/success_score are read-model caches (owned by Review /
+    Provider Success). See Healuxa_DDD_Boundaries.md §3.6 and Healuxa_TechSpec.md §10.6.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://provider-service:8005/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: providers
+  - name: services
+paths:
+  /providers:
+    get:
+      operationId: searchProviders
+      summary: Search providers (hard filters for Matching)
+      tags: [providers]
+      x-required-permission: providers:read
+      parameters:
+        - { name: type, in: query, schema: { type: string } }
+        - { name: specialty, in: query, schema: { type: string } }
+        - { name: language, in: query, schema: { type: string } }
+        - { name: near, in: query, description: "lat,lng", schema: { type: string } }
+        - { name: radius_km, in: query, schema: { type: number } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    post:
+      operationId: createProvider
+      summary: Onboard a provider
+      tags: [providers]
+      x-required-permission: providers:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Provider" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /providers/{id}:
+    get:
+      operationId: getProvider
+      summary: Get a provider
+      tags: [providers]
+      x-required-permission: providers:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /services:
+    get:
+      operationId: listServices
+      summary: List service catalog entries
+      tags: [services]
+      x-required-permission: providers:read
+      parameters:
+        - { name: category, in: query, schema: { type: string } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ServiceOffering" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Provider:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        type: { type: string, enum: [doctor, clinic, therapist, trainer, nutritionist, pharmacy, brand, home_visit] }
+        specialties: { type: array, items: { type: string } }
+        languages: { type: array, items: { type: string } }
+        quality_score: { type: number, readOnly: true, description: "Read-model cache owned by Review service." }
+        success_score: { type: number, readOnly: true, description: "Read-model cache owned by Provider Success." }
+        status: { type: string, enum: [pending, active, suspended, offboarded] }
+    ServiceOffering:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        category: { type: string }
+        name: { type: string }
+        price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }

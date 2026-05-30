@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Review Service API
+  version: 3.3.0
+  description: >
+    Review & Quality Open Host Service. Authoritative owner of quality_score. Emits review.*.
+    See Healuxa_DDD_Boundaries.md §3.9 and Healuxa_TechSpec.md §12.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://review-service:8008/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: reviews
+paths:
+  /reviews:
+    post:
+      operationId: createReview
+      summary: Submit a review (emits review.created)
+      tags: [reviews]
+      x-required-permission: reviews:create
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateReview" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Review" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /reviews/provider/{providerId}:
+    get:
+      operationId: listProviderReviews
+      summary: List reviews for a provider
+      tags: [reviews]
+      x-required-permission: reviews:read
+      parameters:
+        - { name: providerId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Review" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /reviews/provider/{providerId}/quality:
+    get:
+      operationId: getProviderQuality
+      summary: Get a provider's Bayesian quality score
+      tags: [reviews]
+      x-required-permission: reviews:read
+      parameters:
+        - { name: providerId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  quality_score: { type: number, minimum: 0, maximum: 1 }
+                  review_count: { type: integer }
+  /reviews/{id}/moderate:
+    post:
+      operationId: moderateReview
+      summary: Moderate a review (emits review.moderated)
+      tags: [reviews]
+      x-required-permission: reviews:moderate
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approved, rejected, flagged] }
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    CreateReview:
+      type: object
+      additionalProperties: false
+      required: [provider_id, appointment_id, rating]
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        appointment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        dimensions: { type: object, additionalProperties: { type: integer, minimum: 1, maximum: 5 } }
+        comment: { type: string }
+    Review:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        rating: { type: integer }
+        status: { type: string, enum: [pending, approved, rejected, flagged] }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }

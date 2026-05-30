@@ -1,0 +1,141 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Matching Engine API
+  version: 3.3.0
+  description: >
+    Matching & Ranking Open Host Service. Ranks providers for a milestone need using
+    Provider Success match-signals (§13) and ML ranking. Consumed by the Transformation Engine.
+    See Healuxa_DDD_Boundaries.md §3.7 and Healuxa_TechSpec.md §11.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://matching-service:8006/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: matching
+paths:
+  /matching/providers:
+    post:
+      operationId: rankProviders
+      summary: Rank candidate providers for a need
+      tags: [matching]
+      x-required-permission: matching:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MatchRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, candidates]
+                properties:
+                  request_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  candidates: { type: array, items: { $ref: "#/components/schemas/RankedCandidate" } }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /matching/schedule:
+    post:
+      operationId: proposeSchedule
+      summary: Propose fastest+best provider slots
+      tags: [matching]
+      x-required-permission: matching:read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MatchRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SlotProposal" }
+  /matching/book:
+    post:
+      operationId: matchAndBook
+      summary: Atomically rank, pick, and book (emits appointment.created via appointment-service)
+      tags: [matching]
+      x-required-permission: matching:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookRequest" }
+      responses:
+        "201":
+          description: Booked
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appointment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /matching/explain/{requestId}:
+    get:
+      operationId: explainMatch
+      summary: Explain a ranking decision
+      tags: [matching]
+      x-required-permission: matching:read
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    MatchRequest:
+      type: object
+      additionalProperties: false
+      required: [user_id, service_type]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        service_type: { type: string }
+        geo: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
+        language: { type: string }
+        limit: { type: integer, default: 10 }
+    RankedCandidate:
+      type: object
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        score: { type: number, minimum: 0, maximum: 1 }
+        rank: { type: integer }
+        explanation: { type: object, additionalProperties: true }
+    SlotProposal:
+      type: object
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        slot_start: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    BookRequest:
+      type: object
+      additionalProperties: false
+      required: [user_id, service_type, slot_start]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        service_type: { type: string }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        slot_start: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/commercial.schema.json",
+  "title": "CommercialEvents",
+  "description": "Events owned by commercial-intelligence-engine (Business). Owner is the only publisher.",
+  "$defs": {
+    "CommercialOfferRecommended": {
+      "title": "CommercialOfferRecommended",
+      "description": "payload of commercial.offer_recommended (v1) — Transformation presents at the right moment.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offer_id", "user_id", "offer_type", "valid_to"],
+      "properties": {
+        "offer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "offer_type": { "type": "string", "enum": ["upgrade", "add_on", "bundle", "renewal", "win_back", "cross_sell"] },
+        "segment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "expected_uplift": { "$ref": "common.schema.json#/$defs/Money" },
+        "price": { "$ref": "common.schema.json#/$defs/Money" },
+        "channel": { "$ref": "common.schema.json#/$defs/Channel" },
+        "valid_to": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CommercialUpsellOpportunity": {
+      "title": "CommercialUpsellOpportunity",
+      "description": "payload of commercial.upsell_opportunity (v1) — feeds Transformation NBA.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id", "recommendation", "uplift_score"],
+      "properties": {
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "recommendation": { "type": "string" },
+        "target_plan_id": { "type": "string" },
+        "uplift_score": { "$ref": "common.schema.json#/$defs/Score01" },
+        "best_moment": { "type": "string", "enum": ["onboarding", "milestone", "renewal", "post_outcome", "reactivation"] }
+      }
+    },
+    "CommercialSegmentUpdated": {
+      "title": "CommercialSegmentUpdated",
+      "description": "payload of commercial.segment_updated (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["segment_id", "type", "size", "updated_at"],
+      "properties": {
+        "segment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["rfm", "behavioral", "value", "lifecycle", "luxury_spend"] },
+        "size": { "type": "integer", "minimum": 0 },
+        "updated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CommercialPriceSuggestion": {
+      "title": "CommercialPriceSuggestion",
+      "description": "payload of commercial.price_suggestion (v1) — Subscription/Marketing apply.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "suggested_price", "generated_at"],
+      "properties": {
+        "scope": { "type": "string", "enum": ["plan", "add_on", "bundle", "segment"] },
+        "scope_ref": { "type": "string" },
+        "suggested_price": { "$ref": "common.schema.json#/$defs/Money" },
+        "elasticity": { "type": "number" },
+        "confidence": { "$ref": "common.schema.json#/$defs/Score01" },
+        "experiment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "generated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CommercialForecastUpdated": {
+      "title": "CommercialForecastUpdated",
+      "description": "payload of commercial.forecast_updated (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "horizon_days", "generated_at"],
+      "properties": {
+        "metric": { "type": "string", "enum": ["mrr", "arr", "churn_revenue", "expansion", "nrr"] },
+        "horizon_days": { "type": "integer", "minimum": 1 },
+        "point_estimate": { "$ref": "common.schema.json#/$defs/Money" },
+        "ci_low": { "$ref": "common.schema.json#/$defs/Money" },
+        "ci_high": { "$ref": "common.schema.json#/$defs/Money" },
+        "model_version": { "type": "string" },
+        "generated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CommercialKpiAlert": {
+      "title": "CommercialKpiAlert",
+      "description": "payload of commercial.kpi_alert (v1) — surfaced in Commercial Intelligence Center + Monitoring.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kpi", "severity", "value", "triggered_at"],
+      "properties": {
+        "kpi": { "type": "string" },
+        "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
+        "value": { "type": "number" },
+        "target": { "type": "number" },
+        "delta_pct": { "type": "number" },
+        "triggered_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

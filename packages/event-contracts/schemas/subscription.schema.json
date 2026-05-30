@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/subscription.schema.json",
+  "title": "SubscriptionEvents",
+  "description": "Events owned by subscription-service. Owner is the only publisher.",
+  "$defs": {
+    "SubscriptionBaseProps": {
+      "$comment": "Documentation-only base; not referenced to avoid additionalProperties pitfalls."
+    },
+    "SubscriptionCreated": {
+      "title": "SubscriptionCreated",
+      "description": "payload of subscription.created (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id", "user_id", "plan_id", "price", "billing_cycle", "started_at"],
+      "properties": {
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "plan_id": { "type": "string" },
+        "price": { "$ref": "common.schema.json#/$defs/Money" },
+        "billing_cycle": { "type": "string", "enum": ["monthly", "quarterly", "annual"] },
+        "started_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "SubscriptionRenewed": {
+      "title": "SubscriptionRenewed",
+      "description": "payload of subscription.renewed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id", "user_id", "plan_id", "price", "renewed_at", "period_end"],
+      "properties": {
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "plan_id": { "type": "string" },
+        "price": { "$ref": "common.schema.json#/$defs/Money" },
+        "renewed_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "period_end": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "SubscriptionUpgraded": {
+      "title": "SubscriptionUpgraded",
+      "description": "payload of subscription.upgraded (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id", "user_id", "from_plan_id", "to_plan_id", "changed_at"],
+      "properties": {
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "from_plan_id": { "type": "string" },
+        "to_plan_id": { "type": "string" },
+        "mrr_delta": { "$ref": "common.schema.json#/$defs/Money" },
+        "triggered_by_offer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "SubscriptionDowngraded": {
+      "title": "SubscriptionDowngraded",
+      "description": "payload of subscription.downgraded (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id", "user_id", "from_plan_id", "to_plan_id", "changed_at"],
+      "properties": {
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "from_plan_id": { "type": "string" },
+        "to_plan_id": { "type": "string" },
+        "mrr_delta": { "$ref": "common.schema.json#/$defs/Money" },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "SubscriptionChurned": {
+      "title": "SubscriptionChurned",
+      "description": "payload of subscription.churned (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subscription_id", "user_id", "plan_id", "churned_at", "reason"],
+      "properties": {
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "plan_id": { "type": "string" },
+        "reason": { "type": "string", "enum": ["voluntary", "payment_failure", "downgrade_to_none", "expired"] },
+        "lost_mrr": { "$ref": "common.schema.json#/$defs/Money" },
+        "churned_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

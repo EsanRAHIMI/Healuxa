@@ -1,0 +1,33 @@
+{
+  "name": "@healuxa/event-contracts",
+  "version": "3.3.0",
+  "description": "Healuxa domain event contracts — JSON Schema, registry, and generated TypeScript types. The single source of truth (Published Language) for all NATS JetStream domain events.",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "main": "./generated/events.ts",
+  "types": "./generated/events.ts",
+  "exports": {
+    ".": "./generated/events.ts",
+    "./registry": "./src/registry.ts",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "schemas",
+    "src",
+    "generated"
+  ],
+  "scripts": {
+    "generate:ts": "node scripts/generate-types.mjs",
+    "generate:py": "python scripts/generate_python.py",
+    "generate": "npm run generate:ts && npm run generate:py",
+    "validate": "node scripts/validate.mjs",
+    "test": "node --test \"tests/*.test.mjs\""
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.3",
+    "glob": "^11.0.0"
+  }
+}

@@ -1,0 +1,152 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Provider Success Engine API
+  version: 3.3.0
+  description: >
+    Provider Success Open Host Service. Authoritative owner of success_score, tier, and capacity.
+    Exposes match-signals consumed by the Matching Engine. See Healuxa_DDD_Boundaries.md §3.10
+    and Healuxa_TechSpec.md §13.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://provider-success-engine:8019/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: provider-success
+paths:
+  /provider-success/{id}/score:
+    get:
+      operationId: getProviderScore
+      summary: Get a provider's success score
+      tags: [provider-success]
+      x-required-permission: provider_success:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderScore" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /provider-success/{id}/capacity:
+    get:
+      operationId: getProviderCapacity
+      summary: Get a provider's capacity state
+      tags: [provider-success]
+      x-required-permission: provider_success:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Capacity" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /provider-success/ranking:
+    get:
+      operationId: getRanking
+      summary: Provider leaderboard / tier ranking
+      tags: [provider-success]
+      x-required-permission: provider_success:read
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+        - { name: tier, in: query, required: false, schema: { type: string, enum: [bronze, silver, gold, platinum] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ProviderScore" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /provider-success/at-risk:
+    get:
+      operationId: getAtRiskProviders
+      summary: List at-risk providers
+      tags: [provider-success]
+      x-required-permission: provider_success:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ProviderScore" } }
+  /provider-success/{id}/lifecycle/transition:
+    post:
+      operationId: transitionLifecycle
+      summary: Transition a provider lifecycle stage (emits provider.lifecycle_changed)
+      tags: [provider-success]
+      x-required-permission: provider_success:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_stage]
+              properties:
+                to_stage: { $ref: "#/components/schemas/LifecycleStage" }
+      responses:
+        "200": { description: OK }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /provider-success/match-signals:
+    get:
+      operationId: getMatchSignals
+      summary: Batch match-signals for the Matching Engine (internal)
+      description: Internal-only. Returns success_score + live capacity for a set of provider ids.
+      tags: [provider-success]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - { name: ids, in: query, required: true, description: comma-separated provider ids, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MatchSignal" } }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    LifecycleStage:
+      type: string
+      enum: [onboarding, ramping, active, top_performer, underperforming, probation, offboarded]
+    ProviderScore:
+      type: object
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        success_score: { type: number, minimum: 0, maximum: 1 }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        tier: { type: string, enum: [bronze, silver, gold, platinum] }
+        lifecycle_stage: { $ref: "#/components/schemas/LifecycleStage" }
+        computed_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    Capacity:
+      type: object
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        utilization: { type: number, minimum: 0, maximum: 1 }
+        available: { type: boolean }
+        open_slots_next_7d: { type: integer }
+    MatchSignal:
+      type: object
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        success_score: { type: number }
+        tier: { type: string }
+        utilization: { type: number }
+        available: { type: boolean }

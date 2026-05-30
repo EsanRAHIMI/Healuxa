@@ -1,0 +1,97 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Assessment Service API
+  version: 3.3.0
+  description: >
+    Assessment Open Host Service. Owns assessments that seed roadmaps. Emits assessment.completed.
+    See Healuxa_DDD_Boundaries.md §3.4.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://assessment-service:8003/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: assessments
+paths:
+  /assessments:
+    post:
+      operationId: startAssessment
+      summary: Start an assessment
+      tags: [assessments]
+      x-required-permission: assessments:create
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, kind]
+              properties:
+                user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                kind: { type: string, enum: [beauty, body, wellness, longevity, intake, reassessment] }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assessment" }
+  /assessments/{id}:
+    get:
+      operationId: getAssessment
+      summary: Get an assessment
+      tags: [assessments]
+      x-required-permission: assessments:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assessment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /assessments/{id}/submit:
+    post:
+      operationId: submitAssessment
+      summary: Submit responses (emits assessment.completed)
+      tags: [assessments]
+      x-required-permission: assessments:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [responses]
+              properties:
+                responses: { type: array, items: { type: object, additionalProperties: true } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Assessment" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Assessment:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        kind: { type: string }
+        status: { type: string, enum: [in_progress, completed] }
+        recommended_goals: { type: array, items: { type: string } }
+        scores: { type: object, additionalProperties: { type: number } }

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/payment.schema.json",
+  "title": "PaymentEvents",
+  "description": "Events owned by payment-service (money ledger = source of truth). Owner is the only publisher.",
+  "$defs": {
+    "PaymentSucceeded": {
+      "title": "PaymentSucceeded",
+      "description": "payload of payment.succeeded (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payment_id", "user_id", "amount", "gateway", "captured_at"],
+      "properties": {
+        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "invoice_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "amount": { "$ref": "common.schema.json#/$defs/Money" },
+        "gateway": { "type": "string", "enum": ["tap_payments", "stripe"] },
+        "purpose": { "type": "string", "enum": ["subscription", "marketplace_order", "add_on", "top_up"] },
+        "captured_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "PaymentFailed": {
+      "title": "PaymentFailed",
+      "description": "payload of payment.failed (v1) — triggers dunning + journey.at_risk.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payment_id", "user_id", "amount", "gateway", "failure_code", "failed_at"],
+      "properties": {
+        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "amount": { "$ref": "common.schema.json#/$defs/Money" },
+        "gateway": { "type": "string", "enum": ["tap_payments", "stripe"] },
+        "failure_code": { "type": "string" },
+        "dunning_attempt": { "type": "integer", "minimum": 0 },
+        "failed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CommissionComputed": {
+      "title": "CommissionComputed",
+      "description": "payload of commission.computed (v1) — consumed by Provider Success + Commercial.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commission_id", "provider_id", "amount", "computed_at"],
+      "properties": {
+        "commission_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "gross": { "$ref": "common.schema.json#/$defs/Money" },
+        "amount": { "$ref": "common.schema.json#/$defs/Money" },
+        "rate": { "$ref": "common.schema.json#/$defs/Score01" },
+        "computed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

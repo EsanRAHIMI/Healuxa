@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: Healuxa ML Service API
+  version: 3.3.0
+  description: >
+    ML Platform (Generic, internal-only). Serves rankings/predictions and exposes model status.
+    Consumed by Matching, Commercial Intelligence, Provider Success. Emits ml.*.
+    All endpoints require serviceAuth. See Healuxa_DDD_Boundaries.md §3.18 and TechSpec §16.2.
+servers:
+  - url: http://ml-service:8018/v1
+    description: Internal mesh only (not exposed at the public edge)
+security:
+  - serviceAuth: [service]
+tags:
+  - name: ml
+paths:
+  /ml/rank:
+    post:
+      operationId: mlRank
+      summary: Score/rank candidates (learning-to-rank) for Matching
+      tags: [ml]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, features]
+              properties:
+                model: { type: string }
+                features: { type: array, items: { type: object, additionalProperties: true } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scores: { type: array, items: { type: number } }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /ml/predict:
+    post:
+      operationId: mlPredict
+      summary: Generic prediction (churn, uplift, LTV, elasticity, segmentation)
+      tags: [ml]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, input]
+              properties:
+                model: { type: string, enum: [customer_churn, provider_churn, nba_upsell, ltv, price_elasticity, segmentation, adherence_risk, recommendation, forecasting] }
+                input: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /ml/models:
+    get:
+      operationId: listModels
+      summary: List served models + versions
+      tags: [ml]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    model: { type: string }
+                    version: { type: string }
+                    promoted_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"

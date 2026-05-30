@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Media Service API
+  version: 3.3.0
+  description: >
+    Media Open Host Service (Generic). Issues pre-signed S3 upload URLs and signed CloudFront
+    download URLs. Wraps S3/CloudFront/KMS behind an ACL. See Healuxa_DDD_Boundaries.md §3.18.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://media-service:8016/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: media
+paths:
+  /media/upload-url:
+    post:
+      operationId: createUploadUrl
+      summary: Get a pre-signed upload URL
+      tags: [media]
+      x-required-permission: media:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_type, bucket]
+              properties:
+                content_type: { type: string }
+                bucket: { type: string, enum: [healuxa-media, healuxa-medical] }
+                filename: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  asset_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                  upload_url: { type: string, format: uri }
+                  expires_in: { type: integer }
+  /media/{assetId}/download-url:
+    get:
+      operationId: getDownloadUrl
+      summary: Get a signed download URL
+      tags: [media]
+      x-required-permission: media:read
+      parameters:
+        - { name: assetId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+                  expires_in: { type: integer }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"

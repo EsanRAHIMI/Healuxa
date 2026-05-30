@@ -1,0 +1,95 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Marketplace Service API
+  version: 3.3.0
+  description: >
+    Marketplace Open Host Service. Owns products, brands, orders, fulfillment. Search behind
+    an ACL (OpenSearch/Meilisearch). See Healuxa_DDD_Boundaries.md §3.14 and TechSpec §21.3.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://marketplace-service:8011/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: marketplace
+paths:
+  /marketplace/products:
+    get:
+      operationId: searchProducts
+      summary: Search products / brands
+      tags: [marketplace]
+      x-required-permission: marketplace:read
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: brand, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Product" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /marketplace/orders:
+    post:
+      operationId: createOrder
+      summary: Create an order
+      tags: [marketplace]
+      x-required-permission: marketplace:write
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrder" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Product:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        name: { type: string }
+        brand: { type: string }
+        price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        in_stock: { type: boolean }
+    CreateOrder:
+      type: object
+      additionalProperties: false
+      required: [user_id, items]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, qty]
+            properties:
+              product_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+              qty: { type: integer, minimum: 1 }
+    Order:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: string, enum: [pending, paid, fulfilling, delivered, cancelled] }
+        total: { $ref: "./_shared/components.yaml#/components/schemas/Money" }

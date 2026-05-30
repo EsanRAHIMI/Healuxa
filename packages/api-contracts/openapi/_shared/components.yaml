@@ -1,0 +1,245 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Shared API Components
+  version: 3.3.0
+  description: >
+    Shared OpenAPI components reused by every internal service spec via $ref.
+    Defines the platform-wide standards for errors, pagination, auth, headers, and idempotency.
+    This file is not a deployable API; it only hosts reusable components.
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        RS256 access token issued by identity-service, validated offline via JWKS at the
+        Traefik edge (ForwardAuth). ~15 min TTL.
+    serviceAuth:
+      type: oauth2
+      description: Service-to-service auth via OAuth2 client-credentials (service JWT). Internal mesh only.
+      flows:
+        clientCredentials:
+          tokenUrl: https://api.healuxa.com/v1/auth/service-token
+          scopes:
+            service: Internal service-to-service access
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Page size (cursor pagination).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor returned by the previous page.
+      schema:
+        type: string
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: "Sort field; prefix with '-' for descending. Allow-list per endpoint."
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        Client-generated unique key for safe retries of mutating requests. Same key + same body
+        replays the original response; same key + different body returns 409 idempotency_conflict.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: Optimistic concurrency control (ETag) for updates.
+      schema:
+        type: string
+    TenantHeader:
+      name: X-Healuxa-Tenant
+      in: header
+      required: false
+      description: Tenant id injected by the edge. Trusted only from the mesh.
+      schema:
+        type: string
+    UserHeader:
+      name: X-Healuxa-User
+      in: header
+      required: false
+      description: Authenticated user id injected by the edge (ForwardAuth).
+      schema:
+        type: string
+
+  headers:
+    X-Trace-Id:
+      description: OpenTelemetry trace id for correlation.
+      schema:
+        type: string
+    RateLimit-Remaining:
+      description: Remaining requests in the current window.
+      schema:
+        type: integer
+    Location:
+      description: URI of the created resource.
+      schema:
+        type: string
+        format: uri
+    ETag:
+      description: Entity version for optimistic concurrency.
+      schema:
+        type: string
+
+  schemas:
+    Error:
+      type: object
+      description: RFC 9457-compatible problem details. Used by ALL non-2xx responses.
+      additionalProperties: false
+      required: [code, title, status, trace_id]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the problem type.
+        title:
+          type: string
+          description: Short, human-readable summary.
+        status:
+          type: integer
+          description: HTTP status code.
+        code:
+          type: string
+          description: Stable machine-readable error code.
+          enum:
+            - validation_error
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - idempotency_conflict
+            - rate_limited
+            - unprocessable
+            - internal_error
+            - service_unavailable
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence.
+        instance:
+          type: string
+          description: Path of the request that produced the error.
+        trace_id:
+          type: string
+          description: Always present; correlate with logs/traces.
+        errors:
+          type: array
+          description: Optional field-level validation details.
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, code]
+            properties:
+              field: { type: string }
+              code: { type: string }
+              message: { type: string }
+
+    PageMeta:
+      type: object
+      additionalProperties: false
+      required: [limit, has_more]
+      properties:
+        next_cursor:
+          type: [string, "null"]
+          description: Cursor for the next page; null when no more pages.
+        limit:
+          type: integer
+        has_more:
+          type: boolean
+
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amount_minor, currency]
+      properties:
+        amount_minor:
+          type: integer
+          description: Amount in minor units (e.g. fils).
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          default: AED
+
+    Id:
+      type: string
+      description: ULID/UUID identifier.
+
+    Timestamp:
+      type: string
+      format: date-time
+
+  responses:
+    BadRequest:
+      description: Validation error.
+      headers:
+        X-Trace-Id:
+          $ref: "#/components/headers/X-Trace-Id"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated but lacks permission/scope/ownership.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Conflict (including idempotency_conflict).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Too many requests.
+      headers:
+        RateLimit-Remaining:
+          $ref: "#/components/headers/RateLimit-Remaining"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unprocessable:
+      description: Semantically invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Internal:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

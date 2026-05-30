@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/marketing.schema.json",
+  "title": "MarketingEvents",
+  "description": "Events owned by marketing-service. Owner is the only publisher.",
+  "$defs": {
+    "MarketingCampaignSent": {
+      "title": "MarketingCampaignSent",
+      "description": "payload of marketing.campaign_sent (v1) — consumed by Commercial (attribution/ROI).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "channel", "audience_size", "sent_at"],
+      "properties": {
+        "campaign_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "channel": { "$ref": "common.schema.json#/$defs/Channel" },
+        "offer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "segment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "audience_size": { "type": "integer", "minimum": 0 },
+        "sent_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "MarketingEngagement": {
+      "title": "MarketingEngagement",
+      "description": "payload of marketing.engagement (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["campaign_id", "user_id", "action", "occurred_at"],
+      "properties": {
+        "campaign_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "action": { "type": "string", "enum": ["delivered", "opened", "clicked", "converted", "unsubscribed"] },
+        "occurred_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

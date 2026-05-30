@@ -1,0 +1,67 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Profile Service API
+  version: 3.3.0
+  description: >
+    Profile Open Host Service. Authoritative owner of customer/medical/beauty/body profiles
+    (MongoDB, CSFLE for PII). Emits profile.updated. See Healuxa_DDD_Boundaries.md §3.3.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://profile-service:8002/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: profiles
+paths:
+  /profiles/{userId}:
+    get:
+      operationId: getProfile
+      summary: Get a customer profile
+      tags: [profiles]
+      x-required-permission: profiles:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    put:
+      operationId: upsertProfile
+      summary: Upsert a profile (emits profile.updated)
+      tags: [profiles]
+      x-required-permission: profiles:write
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Profile" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    Profile:
+      type: object
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        lifecycle_stage: { type: string, enum: [lead, onboarding, active, at_risk, churned, reactivated] }
+        vip_tier: { type: string, enum: [none, silver, gold, black] }
+        scores: { type: object, additionalProperties: { type: number } }
+        consent: { type: object, additionalProperties: true }

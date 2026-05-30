@@ -1,0 +1,201 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Transformation Engine API
+  version: 3.3.0
+  description: >
+    Core orchestrator (Customer Success) Open Host Service. Owns the Journey aggregate
+    (goals, milestones, phases, next-actions, outcomes). Composes specialized engines but
+    owns no clinical, money, or pricing data. See Healuxa_DDD_Boundaries.md §3.1.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://transformation-engine:8000/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: journeys
+paths:
+  /journeys:
+    post:
+      operationId: createJourney
+      summary: Create a transformation journey
+      tags: [journeys]
+      x-required-permission: journeys:create
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateJourney" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Journey" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /journeys/{userId}:
+    get:
+      operationId: getJourneyByUser
+      summary: Get the active journey for a user
+      tags: [journeys]
+      x-required-permission: journeys:read
+      parameters:
+        - { name: userId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Journey" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /journeys/{id}/roadmap:
+    get:
+      operationId: getRoadmap
+      summary: Get the journey roadmap
+      tags: [journeys]
+      x-required-permission: journeys:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Roadmap" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /journeys/{id}/milestones:
+    get:
+      operationId: listMilestones
+      summary: List milestones
+      tags: [journeys]
+      x-required-permission: journeys:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Milestone" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /journeys/{id}/milestones/{milestoneId}/complete:
+    post:
+      operationId: completeMilestone
+      summary: Mark a milestone complete (emits journey.milestone_completed)
+      tags: [journeys]
+      x-required-permission: journeys:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: milestoneId, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Milestone" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /journeys/{id}/next-actions:
+    get:
+      operationId: getNextActions
+      summary: Get recommended next-best-actions
+      tags: [journeys]
+      x-required-permission: journeys:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/NextAction" } }
+  /journeys/{id}/reassess:
+    post:
+      operationId: reassessJourney
+      summary: Trigger a reassessment
+      tags: [journeys]
+      x-required-permission: journeys:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      responses:
+        "202": { description: Accepted }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /journeys/{id}/health:
+    get:
+      operationId: getJourneyHealth
+      summary: Get journey health index
+      tags: [journeys]
+      x-required-permission: journeys:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  health_index: { type: number, minimum: 0, maximum: 1 }
+                  status: { $ref: "#/components/schemas/JourneyStatus" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+    serviceAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    JourneyStatus:
+      type: string
+      enum: [draft, onboarding, active, at_risk, renewing, completed, churned]
+    CreateJourney:
+      type: object
+      additionalProperties: false
+      required: [user_id, primary_goals]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        primary_goals: { type: array, items: { type: string }, minItems: 1 }
+        target_completion: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    Journey:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        primary_goals: { type: array, items: { type: string } }
+        status: { $ref: "#/components/schemas/JourneyStatus" }
+        health_index: { type: number }
+        started_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        ltv_projection: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+    Roadmap:
+      type: object
+      properties:
+        journey_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        phases: { type: array, items: { type: object, additionalProperties: true } }
+    Milestone:
+      type: object
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: string }
+        status: { type: string, enum: [pending, scheduled, in_progress, completed, blocked] }
+        due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    NextAction:
+      type: object
+      properties:
+        action_type: { type: string, enum: [book, assess, renew, upsell, adherence, follow_up, contact] }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+        due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
