@@ -1,0 +1,39 @@
+---
+description: FROZEN Healuxa architecture — four authoritative sources only; no changes without explicit user approval
+alwaysApply: true
+---
+
+# Healuxa Architecture — FROZEN
+
+Project root: `/Users/ehsanrahimi/Works/healuxa/apps`
+
+**Status: FROZEN.** From this point forward, do not change, rewrite, reinterpret, simplify, replace, or extend:
+
+- core architecture
+- service boundaries
+- database ownership
+- API contracts
+- event contracts
+- ports, routes, or governance rules
+
+## Only authoritative sources (in order)
+
+1. `Healuxa_TechSpec.md` — architecture, services, tech, ports, databases, roadmap
+2. `Healuxa_DDD_Boundaries.md` — boundaries, data/event ownership, anti-coupling
+3. `packages/api-contracts` — all HTTP endpoints (OpenAPI only)
+4. `packages/event-contracts` — all domain events (schema + registry owner only)
+
+Do **not** use any other source for architecture decisions: no assumptions, previous prototypes, external templates, parent-folder files, or personal interpretation.
+
+## Development rules
+
+- Implement **strictly** what the frozen documents define — nothing more, nothing different.
+- Do NOT create services, databases, endpoints, or events outside these four sources.
+- Do NOT read or write another service's database — sync API or async events only.
+- Bug fixes and implementation details inside an already-defined boundary are allowed; architectural changes are not.
+
+## Change control
+
+**Any architecture change is forbidden** unless the user explicitly approves it in writing in the chat.
+
+If something is missing or ambiguous: stop, cite the gap, and ask — do not invent or extend the architecture.

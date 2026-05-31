@@ -1,0 +1,18 @@
+{
+  "name": "healuxa",
+  "version": "3.3.0",
+  "private": true,
+  "description": "Healuxa monorepo — luxury transformation ecosystem (Phase 0 foundation)",
+  "workspaces": [
+    "packages/api-contracts",
+    "packages/event-contracts",
+    "packages/ts-common"
+  ],
+  "scripts": {
+    "contracts:validate": "npm run validate -w @healuxa/event-contracts && npm run validate -w @healuxa/api-contracts",
+    "contracts:lint": "npm run lint -w @healuxa/api-contracts"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

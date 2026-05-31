@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install workspace dependencies
+        run: npm install
+      - name: event-contracts validate
+        working-directory: packages/event-contracts
+        run: |
+          npm run validate
+          npm test
+      - name: api-contracts lint
+        working-directory: packages/api-contracts
+        run: npm run lint
+
+  identity-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: identity
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install packages and identity-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/identity-service[dev]"
+      - name: Migrate and test health
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/identity
+          REDIS_URL: redis://localhost:6379/0
+          NATS_URL: nats://localhost:4222
+          PASSWORD_PEPPER: ci-pepper
+          MFA_ENCRYPTION_KEY: ci-mfa-key-32bytes-long!!!!!!
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/identity-service
+        run: |
+          alembic upgrade head
+          pytest -q
+          python -c "from identity_service.main import app; print('app ok', app.title)"

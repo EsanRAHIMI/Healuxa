@@ -1,0 +1,43 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Generated (regenerable)
+packages/api-contracts/dist/
+packages/api-contracts/generated/
+packages/event-contracts/generated/healuxa_event_contracts/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker volumes (local)
+infrastructure/volumes/
