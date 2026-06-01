@@ -226,6 +226,43 @@ export SERVICE_AUTH_CLIENT_SECRET=dev-service-secret-change-me
 
 Exit code `0` on success; non-zero with a clear error on failure. Each run uses a unique email (no truncation).
 
+## 11. Run profile-service locally (laptop)
+
+**MongoDB Atlas only** — do not add MongoDB to `docker-compose.dev.yml`. Set `MONGODB_URI` in `.env` from your Atlas dev cluster.
+
+```bash
+source .venv/bin/activate
+cd services/profile-service
+cp .env.example .env   # edit MONGODB_URI and MONGODB_DATABASE
+uvicorn profile_service.main:app --host 0.0.0.0 --port 8002 --reload
+```
+
+Verify:
+
+```bash
+curl -s http://localhost:8002/health
+curl -s http://localhost:8002/ready
+```
+
+API: `GET` / `PUT` `/v1/profiles/{userId}`. Bearer token introspected via identity-service (or `X-Healuxa-*` headers in mesh).
+
+### profile-service tests (Atlas test database)
+
+Tests require `MONGODB_URI` and **`MONGODB_DATABASE=healuxa_profile_test`** (name must contain `test`). Destructive cleanup (`delete_many`) runs **only** when the database name contains `test`.
+
+```bash
+export MONGODB_URI='mongodb+srv://...'
+export MONGODB_DATABASE=healuxa_profile_test
+cd services/profile-service
+pip install -e ../../packages/py-common
+pip install -e ".[dev]"
+pytest -q
+```
+
+Without `MONGODB_URI`, Mongo tests are **skipped** (exit 0). CI uses GitHub secret `MONGODB_URI_TEST` when configured.
+
+Identity must include `profiles:read` and `profiles:write` on the default `user` role (`alembic upgrade head` in identity-service, migration `0004_profile_permissions`).
+
 ## Repository layout (Phase 0–1)
 
 ```
@@ -237,8 +274,20 @@ apps/                          # this repo root
 │   └── ts-common/
 ├── services/
 │   ├── identity-service/
-│   └── transformation-engine/
+│   ├── transformation-engine/
+│   └── profile-service/
 ├── infrastructure/
 │   └── docker-compose.dev.yml
 └── .github/workflows/ci.yml
 ```
+(.venv) ehsanrahimi@Esan-4 transformation-engine % >....            
+
+export DATABASE_URL=postgresql+asyncpg://healuxa:dev@localhost:5432/transformation
+export TENANT_DEFAULT=healuxa-dubai
+export IDENTITY_INTROSPECT_URL=http://localhost:8001/v1/auth/introspect
+export SERVICE_AUTH_CLIENT_ID=healuxa-internal
+export SERVICE_AUTH_CLIENT_SECRET=dev-service-secret-change-me
+export NATS_ENABLED=false
+
+uvicorn transformation_engine.main:app --host 0.0.0.0 --port 8000 --reload
+

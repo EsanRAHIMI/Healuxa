@@ -1,0 +1,12 @@
+# Dokploy Nixpacks alternative to Dockerfile (port 8002).
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = [
+  "pip install -e packages/py-common",
+  "pip install -e services/profile-service",
+]
+
+[start]
+cmd = "cd services/profile-service && uvicorn profile_service.main:app --host 0.0.0.0 --port 8002"
