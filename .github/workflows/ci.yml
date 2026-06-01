@@ -96,3 +96,46 @@ jobs:
           alembic upgrade head
           pytest -q
           python -c "from identity_service.main import app; print('app ok', app.title)"
+
+  transformation-engine:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Create transformation_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE transformation_test;"
+      - name: Install packages and transformation-engine
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/transformation-engine[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/transformation_test
+          TENANT_DEFAULT: healuxa-dubai
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/transformation-engine
+        run: |
+          alembic upgrade head
+          pytest -q
+          python -c "from transformation_engine.main import app; print('app ok', app.title)"

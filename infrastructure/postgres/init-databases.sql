@@ -2,3 +2,5 @@
 CREATE DATABASE identity;
 -- Dev/test isolation: same schema/migrations, separate data from laptop development.
 CREATE DATABASE identity_test;
+CREATE DATABASE transformation;
+CREATE DATABASE transformation_test;

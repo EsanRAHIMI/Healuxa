@@ -1,0 +1,38 @@
+[project]
+name = "transformation-engine"
+version = "0.1.0"
+description = "Healuxa Transformation Engine — customer journey orchestrator"
+requires-python = ">=3.12"
+dependencies = [
+    "healuxa-py-common",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "prometheus-client>=0.21",
+    "pydantic-settings>=2.6",
+    "python-ulid>=3.0",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "nats-py>=2.9",
+]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

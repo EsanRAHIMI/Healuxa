@@ -1,0 +1,13 @@
+# Dokploy Nixpacks alternative to Dockerfile (port 8000).
+# Set build context to monorepo root if your Dokploy app path differs.
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = [
+  "pip install -e packages/py-common",
+  "pip install -e services/transformation-engine",
+]
+
+[start]
+cmd = "cd services/transformation-engine && uvicorn transformation_engine.main:app --host 0.0.0.0 --port 8000"

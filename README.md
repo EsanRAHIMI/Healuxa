@@ -148,7 +148,48 @@ npm run ci:contracts
 
 Do not rely on automatic migrations at container start in production.
 
-## Repository layout (Phase 0)
+## 9. Run transformation-engine locally (laptop)
+
+```bash
+source .venv/bin/activate
+cd services/transformation-engine
+uvicorn transformation_engine.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Verify:
+
+```bash
+curl -s http://localhost:8000/health
+curl -s http://localhost:8000/ready
+```
+
+API base path: `/v1/journeys/*`. In development, send Traefik-style principal headers (see `transformation_engine.api.deps.principal_headers`) or a Bearer token introspected via identity-service.
+
+### transformation-engine tests
+
+Tests use **`transformation_test`** (separate from dev `transformation` data).
+
+```bash
+docker exec healuxa-dev-postgres-1 psql -U healuxa -d postgres -c "CREATE DATABASE transformation_test;" 2>/dev/null || true
+
+source .venv/bin/activate
+cd services/transformation-engine
+export DATABASE_URL=postgresql+asyncpg://healuxa:dev@localhost:5432/transformation_test
+export TENANT_DEFAULT=healuxa-dubai
+alembic upgrade head
+pytest -q
+```
+
+### Dokploy (transformation-engine)
+
+1. Application path: `services/transformation-engine`.
+2. Build: **Dockerfile** (context = repo root) or **Nixpacks** (`nixpacks.toml`).
+3. Port: **8000**.
+4. Environment: `services/transformation-engine/.env.example`.
+5. **Pre-deploy:** `alembic upgrade head` on production `transformation` DSN.
+6. Health: `/health`, readiness: `/ready`.
+
+## Repository layout (Phase 0–1)
 
 ```
 apps/                          # this repo root
@@ -158,7 +199,8 @@ apps/                          # this repo root
 │   ├── py-common/
 │   └── ts-common/
 ├── services/
-│   └── identity-service/
+│   ├── identity-service/
+│   └── transformation-engine/
 ├── infrastructure/
 │   └── docker-compose.dev.yml
 └── .github/workflows/ci.yml
