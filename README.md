@@ -226,7 +226,22 @@ export SERVICE_AUTH_CLIENT_SECRET=dev-service-secret-change-me
 
 Exit code `0` on success; non-zero with a clear error on failure. Each run uses a unique email (no truncation).
 
-## 11. Run profile-service locally (laptop)
+## 11. E2E smoke (Identity → Profile)
+
+Exercises **real HTTP** with a Bearer token only on profile-service (no `X-Healuxa-*`, no Mongo access from the script).
+
+**Prerequisites:** Postgres + Redis (compose), identity on **8001** (`alembic upgrade head` including `0004_profile_permissions`), profile-service on **8002** with Atlas `MONGODB_URI` in `.env`, `curl`, `jq`.
+
+```bash
+chmod +x scripts/smoke/identity_to_profile.sh
+./scripts/smoke/identity_to_profile.sh
+```
+
+Optional overrides: `IDENTITY_URL`, `PROFILE_URL`, `SERVICE_AUTH_CLIENT_ID`, `SERVICE_AUTH_CLIENT_SECRET`.
+
+**Flow:** register → introspect (`profiles:read`, `profiles:write`) → `GET` 404 → `PUT` 200 + ETag → `GET` 200. No database cleanup.
+
+## 12. Run profile-service locally (laptop)
 
 **MongoDB Atlas only** — do not add MongoDB to `docker-compose.dev.yml`. Set `MONGODB_URI` in `.env` from your Atlas dev cluster.
 
