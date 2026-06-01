@@ -12,7 +12,7 @@ async def test_health(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_jwks(client: AsyncClient, requires_integration) -> None:
+async def test_jwks(client: AsyncClient) -> None:
     response = await client.get("/.well-known/jwks.json")
     assert response.status_code == 200
     body = response.json()
@@ -24,7 +24,6 @@ async def test_jwks(client: AsyncClient, requires_integration) -> None:
 async def test_register_login_refresh_logout(
     client: AsyncClient,
     service_headers: dict,
-    requires_integration,
 ) -> None:
     email = f"user-{ULID()}@example.com"
     register = await client.post(
@@ -83,7 +82,7 @@ async def test_register_login_refresh_logout(
 
 
 @pytest.mark.asyncio
-async def test_service_token(client: AsyncClient, service_headers: dict, requires_integration) -> None:
+async def test_service_token(client: AsyncClient, service_headers: dict) -> None:
     response = await client.post("/v1/auth/service-token", headers=service_headers)
     assert response.status_code == 200
     body = response.json()

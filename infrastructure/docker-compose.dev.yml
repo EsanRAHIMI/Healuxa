@@ -1,18 +1,24 @@
-# Healuxa local development stack — Healuxa_TechSpec.md §24.5
+# Healuxa local infrastructure — Healuxa_TechSpec.md §24.5
+# Infra: Postgres, Redis, NATS JetStream, ClickHouse, Traefik (local edge only).
+# Apps: run from laptop (recommended) or optional Docker profile `app`.
+# Production: Dokploy (not this file).
 name: healuxa-dev
 
 networks:
-  healuxa-net: {}
+  healuxa-net:
+    name: healuxa-net
 
 volumes:
   pg_data: {}
 
 services:
   traefik:
+    profiles: ["app"]
     image: traefik:v3.1
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=healuxa-net
       - --entrypoints.web.address=:80
       - --api.insecure=true
     ports:
@@ -34,6 +40,11 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healuxa -d healuxa"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - healuxa-net
 
@@ -41,14 +52,20 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - healuxa-net
 
   nats:
     image: nats:2-alpine
-    command: ["-js"]
+    command: ["-js", "-m", "8222"]
     ports:
       - "4222:4222"
+      - "8222:8222"
     networks:
       - healuxa-net
 
@@ -60,7 +77,25 @@ services:
     networks:
       - healuxa-net
 
+  # Dev-only: explicit migration before running identity in Docker (profile `migrate`).
+  identity-migrate:
+    profiles: ["migrate", "app"]
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://healuxa:dev@postgres:5432/identity
+      PASSWORD_PEPPER: dev-pepper-change-me
+      MFA_ENCRYPTION_KEY: dev-mfa-key-32bytes-long!!!!!!
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - healuxa-net
+
   identity-service:
+    profiles: ["app"]
     build:
       context: ..
       dockerfile: services/identity-service/Dockerfile
@@ -71,6 +106,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       NATS_URL: nats://nats:4222
       NATS_ENABLED: "true"
+      TENANT_DEFAULT: healuxa-dubai
       JWT_ACCESS_TTL: "900"
       JWT_REFRESH_TTL: "2592000"
       PASSWORD_PEPPER: dev-pepper-change-me
@@ -84,12 +120,18 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      - postgres
-      - redis
-      - nats
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      identity-migrate:
+        condition: service_completed_successfully
     networks:
       - healuxa-net
     labels:
       - traefik.enable=true
-      - traefik.http.routers.identity.rule=Host(`api.localhost`) && PathPrefix(`/v1/auth`)
+      - traefik.http.routers.identity.entrypoints=web
+      - traefik.http.routers.identity.rule=Host(`api.localhost`) && (PathPrefix(`/v1/auth`) || PathPrefix(`/v1/sessions`) || PathPrefix(`/v1/iam`) || Path(`/.well-known/jwks.json`))
       - traefik.http.services.identity.loadbalancer.server.port=8001

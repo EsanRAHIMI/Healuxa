@@ -10,7 +10,9 @@
   ],
   "scripts": {
     "contracts:validate": "npm run validate -w @healuxa/event-contracts && npm run validate -w @healuxa/api-contracts",
-    "contracts:lint": "npm run lint -w @healuxa/api-contracts"
+    "contracts:lint": "npm run lint -w @healuxa/api-contracts",
+    "ci:contracts": "npm run contracts:validate && npm test -w @healuxa/event-contracts",
+    "ci:python": "pytest -q packages/py-common && npm test -w @healuxa/ts-common"
   },
   "engines": {
     "node": ">=22"

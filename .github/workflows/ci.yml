@@ -16,14 +16,35 @@ jobs:
           node-version: "22"
       - name: Install workspace dependencies
         run: npm install
-      - name: event-contracts validate
+      - name: Validate API and event contracts
+        run: npm run contracts:validate
+      - name: event-contracts unit tests
         working-directory: packages/event-contracts
+        run: npm test
+
+  py-common:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and test py-common
         run: |
-          npm run validate
-          npm test
-      - name: api-contracts lint
-        working-directory: packages/api-contracts
-        run: npm run lint
+          pip install -e "packages/py-common[dev]"
+          pytest -q packages/py-common
+
+  ts-common:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and test ts-common
+        run: |
+          npm install
+          npm test -w @healuxa/ts-common
 
   identity-service:
     runs-on: ubuntu-latest
@@ -33,7 +54,7 @@ jobs:
         env:
           POSTGRES_USER: healuxa
           POSTGRES_PASSWORD: dev
-          POSTGRES_DB: identity
+          POSTGRES_DB: healuxa
         ports:
           - 5432:5432
         options: >-
@@ -50,13 +71,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Create identity_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE identity_test;"
       - name: Install packages and identity-service
         run: |
           pip install -e packages/py-common
           pip install -e "services/identity-service[dev]"
-      - name: Migrate and test health
+      - name: Migrate and test
         env:
-          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/identity
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/identity_test
           REDIS_URL: redis://localhost:6379/0
           NATS_URL: nats://localhost:4222
           PASSWORD_PEPPER: ci-pepper

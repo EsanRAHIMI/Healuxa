@@ -1,0 +1,13 @@
+# Dokploy Nixpacks alternative to Dockerfile (same service, port 8001).
+# Set build context to monorepo root and NIXPACKS_BUILD_CMD if your Dokploy app path differs.
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = [
+  "pip install -e packages/py-common",
+  "pip install -e services/identity-service",
+]
+
+[start]
+cmd = "cd services/identity-service && uvicorn identity_service.main:app --host 0.0.0.0 --port 8001"
