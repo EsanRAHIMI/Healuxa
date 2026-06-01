@@ -16,6 +16,7 @@ from identity_service.api.deps import (
     require_service_auth,
 )
 from identity_service.domain.auth_service import auth_service
+from identity_service.domain.idempotency import validate_idempotency_key
 from identity_service.domain.schemas import (
     IntrospectRequest,
     IntrospectionResponse,
@@ -38,6 +39,7 @@ async def auth_register(
     redis=Depends(get_redis_client),
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> JSONResponse:
+    validate_idempotency_key(idempotency_key)
     tokens, location = await auth_service.register(
         db,
         redis,

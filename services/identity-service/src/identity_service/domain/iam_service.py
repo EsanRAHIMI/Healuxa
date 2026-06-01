@@ -7,8 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ulid import ULID
 
 from identity_service.config import settings
+from identity_service.domain.idempotency import (
+    hash_request_body,
+    read_idempotent_response,
+    store_idempotent_response,
+)
 from identity_service.domain.schemas import RoleRequest, RoleResponse
-from identity_service.infra.models import IdempotencyRecord, Role
+from identity_service.infra.models import Role
 
 
 class IamService:
@@ -27,10 +32,13 @@ class IamService:
         idempotency_key: str | None,
     ) -> RoleResponse:
         tenant_id = body.tenant_id or settings.tenant_default
+        body_payload = body.model_dump()
+        body_hash = hash_request_body(body_payload)
+
         if idempotency_key:
-            record = await db.get(IdempotencyRecord, idempotency_key)
-            if record:
-                return RoleResponse(**record.response_body)
+            cached = await read_idempotent_response(db, idempotency_key, request_hash=body_hash)
+            if cached:
+                return RoleResponse(**cached)
 
         role = Role(
             id=str(ULID()),
@@ -40,7 +48,7 @@ class IamService:
         )
         db.add(role)
         try:
-            await db.commit()
+            await db.flush()
         except IntegrityError as exc:
             await db.rollback()
             raise ApiError(
@@ -51,16 +59,19 @@ class IamService:
             ) from exc
 
         response = RoleResponse(name=role.name, permissions=list(role.permissions), tenant_id=role.tenant_id)
+        response_payload = response.model_dump()
+
+        await db.commit()
+
         if idempotency_key:
-            db.add(
-                IdempotencyRecord(
-                    key=idempotency_key,
-                    request_hash=role.name,
-                    status_code=201,
-                    response_body=response.model_dump(),
-                )
+            await store_idempotent_response(
+                db,
+                idempotency_key,
+                request_hash=body_hash,
+                status_code=201,
+                response_body=response_payload,
             )
-            await db.commit()
+
         return response
 
 

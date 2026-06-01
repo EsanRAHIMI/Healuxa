@@ -8,6 +8,7 @@ from healuxa_py_common.errors import ApiError
 from healuxa_py_common.middleware.auth import Principal
 from identity_service.api.deps import get_current_principal, get_db
 from identity_service.config import settings
+from identity_service.domain.idempotency import validate_idempotency_key
 from identity_service.domain.iam_service import iam_service
 from identity_service.domain.schemas import RoleRequest, RoleResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,6 +37,7 @@ async def create_role(
     principal: Principal = Depends(get_current_principal),
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> RoleResponse:
+    validate_idempotency_key(idempotency_key)
     _require_permission(principal, "iam:write")
     if body.tenant_id is None:
         body.tenant_id = principal.tenant_id

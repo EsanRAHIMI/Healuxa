@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.events.envelope import EventActor
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from identity_service.config import settings
+from identity_service.domain.pagination import decode_cursor, encode_cursor
 from identity_service.domain.schemas import SessionResponse
 from identity_service.domain.security import utcnow
 from identity_service.events.publisher import event_publisher
@@ -20,16 +21,26 @@ class SessionService:
         *,
         user_id: str,
         limit: int = 20,
-    ) -> tuple[list[SessionResponse], bool]:
-        result = await db.execute(
-            select(Session)
-            .where(Session.user_id == user_id, Session.revoked_at.is_(None))
-            .order_by(Session.created_at.desc())
-            .limit(limit + 1)
-        )
+        cursor: str | None = None,
+    ) -> tuple[list[SessionResponse], int, str | None, bool]:
+        query = select(Session).where(Session.user_id == user_id, Session.revoked_at.is_(None))
+
+        if cursor:
+            cursor_created_at, cursor_id = decode_cursor(cursor)
+            query = query.where(
+                or_(
+                    Session.created_at < cursor_created_at,
+                    and_(Session.created_at == cursor_created_at, Session.id < cursor_id),
+                )
+            )
+
+        query = query.order_by(Session.created_at.desc(), Session.id.desc()).limit(limit + 1)
+        result = await db.execute(query)
         rows = list(result.scalars())
+
         has_more = len(rows) > limit
         rows = rows[:limit]
+
         data = [
             SessionResponse(
                 id=row.id,
@@ -40,7 +51,13 @@ class SessionService:
             )
             for row in rows
         ]
-        return data, has_more
+
+        next_cursor = None
+        if has_more and rows:
+            last = rows[-1]
+            next_cursor = encode_cursor(created_at=last.created_at, resource_id=last.id)
+
+        return data, limit, next_cursor, has_more
 
     async def revoke_session(
         self,

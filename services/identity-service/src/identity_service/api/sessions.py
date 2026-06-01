@@ -23,13 +23,17 @@ async def list_sessions(
     db: AsyncSession = Depends(get_db),
     principal: Principal = Depends(get_current_principal),
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> dict:
-    if limit < 1 or limit > 100:
-        limit = 20
-    data, has_more = await session_service.list_sessions(db, user_id=principal.user_id, limit=limit)
+    data, page_limit, next_cursor, has_more = await session_service.list_sessions(
+        db,
+        user_id=principal.user_id,
+        limit=limit,
+        cursor=cursor,
+    )
     return {
         "data": [item.model_dump() for item in data],
-        "page": {"next_cursor": None, "limit": limit, "has_more": has_more},
+        "page": {"next_cursor": next_cursor, "limit": page_limit, "has_more": has_more},
     }
 
 

@@ -26,10 +26,14 @@ from identity_service.domain.security import (
     verify_client_secret,
     verify_password,
 )
+from identity_service.domain.idempotency import (
+    hash_request_body,
+    read_idempotent_response,
+    store_idempotent_response,
+)
 from identity_service.events.publisher import event_publisher
 from identity_service.infra.models import (
     Credential,
-    IdempotencyRecord,
     JwksKey,
     LoginHistory,
     Role,
@@ -106,19 +110,36 @@ class AuthService:
         ip: str | None,
         idempotency_key: str | None,
     ) -> tuple[TokenResponse, str]:
+        body_hash = hash_request_body(body.model_dump())
         if idempotency_key:
-            cached = await self._read_idempotency(db, idempotency_key, body.model_dump())
+            cached = await read_idempotent_response(db, idempotency_key, request_hash=body_hash)
             if cached:
-                body_data = dict(cached["body"])
-                body_data.pop("_location", None)
-                return TokenResponse(**body_data), cached["location"]
+                body_data = dict(cached)
+                location = body_data.pop("_location", f"/v1/sessions/unknown")
+                return TokenResponse(**body_data), location
+
+        tenant_id = settings.tenant_default
+        identifier = body.identifier.strip().lower()
+        existing = await db.scalar(
+            select(User.id).where(User.tenant_id == tenant_id, User.identifier == identifier)
+        )
+        if existing:
+            raise ApiError(
+                status=409,
+                code="conflict",
+                title="Conflict",
+                detail="Identifier already registered",
+            )
+
+        default_role = await db.scalar(
+            select(Role).where(Role.tenant_id == tenant_id, Role.name == "user")
+        )
 
         user_id = str(ULID())
-        tenant_id = settings.tenant_default
         user = User(
             id=user_id,
             tenant_id=tenant_id,
-            identifier=body.identifier.strip().lower(),
+            identifier=identifier,
             locale=body.locale,
         )
         credential = Credential(
@@ -136,10 +157,6 @@ class AuthService:
         db.add(user)
         db.add(credential)
         db.add(session)
-
-        default_role = await db.scalar(
-            select(Role).where(Role.tenant_id == tenant_id, Role.name == "user")
-        )
         if default_role:
             db.add(UserRole(user_id=user_id, role_id=default_role.id))
 
@@ -166,15 +183,16 @@ class AuthService:
             actor=EventActor(type="user", id=user_id),
         )
 
-        location = f"/v1/users/{user_id}"
+        location = f"/v1/sessions/{session.id}"
         if idempotency_key:
-            await self._store_idempotency(
+            stored = dict(tokens.model_dump())
+            stored["_location"] = location
+            await store_idempotent_response(
                 db,
                 idempotency_key,
-                body.model_dump(),
-                201,
-                tokens.model_dump(),
-                location,
+                request_hash=body_hash,
+                status_code=201,
+                response_body=stored,
             )
         return tokens, location
 
@@ -186,6 +204,13 @@ class AuthService:
         *,
         ip: str | None,
     ) -> TokenResponse:
+        if body.mfa_code:
+            raise ApiError(
+                status=422,
+                code="unprocessable",
+                title="Unprocessable",
+                detail="MFA is not enabled on this deployment",
+            )
         identifier = body.identifier.strip().lower()
         if await is_locked_out(redis, identifier):
             raise ApiError(
@@ -368,49 +393,5 @@ class AuthService:
             },
         )
         await db.commit()
-
-    async def _read_idempotency(self, db: AsyncSession, key: str, body: dict) -> dict | None:
-        import hashlib
-        import json
-
-        record = await db.get(IdempotencyRecord, key)
-        if not record:
-            return None
-        body_hash = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
-        if record.request_hash != body_hash:
-            raise ApiError(
-                status=409,
-                code="idempotency_conflict",
-                title="Idempotency conflict",
-                detail="Idempotency-Key reused with different body",
-            )
-        return {"body": record.response_body, "location": record.response_body.get("_location", "")}
-
-    async def _store_idempotency(
-        self,
-        db: AsyncSession,
-        key: str,
-        body: dict,
-        status_code: int,
-        response_body: dict,
-        location: str | None = None,
-    ) -> None:
-        import hashlib
-        import json
-
-        body_hash = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
-        stored = dict(response_body)
-        if location:
-            stored["_location"] = location
-        db.add(
-            IdempotencyRecord(
-                key=key,
-                request_hash=body_hash,
-                status_code=status_code,
-                response_body=stored,
-            )
-        )
-        await db.commit()
-
 
 auth_service = AuthService()
