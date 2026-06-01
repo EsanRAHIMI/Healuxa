@@ -1,0 +1,12 @@
+# Dokploy Nixpacks alternative to Dockerfile (port 8003).
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = [
+  "pip install -e packages/py-common",
+  "pip install -e services/assessment-service",
+]
+
+[start]
+cmd = "cd services/assessment-service && uvicorn assessment_service.main:app --host 0.0.0.0 --port 8003"

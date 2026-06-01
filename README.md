@@ -278,6 +278,47 @@ Without `MONGODB_URI`, Mongo tests are **skipped** (exit 0). CI uses GitHub secr
 
 Identity must include `profiles:read` and `profiles:write` on the default `user` role (`alembic upgrade head` in identity-service, migration `0004_profile_permissions`).
 
+## 13. Run assessment-service locally (laptop)
+
+**MongoDB Atlas only** — do not add MongoDB to `docker-compose.dev.yml`. Set `MONGODB_URI` in `.env` from your Atlas dev cluster.
+
+```bash
+source .venv/bin/activate
+cd services/assessment-service
+cp .env.example .env   # edit MONGODB_URI and MONGODB_DATABASE
+uvicorn assessment_service.main:app --host 0.0.0.0 --port 8003 --reload
+```
+
+Verify:
+
+```bash
+curl -s http://localhost:8003/health
+curl -s http://localhost:8003/ready
+```
+
+API: `POST` / `GET` / `POST .../submit` under `/v1/assessments`. Bearer token introspected via identity-service (or `X-Healuxa-*` headers in mesh).
+
+The scaffold stores submitted assessment responses only. It does not generate recommendations, scores, diagnosis, or roadmap inputs yet. After submit, `recommended_goals=[]` and `scores={}` until a later approved phase.
+
+`Idempotency-Key` is optional per `assessment.openapi.yaml` on `POST /v1/assessments` and `POST /v1/assessments/{id}/submit`; the service implements replay-safe idempotency for those endpoints.
+
+### assessment-service tests (Atlas test database)
+
+Tests require `MONGODB_URI` and **`MONGODB_DATABASE=healuxa_assessment_test`** (name must contain `test`). Destructive cleanup (`delete_many`) runs **only** when the database name contains `test`.
+
+```bash
+export MONGODB_URI='mongodb+srv://...'
+export MONGODB_DATABASE=healuxa_assessment_test
+cd services/assessment-service
+pip install -e ../../packages/py-common
+pip install -e ".[dev]"
+pytest -q
+```
+
+Without `MONGODB_URI`, Mongo tests are **skipped** (exit 0). CI uses GitHub secret `MONGODB_URI_TEST` when configured.
+
+Identity must include `assessments:create`, `assessments:read`, and `assessments:write` on the default `user` role (`alembic upgrade head`, migration `0005_assessment_permissions`).
+
 ## Repository layout (Phase 0–1)
 
 ```
@@ -290,7 +331,8 @@ apps/                          # this repo root
 ├── services/
 │   ├── identity-service/
 │   ├── transformation-engine/
-│   └── profile-service/
+│   ├── profile-service/
+│   └── assessment-service/
 ├── infrastructure/
 │   └── docker-compose.dev.yml
 └── .github/workflows/ci.yml

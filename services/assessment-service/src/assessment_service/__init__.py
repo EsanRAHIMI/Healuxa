@@ -1,0 +1,1 @@
+"""Healuxa Assessment Service."""
