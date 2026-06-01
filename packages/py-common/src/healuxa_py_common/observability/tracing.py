@@ -17,6 +17,21 @@ def get_trace_id() -> str:
     return str(uuid.uuid4())
 
 
+class TraceIdFilter(logging.Filter):
+    """Ensure format strings using %(trace_id)s never fail for third-party loggers."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "trace_id"):
+            current = _trace_id.get()
+            record.trace_id = current if current else "-"
+        return True
+
+
+def _attach_trace_id_filter(handler: logging.Handler) -> None:
+    if not any(isinstance(item, TraceIdFilter) for item in handler.filters):
+        handler.addFilter(TraceIdFilter())
+
+
 class TraceMiddleware(BaseHTTPMiddleware):
     """Attach trace_id to every request/response per shared X-Trace-Id header."""
 
@@ -39,3 +54,6 @@ def configure_logging(service_name: str, level: str = "INFO") -> None:
         level=getattr(logging, level.upper(), logging.INFO),
         format=f"%(asctime)s [{service_name}] %(levelname)s trace_id=%(trace_id)s %(message)s",
     )
+    root = logging.getLogger()
+    for handler in root.handlers:
+        _attach_trace_id_filter(handler)

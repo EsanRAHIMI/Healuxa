@@ -189,6 +189,43 @@ pytest -q
 5. **Pre-deploy:** `alembic upgrade head` on production `transformation` DSN.
 6. Health: `/health`, readiness: `/ready`.
 
+## 10. E2E smoke (Identity → Transformation)
+
+Standalone script that exercises **real HTTP** between running services (no mocks, no DB access from the script).
+
+**Prerequisites**
+
+1. Infrastructure: `docker compose -f infrastructure/docker-compose.dev.yml up -d` (Postgres + Redis).
+2. Migrations on **dev** databases (not `_test`):
+   - `services/identity-service` → `identity` (must include `0003_user_journey_permissions`)
+   - `services/transformation-engine` → `transformation`
+3. Both apps running on the laptop:
+   - identity-service on **8001**
+   - transformation-engine on **8000**
+4. Matching service credentials on transformation (`SERVICE_AUTH_CLIENT_*` same as identity seed).
+5. Tools: `curl`, `jq`.
+
+**Run from repo root**
+
+```bash
+chmod +x scripts/smoke/identity_to_transformation.sh
+./scripts/smoke/identity_to_transformation.sh
+```
+
+Optional overrides:
+
+```bash
+export IDENTITY_URL=http://localhost:8001
+export TRANSFORMATION_URL=http://localhost:8000
+export SERVICE_AUTH_CLIENT_ID=healuxa-internal
+export SERVICE_AUTH_CLIENT_SECRET=dev-service-secret-change-me
+./scripts/smoke/identity_to_transformation.sh
+```
+
+**Flow:** `POST /v1/auth/register` → `POST /v1/auth/introspect` (assert `journeys:*`) → `POST /v1/journeys` with `Authorization: Bearer` → `GET /v1/journeys/{userId}`.
+
+Exit code `0` on success; non-zero with a clear error on failure. Each run uses a unique email (no truncation).
+
 ## Repository layout (Phase 0–1)
 
 ```
