@@ -41,9 +41,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install and test ts-common
+      - name: Install, build, and test ts-common
         run: |
           npm install
+          npm run build -w @healuxa/ts-common
           npm test -w @healuxa/ts-common
 
   identity-service:
