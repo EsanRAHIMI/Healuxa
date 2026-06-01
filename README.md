@@ -319,6 +319,26 @@ Without `MONGODB_URI`, Mongo tests are **skipped** (exit 0). CI uses GitHub secr
 
 Identity must include `assessments:create`, `assessments:read`, and `assessments:write` on the default `user` role (`alembic upgrade head`, migration `0005_assessment_permissions`).
 
+## 14. E2E smoke (Identity → Assessment)
+
+Exercises **real HTTP** with a Bearer token only on assessment-service (no `X-Healuxa-*`, no Mongo access from the script).
+
+**Prerequisites:**
+
+- **identity-service** on **8001** — Postgres + Redis (compose), `alembic upgrade head` (including `0005_assessment_permissions`)
+- **assessment-service** on **8003** — MongoDB Atlas configured in `services/assessment-service/.env` (`MONGODB_URI`, `MONGODB_DATABASE`)
+- `curl`, `jq`
+
+The script does **not** clean MongoDB or Postgres; each run leaves smoke data in your dev/test databases.
+
+```bash
+bash scripts/smoke/identity_to_assessment.sh
+```
+
+Optional overrides: `IDENTITY_URL`, `ASSESSMENT_URL`, `SERVICE_AUTH_CLIENT_ID`, `SERVICE_AUTH_CLIENT_SECRET`.
+
+**Flow:** register → introspect (`assessments:create`, `assessments:read`, `assessments:write`) → `POST` create → `GET` → `POST` submit (assert `recommended_goals=[]`, `scores={}`). No `Idempotency-Key` in v1 of this script.
+
 ## Repository layout (Phase 0–1)
 
 ```
