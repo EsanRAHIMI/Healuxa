@@ -1,0 +1,17 @@
+{
+  "event_id": "01JAAAAAAAAAAAAAAAAAAAAAAA01",
+  "type": "assessment.completed",
+  "version": 1,
+  "schema_ref": "https://contracts.healuxa.com/events/assessment.schema.json#/$defs/AssessmentCompleted",
+  "occurred_at": "2026-06-01T12:00:00+00:00",
+  "tenant_id": "healuxa-dubai",
+  "producer": "assessment-service",
+  "payload": {
+    "assessment_id": "01JBBBBBBBBBBBBBBBBBBBBBB01",
+    "user_id": "01JCCCCCCCCCCCCCCCCCCCCCC01",
+    "kind": "beauty",
+    "recommended_goals": [],
+    "scores": {},
+    "completed_at": "2026-06-01T12:00:01+00:00"
+  }
+}

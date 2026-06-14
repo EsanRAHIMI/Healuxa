@@ -339,6 +339,10 @@ Optional overrides: `IDENTITY_URL`, `ASSESSMENT_URL`, `SERVICE_AUTH_CLIENT_ID`, 
 
 **Flow:** register → introspect (`assessments:create`, `assessments:read`, `assessments:write`) → `POST` create → `GET` → `POST` submit (assert `recommended_goals=[]`, `scores={}`). No `Idempotency-Key` in v1 of this script.
 
+### Assessment → Transformation (events, Phase 1)
+
+`transformation-engine` includes an internal handler for `assessment.completed` (Postgres tables `processed_events`, `journey_assessment_links`). It links a completed assessment to an **existing** active journey when `recommended_goals=[]` and `scores={}`; it does **not** auto-create journeys, update roadmaps, or emit `journey.roadmap_updated`. NATS subscription is **PR-2** (`NATS_ENABLED` wiring later).
+
 ## Repository layout (Phase 0–1)
 
 ```
