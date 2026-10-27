@@ -10,8 +10,8 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
       - name: Install workspace dependencies
@@ -25,8 +25,8 @@ jobs:
   py-common:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install and test py-common
@@ -37,8 +37,8 @@ jobs:
   ts-common:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
       - name: Install, build, and test ts-common
@@ -68,8 +68,8 @@ jobs:
         ports:
           - 6379:6379
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Create identity_test database
@@ -114,8 +114,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Create transformation_test database
@@ -143,51 +143,61 @@ jobs:
   profile-service:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Install MongoDB (native, single-node replica set)
+        run: |
+          scripts/ci/install-mongodb.sh
+          pip install -q "pymongo>=4.13"
+          scripts/dev/start-mongodb.sh | tee -a "$GITHUB_ENV"
+        env:
+          MONGO_DATA_DIR: ${{ runner.temp }}/mongodb
       - name: Install packages and profile-service
         run: |
           pip install -e packages/py-common
           pip install -e "services/profile-service[dev]"
-      - name: Test profile-service (Mongo tests skip without Atlas secret)
+      - name: Test profile-service
         env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI_TEST }}
           MONGODB_DATABASE: healuxa_profile_test
+          MONGODB_SERVER_SELECTION_TIMEOUT_MS: "5000"
           TENANT_DEFAULT: healuxa-dubai
           SERVICE_AUTH_CLIENT_ID: healuxa-internal
           SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
         working-directory: services/profile-service
         run: |
-          if [ -z "${MONGODB_URI:-}" ]; then
-            echo "MONGODB_URI_TEST secret not set — skipping profile-service Mongo tests"
-          fi
+          test -n "${MONGODB_URI:-}" || { echo "MONGODB_URI missing"; exit 1; }
           pytest -q -rs
           python -c "from profile_service.main import app; print('app ok', app.title)"
 
   assessment-service:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Install MongoDB (native, single-node replica set)
+        run: |
+          scripts/ci/install-mongodb.sh
+          pip install -q "pymongo>=4.13"
+          scripts/dev/start-mongodb.sh | tee -a "$GITHUB_ENV"
+        env:
+          MONGO_DATA_DIR: ${{ runner.temp }}/mongodb
       - name: Install packages and assessment-service
         run: |
           pip install -e packages/py-common
           pip install -e "services/assessment-service[dev]"
-      - name: Test assessment-service (Mongo tests skip without Atlas secret)
+      - name: Test assessment-service
         env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI_TEST }}
           MONGODB_DATABASE: healuxa_assessment_test
+          MONGODB_SERVER_SELECTION_TIMEOUT_MS: "5000"
           TENANT_DEFAULT: healuxa-dubai
           SERVICE_AUTH_CLIENT_ID: healuxa-internal
           SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
         working-directory: services/assessment-service
         run: |
-          if [ -z "${MONGODB_URI:-}" ]; then
-            echo "MONGODB_URI_TEST secret not set — skipping assessment-service Mongo tests"
-          fi
+          test -n "${MONGODB_URI:-}" || { echo "MONGODB_URI missing"; exit 1; }
           pytest -q -rs
           python -c "from assessment_service.main import app; print('app ok', app.title)"

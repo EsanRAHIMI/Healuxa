@@ -37,10 +37,15 @@ def mongo_tests_gate() -> None:
 
 
 @pytest.fixture(autouse=True)
-async def _reset_customer_profiles() -> None:
+async def _reset_customer_profiles():
     _assert_safe_test_database()
-    await ensure_indexes()
-    await get_database()[COLLECTION_NAME].delete_many({})
+    try:
+        await ensure_indexes()
+        await get_database()[COLLECTION_NAME].delete_many({})
+        yield
+    finally:
+        # Each test runs on its own event loop; never leak a loop-bound client.
+        await close_client()
 
 
 @pytest.fixture

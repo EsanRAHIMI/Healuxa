@@ -5,7 +5,7 @@ from typing import Any
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.events.envelope import EventActor
 from healuxa_py_common.middleware.auth import Principal
-from motor.motor_asyncio import AsyncIOMotorCollection
+from pymongo.asynchronous.collection import AsyncCollection
 from ulid import ULID
 
 from assessment_service.config import settings
@@ -22,7 +22,7 @@ from assessment_service.infra.mongo import get_database
 COLLECTION_NAME = "assessments"
 
 
-def _collection() -> AsyncIOMotorCollection:
+def _collection() -> AsyncCollection:
     return get_database()[COLLECTION_NAME]
 
 

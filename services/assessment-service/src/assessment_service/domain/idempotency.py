@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from healuxa_py_common.errors import ApiError
-from motor.motor_asyncio import AsyncIOMotorCollection
+from pymongo.asynchronous.collection import AsyncCollection
 
 from assessment_service.infra.mongo import get_database
 
@@ -14,7 +14,7 @@ IDEMPOTENCY_KEY_MAX_LEN = 128
 COLLECTION_NAME = "idempotency_records"
 
 
-def _collection() -> AsyncIOMotorCollection:
+def _collection() -> AsyncCollection:
     return get_database()[COLLECTION_NAME]
 
 
