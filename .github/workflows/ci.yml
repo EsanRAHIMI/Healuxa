@@ -141,7 +141,8 @@ jobs:
           python -c "from transformation_engine.main import app; print('app ok', app.title)"
 
   profile-service:
-    runs-on: ubuntu-latest
+    # Pinned: MongoDB's apt repo must publish packages for the runner's Ubuntu release.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -172,7 +173,8 @@ jobs:
           python -c "from profile_service.main import app; print('app ok', app.title)"
 
   assessment-service:
-    runs-on: ubuntu-latest
+    # Pinned: MongoDB's apt repo must publish packages for the runner's Ubuntu release.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

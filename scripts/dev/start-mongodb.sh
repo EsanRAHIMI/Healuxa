@@ -2,6 +2,8 @@
 # Start a disposable single-node MongoDB replica set without Docker.
 # Atlas is a replica set, so tests exercise the same topology discovery path.
 #   MONGO_PORT (default 27020)  MONGO_DATA_DIR (default ./.local/mongodb)
+# Only the final MONGODB_URI=... line goes to stdout (CI appends it to $GITHUB_ENV);
+# all progress output goes to stderr.
 set -euo pipefail
 
 port="${MONGO_PORT:-27020}"
@@ -9,7 +11,7 @@ data_dir="${MONGO_DATA_DIR:-$(pwd)/.local/mongodb}"
 mkdir -p "$data_dir"
 
 mongod --dbpath "$data_dir" --port "$port" --bind_ip 127.0.0.1 --replSet rs0 \
-  --fork --logpath "$data_dir/mongod.log"
+  --fork --logpath "$data_dir/mongod.log" >&2
 
 python3 - "$port" <<'PY'
 import socket, sys, time
