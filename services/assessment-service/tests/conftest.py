@@ -27,8 +27,9 @@ def _assert_safe_test_database() -> None:
 
 
 @pytest.fixture(autouse=True)
-async def _mongo_test_setup(request: pytest.FixtureRequest) -> None:
+async def _mongo_test_setup(request: pytest.FixtureRequest):
     if request.node.get_closest_marker("mongo") is None:
+        yield
         return
     if not os.environ.get("MONGODB_URI"):
         pytest.skip(
@@ -36,10 +37,15 @@ async def _mongo_test_setup(request: pytest.FixtureRequest) -> None:
             "(configure Atlas test URI locally or MONGODB_URI_TEST in CI)."
         )
     _assert_safe_test_database()
-    await ensure_indexes()
-    db = get_database()
-    await db[ASSESSMENTS_COLLECTION].delete_many({})
-    await db[IDEMPOTENCY_COLLECTION].delete_many({})
+    try:
+        await ensure_indexes()
+        db = get_database()
+        await db[ASSESSMENTS_COLLECTION].delete_many({})
+        await db[IDEMPOTENCY_COLLECTION].delete_many({})
+        yield
+    finally:
+        # Each test runs on its own event loop; never leak a loop-bound client.
+        await close_client()
 
 
 @pytest.fixture

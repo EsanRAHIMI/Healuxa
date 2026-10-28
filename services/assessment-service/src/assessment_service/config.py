@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     mongodb_uri: str = ""
     mongodb_database: str = "healuxa_assessment_dev"
+    mongodb_server_selection_timeout_ms: int = 10_000
 
     identity_introspect_url: str = "http://localhost:8001/v1/auth/introspect"
     service_auth_client_id: str = "healuxa-internal"

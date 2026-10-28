@@ -1,30 +1,36 @@
 from __future__ import annotations
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from pymongo import AsyncMongoClient
+from pymongo.asynchronous.database import AsyncDatabase
 
 from assessment_service.config import settings
 
-_client: AsyncIOMotorClient | None = None
+_client: AsyncMongoClient | None = None
 
 
-def get_client() -> AsyncIOMotorClient:
+def get_client() -> AsyncMongoClient:
     global _client
     if _client is None:
         if not settings.mongodb_uri:
             raise RuntimeError("MONGODB_URI is not configured")
-        _client = AsyncIOMotorClient(settings.mongodb_uri)
+        _client = AsyncMongoClient(
+            settings.mongodb_uri,
+            serverSelectionTimeoutMS=settings.mongodb_server_selection_timeout_ms,
+        )
     return _client
 
 
-def get_database() -> AsyncIOMotorDatabase:
+def get_database() -> AsyncDatabase:
     return get_client()[settings.mongodb_database]
 
 
 async def close_client() -> None:
     global _client
-    if _client is not None:
-        _client.close()
-        _client = None
+    # The client is bound to the event loop that created it; always release it
+    # so a later loop (new test, app restart) never reuses a stale instance.
+    client, _client = _client, None
+    if client is not None:
+        await client.close()
 
 
 async def ensure_indexes() -> None:
