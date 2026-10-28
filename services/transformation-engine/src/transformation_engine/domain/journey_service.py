@@ -145,6 +145,8 @@ class JourneyService:
             ) from exc
 
         await event_publisher.publish(
+
+            db=db,
             event_type="journey.created",
             tenant_id=tenant_id,
             payload={
@@ -312,6 +314,8 @@ class JourneyService:
         milestone.completed_at = now
 
         await event_publisher.publish(
+
+            db=db,
             event_type="journey.milestone_completed",
             tenant_id=journey.tenant_id,
             payload={
@@ -390,6 +394,8 @@ class JourneyService:
         db.add(trigger)
 
         await event_publisher.publish(
+
+            db=db,
             event_type="journey.reassessment_due",
             tenant_id=journey.tenant_id,
             payload={

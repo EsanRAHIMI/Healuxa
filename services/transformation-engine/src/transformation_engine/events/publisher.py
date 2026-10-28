@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
-import logging
 from typing import Any
 
 from healuxa_py_common.events.envelope import EventActor, build_envelope
+from healuxa_py_common.events.outbox_sql import enqueue
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from transformation_engine.config import settings
-
-logger = logging.getLogger(__name__)
+from transformation_engine.infra.models import OUTBOX
 
 TRANSFORMATION_EVENTS = {
     "journey.created",
@@ -24,9 +23,12 @@ SCHEMA_REFS = {
 
 
 class EventPublisher:
+    """Stages events in the caller's transaction (outbox); the relay publishes them to JetStream."""
+
     async def publish(
         self,
         *,
+        db: AsyncSession,
         event_type: str,
         payload: dict[str, Any],
         tenant_id: str | None = None,
@@ -47,18 +49,6 @@ class EventPublisher:
             correlation_id=correlation_id,
             actor=actor,
         )
-        if not settings.nats_enabled:
-            logger.info("event published (log-only): %s", envelope.type)
-            return
-        try:
-            import nats
-
-            nc = await nats.connect(settings.nats_url, connect_timeout=1)
-            subject = f"healuxa.{event_type}.v1"
-            await nc.publish(subject, json.dumps(envelope.model_dump(mode="json")).encode())
-            await nc.drain()
-        except Exception:
-            logger.info("event published (log-only fallback): %s", envelope.type)
-
+        await enqueue(db, OUTBOX, envelope)
 
 event_publisher = EventPublisher()

@@ -75,6 +75,7 @@ class SessionService:
         session.revoked_at = utcnow()
         await deny_session(redis, session_id, settings.jwt_refresh_ttl)
         await event_publisher.publish(
+            db=db,
             event_type="auth.session_revoked",
             tenant_id=settings.tenant_default,
             payload={

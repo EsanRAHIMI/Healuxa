@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 from fastapi import Request, Response
@@ -15,6 +17,22 @@ def get_trace_id() -> str:
     if trace_id:
         return trace_id
     return str(uuid.uuid4())
+
+
+def current_trace_id() -> str | None:
+    """Trace id bound to the current request or event, without generating a new one."""
+    return _trace_id.get() or None
+
+
+@contextmanager
+def bind_trace_id(trace_id: str | None) -> Iterator[str]:
+    """Bind a trace id (e.g. from an inbound event) for logs and events emitted inside the block."""
+    value = trace_id or str(uuid.uuid4())
+    token = _trace_id.set(value)
+    try:
+        yield value
+    finally:
+        _trace_id.reset(token)
 
 
 class TraceIdFilter(logging.Filter):

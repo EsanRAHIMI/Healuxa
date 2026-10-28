@@ -19,7 +19,8 @@ LINK_STATUS_PENDING_ROADMAP_SEED = "pending_roadmap_seed"
 class ProcessedEvent(Base):
     __tablename__ = "processed_events"
 
-    event_id: Mapped[str] = mapped_column(String(26), primary_key=True)
+    # Envelope contract: ULID or UUID (16-36 chars).
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     consumer: Mapped[str] = mapped_column(String(64), nullable=False)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -40,7 +41,7 @@ class JourneyAssessmentLink(Base):
         index=True,
     )
     assessment_id: Mapped[str] = mapped_column(String(26), nullable=False)
-    event_id: Mapped[str] = mapped_column(String(26), nullable=False, unique=True)
+    event_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
     assessment_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     link_status: Mapped[str] = mapped_column(String(32), nullable=False)

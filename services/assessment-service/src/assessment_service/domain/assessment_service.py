@@ -5,6 +5,7 @@ from typing import Any
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.events.envelope import EventActor
 from healuxa_py_common.middleware.auth import Principal
+from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.collection import AsyncCollection
 from ulid import ULID
 
@@ -17,7 +18,7 @@ from assessment_service.domain.idempotency import (
 from assessment_service.domain.schemas import Assessment, StartAssessmentRequest, SubmitAssessmentRequest
 from assessment_service.domain.security import utcnow
 from assessment_service.events.publisher import event_publisher
-from assessment_service.infra.mongo import get_database
+from assessment_service.infra.mongo import get_client, get_database
 
 COLLECTION_NAME = "assessments"
 
@@ -149,33 +150,47 @@ class AssessmentService:
         recommended_goals: list[str] = []
         scores: dict[str, float] = {}
 
-        await _collection().update_one(
-            {"_id": assessment_id, "tenant_id": settings.tenant_default},
-            {
-                "$set": {
-                    "responses": body.responses,
-                    "status": "completed",
-                    "completed_at": now,
+        async def complete(session: AsyncClientSession) -> None:
+            # The status guard makes completion single-winner: a concurrent submit matches nothing,
+            # so assessment.completed is staged exactly once and only if this write commits.
+            result = await _collection().update_one(
+                {"_id": assessment_id, "tenant_id": settings.tenant_default, "status": {"$ne": "completed"}},
+                {
+                    "$set": {
+                        "responses": body.responses,
+                        "status": "completed",
+                        "completed_at": now,
+                        "recommended_goals": recommended_goals,
+                        "scores": scores,
+                        "updated_at": now,
+                    }
+                },
+                session=session,
+            )
+            if result.matched_count == 0:
+                raise ApiError(
+                    status=409,
+                    code="conflict",
+                    title="Conflict",
+                    detail="Assessment already completed",
+                )
+            await event_publisher.publish(
+                event_type="assessment.completed",
+                tenant_id=settings.tenant_default,
+                payload={
+                    "assessment_id": assessment_id,
+                    "user_id": doc["user_id"],
+                    "kind": doc["kind"],
                     "recommended_goals": recommended_goals,
                     "scores": scores,
-                    "updated_at": now,
-                }
-            },
-        )
+                    "completed_at": now.isoformat(),
+                },
+                actor=EventActor(type="user", id=principal.user_id),
+                session=session,
+            )
 
-        await event_publisher.publish(
-            event_type="assessment.completed",
-            tenant_id=settings.tenant_default,
-            payload={
-                "assessment_id": assessment_id,
-                "user_id": doc["user_id"],
-                "kind": doc["kind"],
-                "recommended_goals": recommended_goals,
-                "scores": scores,
-                "completed_at": now.isoformat(),
-            },
-            actor=EventActor(type="user", id=principal.user_id),
-        )
+        async with get_client().start_session() as session:
+            await session.with_transaction(complete)
 
         updated = await _collection().find_one(
             {"_id": assessment_id, "tenant_id": settings.tenant_default},

@@ -19,6 +19,7 @@ from transformation_engine.main import app, lifespan
 _TRUNCATE_SQL = text(
     """
     TRUNCATE TABLE
+        outbox_events,
         journey_assessment_links,
         processed_events,
         idempotency_records,

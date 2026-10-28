@@ -42,6 +42,7 @@ async def _reset_customer_profiles():
     try:
         await ensure_indexes()
         await get_database()[COLLECTION_NAME].delete_many({})
+        await get_database()["outbox_events"].delete_many({})
         yield
     finally:
         # Each test runs on its own event loop; never leak a loop-bound client.

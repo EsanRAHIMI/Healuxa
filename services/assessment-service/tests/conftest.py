@@ -15,6 +15,7 @@ from assessment_service.main import app, lifespan
 
 ASSESSMENTS_COLLECTION = "assessments"
 IDEMPOTENCY_COLLECTION = "idempotency_records"
+OUTBOX_COLLECTION = "outbox_events"
 
 
 def _assert_safe_test_database() -> None:
@@ -42,6 +43,7 @@ async def _mongo_test_setup(request: pytest.FixtureRequest):
         db = get_database()
         await db[ASSESSMENTS_COLLECTION].delete_many({})
         await db[IDEMPOTENCY_COLLECTION].delete_many({})
+        await db[OUTBOX_COLLECTION].delete_many({})
         yield
     finally:
         # Each test runs on its own event loop; never leak a loop-bound client.

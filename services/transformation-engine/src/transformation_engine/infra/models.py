@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from healuxa_py_common.events.outbox_sql import outbox_table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -112,3 +113,7 @@ class IdempotencyRecord(Base):
     status_code: Mapped[int] = mapped_column(Integer, nullable=False)
     response_body: Mapped[dict] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# Domain events staged in the business transaction; relayed by the outbox relay (py-common).
+OUTBOX = outbox_table(Base.metadata)

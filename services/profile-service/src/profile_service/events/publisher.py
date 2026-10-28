@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
-import logging
 from typing import Any
 
 from healuxa_py_common.events.envelope import EventActor, build_envelope
+from healuxa_py_common.events.outbox_mongo import OUTBOX_COLLECTION, enqueue
+from pymongo.asynchronous.client_session import AsyncClientSession
 
 from profile_service.config import settings
-
-logger = logging.getLogger(__name__)
+from profile_service.infra.mongo import get_database
 
 PROFILE_EVENTS = {"profile.updated"}
 
@@ -18,11 +17,14 @@ SCHEMA_REFS = {
 
 
 class EventPublisher:
+    """Stages events in the transactional outbox; the relay publishes them to JetStream."""
+
     async def publish(
         self,
         *,
         event_type: str,
         payload: dict[str, Any],
+        session: AsyncClientSession | None,
         tenant_id: str | None = None,
         actor: EventActor | None = None,
     ) -> None:
@@ -39,18 +41,7 @@ class EventPublisher:
             allowed_producers={settings.service_name},
             actor=actor,
         )
-        if not settings.nats_enabled:
-            logger.info("event published (log-only): %s", envelope.type)
-            return
-        try:
-            import nats
-
-            nc = await nats.connect(settings.nats_url, connect_timeout=1)
-            subject = f"healuxa.{event_type}.v1"
-            await nc.publish(subject, json.dumps(envelope.model_dump(mode="json")).encode())
-            await nc.drain()
-        except Exception:
-            logger.info("event published (log-only fallback): %s", envelope.type)
+        await enqueue(get_database()[OUTBOX_COLLECTION], envelope, session=session)
 
 
 event_publisher = EventPublisher()

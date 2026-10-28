@@ -4,6 +4,60 @@ Persistent progress record for the Master Production Implementation Directive (v
 Status words are used strictly: **Implemented** (code exists), **Tested** (automated tests pass, evidence cited),
 **Deployed**, **Externally approved**, **Published**. Nothing below is deployed, approved, or published.
 
+## Status board
+
+| Stage | Item | Status | Evidence |
+|---|---|---|---|
+| A | PR #1 stabilization merged | Tested | `b1d592f`, CI run 40564345781 (7/7) |
+| A | Native local stack (no Docker) | Tested | `scripts/dev/start-infra.sh` |
+| A | Transactional outbox (Postgres + Mongo) | Tested | py-common + service tests; branch `feat/reliable-events` |
+| A | Durable JetStream consumers, retry, DLQ | Tested | `test_events_integration.py` |
+| A | Idempotent consumer (transformation) | Tested | redelivery test, live smoke |
+| A | Correlation/trace propagation through events | Tested | envelope + outbox tests |
+| A | Consistent service configuration | In Progress | `NATS_ENABLED`/`NATS_URL` shared; per-service settings not yet unified |
+| B | Provider & facility management | Not Started | — |
+| C | Booking engine | Not Started | — |
+| D | Payments | Not Started | — |
+| E | Concierge operations | Not Started | — |
+| F | Web applications | Not Started | — |
+| G | Mobile applications | Not Started | — |
+| — | Deployed / Externally Approved / Published | none | — |
+
+## Session 2026-10-28 — Stage A: reliable events
+
+Work on branch `feat/reliable-events` (not yet merged).
+
+- **Before:** every service did fire-and-forget core-NATS publishes on a fresh connection, swallowed all
+  errors and logged "published" — a broker hiccup silently lost the event. Nothing subscribed to
+  `assessment.completed`; the consumer existed only as a function called by tests.
+- **Now:** events are staged in an `outbox_events` table/collection inside the business transaction and
+  relayed to JetStream (`HEALUXA_EVENTS`, `Nats-Msg-Id` dedup). transformation-engine runs a durable pull
+  consumer with explicit acks, backoff, `max_deliver=5`, and a dead-letter stream (`HEALUXA_DLQ`).
+- Defects found and fixed along the way:
+  - **Cross-service contract bug:** envelopes used UUIDv4 event ids (36 chars) but transformation stored
+    `event_id` as `VARCHAR(26)` — every real `assessment.completed` would have failed. Envelopes now emit
+    ULIDs and consumer columns accept the full contract range (migration `0005_event_id_length`).
+  - **Double completion race:** concurrent submits could both complete an assessment and both emit
+    `assessment.completed`; completion is now a guarded single-winner transactional update.
+  - **Post-commit publishes** in identity `register` and refresh-token-reuse moved inside the transaction.
+  - Concurrent first-time profile create now returns 409 instead of an unhandled duplicate-key error.
+  - Relay backoff overflowed after ~30 failed attempts; capped.
+- Evidence (local, native stack): py-common 16, identity 29, transformation 21, profile 8, assessment 12 —
+  all pass; contracts valid; migrations round-trip (downgrade base → upgrade head).
+- Live smoke (`scripts/smoke/assessment_to_transformation_events.sh`) with three running services: PASS.
+  Outage drill: NATS stopped mid-flow → event held in outbox (`outbox_pending: 1`) → NATS restarted →
+  delivered and consumed (`outbox_pending: 0`).
+- CI now provisions native NATS (checksum-verified v2.15.1) and MongoDB, plus a Postgres service container
+  for py-common; jobs fail if a backend is missing rather than skipping.
+
+### Next executable tasks
+
+1. Merge `feat/reliable-events` once CI is green.
+   - Follow-up: operator DLQ replay command (`healuxa-events replay`), currently manual.
+2. Stage B: provider & facility service (PostgreSQL) — verification workflow, affiliations, services,
+   pricing, operating hours, staff permissions; contracts in `provider.openapi.yaml` / `marketplace.openapi.yaml`.
+3. Stage C: availability + appointment service with exclusive-slot constraint and hold expiry.
+
 ## Session 2026-10-27 — Phase 1 (repository stabilization)
 
 ### Audit baseline
@@ -63,7 +117,7 @@ Evidence (local, Python 3.12.12, pymongo 4.19, pytest 9.1.1, pytest-asyncio 1.4.
 
 ### External blockers
 
-- GitHub CLI not authenticated on this machine (`gh auth login`) — needed to read CI logs and open PRs.
+- GitHub CLI not authenticated on this machine (`gh auth login`) — see `docs/EXTERNAL_BLOCKERS.md`.
 - Payment processor merchant account, DHA/legal role determination, Apple/Google developer accounts,
   UAE hosting decision — all owner actions, none started.
 

@@ -23,16 +23,43 @@ jobs:
         run: npm test
 
   py-common:
-    runs-on: ubuntu-latest
+    # Pinned: MongoDB's apt repo must publish packages for the runner's Ubuntu release.
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: outbox_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Install and test py-common
+      - name: Install MongoDB (native, single-node replica set)
+        run: |
+          scripts/ci/install-mongodb.sh
+          pip install -q "pymongo>=4.13"
+          scripts/dev/start-mongodb.sh | tee -a "$GITHUB_ENV"
+        env:
+          MONGO_DATA_DIR: ${{ runner.temp }}/mongodb
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
+      - name: Install and test py-common (unit + JetStream/Postgres/Mongo integration)
+        env:
+          OUTBOX_TEST_DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/outbox_test
         run: |
           pip install -e "packages/py-common[dev]"
-          pytest -q packages/py-common
+          test -n "${NATS_URL:-}" && test -n "${MONGODB_URI:-}"
+          pytest -q -rs packages/py-common
 
   ts-common:
     runs-on: ubuntu-latest
@@ -94,7 +121,10 @@ jobs:
         working-directory: services/identity-service
         run: |
           alembic upgrade head
-          pytest -q
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          pytest -q -rs
           python -c "from identity_service.main import app; print('app ok', app.title)"
 
   transformation-engine:
@@ -124,6 +154,8 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
           psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE transformation_test;"
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
       - name: Install packages and transformation-engine
         run: |
           pip install -e packages/py-common
@@ -137,7 +169,11 @@ jobs:
         working-directory: services/transformation-engine
         run: |
           alembic upgrade head
-          pytest -q
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
+          pytest -q -rs
           python -c "from transformation_engine.main import app; print('app ok', app.title)"
 
   profile-service:
@@ -155,6 +191,8 @@ jobs:
           scripts/dev/start-mongodb.sh | tee -a "$GITHUB_ENV"
         env:
           MONGO_DATA_DIR: ${{ runner.temp }}/mongodb
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
       - name: Install packages and profile-service
         run: |
           pip install -e packages/py-common
@@ -169,6 +207,7 @@ jobs:
         working-directory: services/profile-service
         run: |
           test -n "${MONGODB_URI:-}" || { echo "MONGODB_URI missing"; exit 1; }
+          test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
           pytest -q -rs
           python -c "from profile_service.main import app; print('app ok', app.title)"
 
@@ -187,6 +226,8 @@ jobs:
           scripts/dev/start-mongodb.sh | tee -a "$GITHUB_ENV"
         env:
           MONGO_DATA_DIR: ${{ runner.temp }}/mongodb
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
       - name: Install packages and assessment-service
         run: |
           pip install -e packages/py-common
@@ -201,5 +242,6 @@ jobs:
         working-directory: services/assessment-service
         run: |
           test -n "${MONGODB_URI:-}" || { echo "MONGODB_URI missing"; exit 1; }
+          test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
           pytest -q -rs
           python -c "from assessment_service.main import app; print('app ok', app.title)"
