@@ -11,6 +11,14 @@ Authoritative design: `Healuxa_TechSpec.md`, `Healuxa_DDD_Boundaries.md`, `packa
 | profile-service | MongoDB | `profile.updated` | — |
 | assessment-service | MongoDB | `assessment.completed` | — |
 | transformation-engine | PostgreSQL | `journey.*` | `assessment.completed` |
+| provider-service | PostgreSQL | `catalog.*` (provider/facility status, affiliations, availability) | — |
+
+## Authentication at service boundaries
+
+Services accept the edge-injected `X-Healuxa-*` identity headers **only** when the request also carries
+`X-Healuxa-Edge-Secret` matching `HEALUXA_EDGE_SECRET`. Otherwise those headers are ignored and the bearer
+token is introspected against identity-service. The Traefik ForwardAuth integration that would set the
+secret is not built yet, so production must leave `HEALUXA_EDGE_SECRET` unset until it is.
 
 ## Event delivery
 

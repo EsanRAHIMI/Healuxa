@@ -4,3 +4,5 @@ CREATE DATABASE identity;
 CREATE DATABASE identity_test;
 CREATE DATABASE transformation;
 CREATE DATABASE transformation_test;
+CREATE DATABASE provider;
+CREATE DATABASE provider_test;
