@@ -39,12 +39,17 @@ export interface JourneyReassessmentDue { journey_id: Ulid; user_id: Ulid; due_a
 export interface JourneyCompleted { journey_id: Ulid; user_id: Ulid; completed_at: Timestamp; outcome_score: Score01; realized_ltv?: Money }
 
 // ── appointment (appointment-service) ─────────────────────────────────────────
-export interface AppointmentRequested { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; requested_at: Timestamp }
-export interface AppointmentCreated { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; channel?: Channel }
-export interface AppointmentAccepted { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; response_seconds?: number }
-export interface AppointmentDeclined { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; reason: "no_capacity" | "out_of_scope" | "schedule_conflict" | "other"; response_seconds?: number }
-export interface AppointmentCompleted { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; completed_at: Timestamp; duration_minutes?: number; amount?: Money }
-export interface AppointmentNoShow { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; scheduled_at: Timestamp; party: "customer" | "provider" }
+export type AppointmentParty = "customer" | "provider" | "facility" | "platform" | "system";
+export interface AppointmentRequested { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; requested_at: Timestamp }
+export interface AppointmentCreated { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; channel?: Channel }
+export interface AppointmentAccepted { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; response_seconds?: number }
+export interface AppointmentDeclined { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; reason: "no_capacity" | "out_of_scope" | "schedule_conflict" | "other"; response_seconds?: number }
+export interface AppointmentCompleted { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; completed_at: Timestamp; duration_minutes?: number; amount?: Money }
+export interface AppointmentNoShow { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; party: "customer" | "provider" }
+export interface AppointmentCancelled { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; cancelled_at: Timestamp; party: AppointmentParty; reason: "customer_request" | "provider_unavailable" | "facility_closed" | "other"; previous_status?: "requested" | "confirmed" | "checked_in" }
+export interface AppointmentRescheduled { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; previous_appointment_id: Ulid; previous_scheduled_at: Timestamp; party: AppointmentParty; status: "requested" | "confirmed" }
+export interface AppointmentExpired { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; expired_at: Timestamp }
+export interface AppointmentReminderDue { appointment_id: Ulid; user_id: Ulid; provider_id: Ulid; service_id: Ulid; milestone_id?: Ulid; facility_id?: Ulid; branch_id?: Ulid; scheduled_at: Timestamp; ends_at?: Timestamp; reminder_id: Ulid; offset_minutes: number; due_at: Timestamp; timezone: string }
 
 // ── payment (payment-service) ─────────────────────────────────────────────────
 export interface PaymentSucceeded { payment_id: Ulid; user_id: Ulid; subscription_id?: Ulid; invoice_id?: Ulid; amount: Money; gateway: "tap_payments" | "stripe"; purpose?: "subscription" | "marketplace_order" | "add_on" | "top_up"; captured_at: Timestamp }
@@ -107,6 +112,10 @@ export interface EventPayloadMap {
   "appointment.declined": AppointmentDeclined;
   "appointment.completed": AppointmentCompleted;
   "appointment.no_show": AppointmentNoShow;
+  "appointment.cancelled": AppointmentCancelled;
+  "appointment.rescheduled": AppointmentRescheduled;
+  "appointment.expired": AppointmentExpired;
+  "appointment.reminder_due": AppointmentReminderDue;
   "payment.succeeded": PaymentSucceeded;
   "payment.failed": PaymentFailed;
   "commission.computed": CommissionComputed;

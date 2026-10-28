@@ -63,7 +63,7 @@ export interface EventEnvelope {
 }
 
 /**
- * payload of appointment.requested (v1)
+ * payload of appointment.requested (v1) — a customer submitted a held slot as a booking request awaiting provider/facility confirmation.
  */
 
 export interface AppointmentRequested {
@@ -95,10 +95,22 @@ export interface AppointmentRequested {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   requested_at: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
 }
 
 /**
- * payload of appointment.created (v1)
+ * payload of appointment.created (v1) — a confirmed appointment now exists on the calendar (provider/facility acceptance of a request, or a provider/facility reschedule).
  */
 
 export interface AppointmentCreated {
@@ -127,10 +139,22 @@ export interface AppointmentCreated {
    */
   scheduled_at: string;
   channel?: "app" | "web" | "whatsapp" | "email" | "sms" | "push" | "in_app" | "system";
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
 }
 
 /**
- * payload of appointment.accepted (v1)
+ * payload of appointment.accepted (v1) — the provider or facility confirmed a booking request.
  */
 
 export interface AppointmentAccepted {
@@ -162,6 +186,18 @@ export interface AppointmentAccepted {
    * Provider response latency — consumed by Provider Success.
    */
   response_seconds?: number;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
 }
 
 /**
@@ -195,6 +231,18 @@ export interface AppointmentDeclined {
   scheduled_at: string;
   reason: "no_capacity" | "out_of_scope" | "schedule_conflict" | "other";
   response_seconds?: number;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
 }
 
 /**
@@ -232,6 +280,18 @@ export interface AppointmentCompleted {
   completed_at: string;
   duration_minutes?: number;
   amount?: Money;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -278,6 +338,224 @@ export interface AppointmentNoShow {
    */
   scheduled_at: string;
   party: "customer" | "provider";
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
+}
+
+/**
+ * payload of appointment.cancelled (v1) — a booking request or confirmed appointment was cancelled. Holds released before submission are not announced.
+ */
+
+export interface AppointmentCancelled {
+  /**
+   * ULID or UUID identifier.
+   */
+  appointment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  service_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  milestone_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  scheduled_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  cancelled_at: string;
+  party: "customer" | "provider" | "facility" | "platform" | "system";
+  reason: "customer_request" | "provider_unavailable" | "facility_closed" | "other";
+  previous_status?: "requested" | "confirmed" | "checked_in";
+}
+
+/**
+ * payload of appointment.rescheduled (v1) — previous_appointment_id was closed and appointment_id created at the new time.
+ */
+
+export interface AppointmentRescheduled {
+  /**
+   * ULID or UUID identifier.
+   */
+  appointment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  service_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  milestone_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  scheduled_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  previous_appointment_id: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  previous_scheduled_at: string;
+  party: "customer" | "provider" | "facility" | "platform" | "system";
+  status: "requested" | "confirmed";
+}
+
+/**
+ * payload of appointment.expired (v1) — a booking request was not answered before its start time.
+ */
+
+export interface AppointmentExpired {
+  /**
+   * ULID or UUID identifier.
+   */
+  appointment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  service_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  milestone_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  scheduled_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  expired_at: string;
+}
+
+/**
+ * payload of appointment.reminder_due (v1) — hand-off to notification-service, which owns delivery (channel, template, locale). Contains no health data.
+ */
+
+export interface AppointmentReminderDue {
+  /**
+   * ULID or UUID identifier.
+   */
+  appointment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  service_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  milestone_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  scheduled_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  ends_at?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  reminder_id: string;
+  offset_minutes: number;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  due_at: string;
+  /**
+   * Branch IANA time zone for rendering local time.
+   */
+  timezone: string;
 }
 
 /**
