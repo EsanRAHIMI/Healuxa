@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from healuxa_py_common.events.outbox_mongo import OUTBOX_COLLECTION, ensure_outbox_indexes
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
@@ -35,6 +36,7 @@ async def close_client() -> None:
 
 async def ensure_indexes() -> None:
     db = get_database()
+    await ensure_outbox_indexes(db[OUTBOX_COLLECTION])
     await db["assessments"].create_index(
         [("tenant_id", 1), ("_id", 1)],
         unique=True,

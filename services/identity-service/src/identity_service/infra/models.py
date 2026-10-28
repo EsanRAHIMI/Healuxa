@@ -15,6 +15,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from healuxa_py_common.events.outbox_sql import outbox_table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -141,3 +142,7 @@ class IdempotencyRecord(Base):
 
 
 AuditLog = LoginHistory  # audit_logs table reserved for later expansion
+
+
+# Domain events staged in the business transaction; relayed by the outbox relay (py-common).
+OUTBOX = outbox_table(Base.metadata)

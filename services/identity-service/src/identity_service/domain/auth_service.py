@@ -171,8 +171,9 @@ class AuthService:
                 detail="Identifier already registered",
             ) from exc
 
-        tokens = await _issue_tokens(db, user=user, session=session)
+        # Staged before _issue_tokens commits, so registration and its event are atomic.
         await event_publisher.publish(
+            db=db,
             event_type="auth.user_registered",
             tenant_id=tenant_id,
             payload={
@@ -182,6 +183,7 @@ class AuthService:
             },
             actor=EventActor(type="user", id=user_id),
         )
+        tokens = await _issue_tokens(db, user=user, session=session)
 
         location = f"/v1/sessions/{session.id}"
         if idempotency_key:
@@ -239,6 +241,7 @@ class AuthService:
                 user.locked_until = utcnow() + timedelta(seconds=settings.lockout_seconds)
                 await set_lockout(redis, identifier, settings.lockout_seconds)
                 await event_publisher.publish(
+                    db=db,
                     event_type="auth.security_event",
                     tenant_id=user.tenant_id,
                     payload={
@@ -282,8 +285,8 @@ class AuthService:
         if not session:
             previous = await db.scalar(select(Session).where(Session.previous_refresh_token_hash == token_hash))
             if previous:
-                await self._revoke_all_user_sessions(db, redis, previous.user_id, reason="token_reuse")
                 await event_publisher.publish(
+                    db=db,
                     event_type="auth.security_event",
                     tenant_id=settings.tenant_default,
                     payload={
@@ -293,6 +296,7 @@ class AuthService:
                         "detected_at": utcnow().isoformat(),
                     },
                 )
+                await self._revoke_all_user_sessions(db, redis, previous.user_id, reason="token_reuse")
             raise ApiError(status=401, code="unauthorized", title="Unauthorized", detail="Invalid refresh token")
 
         user = await db.get(User, session.user_id)
@@ -315,6 +319,7 @@ class AuthService:
             session.revoked_at = utcnow()
             await deny_session(redis, session_id, settings.jwt_refresh_ttl)
             await event_publisher.publish(
+                db=db,
                 event_type="auth.session_revoked",
                 tenant_id=claims.get("tenant", settings.tenant_default),
                 payload={
@@ -383,6 +388,7 @@ class AuthService:
             session.revoked_at = now
             await deny_session(redis, session.id, settings.jwt_refresh_ttl)
         await event_publisher.publish(
+            db=db,
             event_type="auth.session_revoked",
             tenant_id=settings.tenant_default,
             payload={

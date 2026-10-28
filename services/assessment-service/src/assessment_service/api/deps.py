@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 from typing import Annotated
 
 import httpx
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from healuxa_py_common.errors import error_response
-from healuxa_py_common.middleware.auth import Principal, get_principal
+from healuxa_py_common.middleware.auth import EDGE_SECRET_ENV, EDGE_SECRET_HEADER, Principal, get_principal
 from healuxa_py_common.observability.tracing import get_trace_id
 
 from assessment_service.config import settings
@@ -126,4 +127,6 @@ def principal_headers(
         "X-Healuxa-User": user_id,
         "X-Healuxa-Tenant": tenant_id or settings.tenant_default,
         "X-Healuxa-Perms": permissions,
+        # Test/dev helper: emulates the edge, which must prove itself with the shared secret.
+        EDGE_SECRET_HEADER: os.environ.get(EDGE_SECRET_ENV, ""),
     }

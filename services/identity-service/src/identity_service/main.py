@@ -6,6 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 from healuxa_py_common.errors import ApiError, error_response
+from healuxa_py_common.events.outbox_sql import SqlOutboxStore
+from healuxa_py_common.events.runtime import EventRuntime
 from healuxa_py_common.observability.metrics import metrics_payload
 from healuxa_py_common.observability.tracing import TraceMiddleware, configure_logging, get_trace_id
 from identity_service.api.auth import router as auth_router
@@ -17,7 +19,7 @@ from identity_service.config import settings
 from identity_service.domain.jwt_service import jwt_service
 from identity_service.domain.security import hash_client_secret
 from identity_service.infra.db import SessionLocal, engine
-from identity_service.infra.models import ServiceClient
+from identity_service.infra.models import OUTBOX, ServiceClient
 from identity_service.infra.redis_client import close_redis, get_redis
 from sqlalchemy import text
 
@@ -44,9 +46,18 @@ async def lifespan(app: FastAPI):
     async with SessionLocal() as db:
         await jwt_service.ensure_active_key(db)
     await _seed_service_client()
-    yield
-    await close_redis()
-    await engine.dispose()
+    runtime: EventRuntime | None = None
+    if settings.nats_enabled:
+        runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
+        runtime.add_outbox(SqlOutboxStore(SessionLocal, OUTBOX))
+        await runtime.start()
+    try:
+        yield
+    finally:
+        if runtime is not None:
+            await runtime.stop()
+        await close_redis()
+        await engine.dispose()
 
 
 def create_app() -> FastAPI:

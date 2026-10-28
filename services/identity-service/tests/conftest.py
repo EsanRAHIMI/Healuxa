@@ -21,6 +21,7 @@ from identity_service.main import app, lifespan
 _TRUNCATE_SQL = text(
     """
     TRUNCATE TABLE
+        outbox_events,
         idempotency_records,
         login_history,
         user_roles,

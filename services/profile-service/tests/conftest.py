@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+# Simulated edge secret so principal_headers() is trusted; forged headers without it are not.
+os.environ.setdefault("HEALUXA_EDGE_SECRET", "test-edge-secret")
+
 # Tests must target an isolated Atlas database name (never production).
 os.environ.setdefault("MONGODB_DATABASE", "healuxa_profile_test")
 
@@ -42,6 +45,7 @@ async def _reset_customer_profiles():
     try:
         await ensure_indexes()
         await get_database()[COLLECTION_NAME].delete_many({})
+        await get_database()["outbox_events"].delete_many({})
         yield
     finally:
         # Each test runs on its own event loop; never leak a loop-bound client.

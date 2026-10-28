@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
+from ulid import ULID
+
+from healuxa_py_common.observability.tracing import current_trace_id
 
 
 class EventActor(BaseModel):
@@ -15,7 +17,8 @@ class EventActor(BaseModel):
 class EventEnvelope(BaseModel):
     """Envelope per packages/event-contracts/schemas/envelope.schema.json."""
 
-    event_id: str = Field(default_factory=lambda: str(uuid4()))
+    # ULID: contract-valid, 26 chars, and time-ordered (helps outbox and stream inspection).
+    event_id: str = Field(default_factory=lambda: str(ULID()))
     type: str
     version: int
     schema_ref: str
@@ -45,6 +48,9 @@ def build_envelope(
 ) -> EventEnvelope:
     if producer not in allowed_producers:
         raise ValueError(f"Producer {producer!r} is not registered owner for {event_type!r}")
+    # Inherit the active request/event trace so a business flow is followable across services.
+    trace_id = trace_id or current_trace_id()
+    correlation_id = correlation_id or trace_id
     return EventEnvelope(
         type=event_type,
         version=version,

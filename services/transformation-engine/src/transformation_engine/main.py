@@ -5,20 +5,34 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from healuxa_py_common.errors import ApiError, error_response
+from healuxa_py_common.events.outbox_sql import SqlOutboxStore
+from healuxa_py_common.events.runtime import EventRuntime
 from healuxa_py_common.observability.metrics import metrics_payload
 from healuxa_py_common.observability.tracing import TraceMiddleware, configure_logging, get_trace_id
 from sqlalchemy import text
 
 from transformation_engine.api.journeys import router as journeys_router
 from transformation_engine.config import settings
+from transformation_engine.consumers.assessment_completed import build_consumer
 from transformation_engine.infra.db import SessionLocal, engine
+from transformation_engine.infra.models import OUTBOX
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging(settings.service_name, settings.log_level)
-    yield
-    await engine.dispose()
+    runtime: EventRuntime | None = None
+    if settings.nats_enabled:
+        runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
+        runtime.add_outbox(SqlOutboxStore(SessionLocal, OUTBOX))
+        runtime.add_consumer(build_consumer(runtime.connection))
+        await runtime.start()
+    try:
+        yield
+    finally:
+        if runtime is not None:
+            await runtime.stop()
+        await engine.dispose()
 
 
 def create_app() -> FastAPI:

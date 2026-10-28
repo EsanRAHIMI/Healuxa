@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+# Simulated edge secret so principal_headers() is trusted; forged headers without it are not.
+os.environ.setdefault("HEALUXA_EDGE_SECRET", "test-edge-secret")
+
 os.environ.setdefault("MONGODB_DATABASE", "healuxa_assessment_test")
 
 import pytest
@@ -15,6 +18,7 @@ from assessment_service.main import app, lifespan
 
 ASSESSMENTS_COLLECTION = "assessments"
 IDEMPOTENCY_COLLECTION = "idempotency_records"
+OUTBOX_COLLECTION = "outbox_events"
 
 
 def _assert_safe_test_database() -> None:
@@ -42,6 +46,7 @@ async def _mongo_test_setup(request: pytest.FixtureRequest):
         db = get_database()
         await db[ASSESSMENTS_COLLECTION].delete_many({})
         await db[IDEMPOTENCY_COLLECTION].delete_many({})
+        await db[OUTBOX_COLLECTION].delete_many({})
         yield
     finally:
         # Each test runs on its own event loop; never leak a loop-bound client.

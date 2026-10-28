@@ -108,6 +108,12 @@ export const EVENTS = {
   "profile.updated": { type: "profile.updated", stream: "GROWTH", owner: "profile-service", version: 1, schema: "schemas/profile.schema.json#/$defs/ProfileUpdated", consumers: ["transformation-engine", "commercial-intelligence-engine", "ml-service", "monitoring-service"] },
 
   // ── Identity ───────────────────────────────────────────────────────────────
+  // ── Provider & Catalog (provider-service) ──────────────────────────────────
+  "catalog.provider_status_changed": { type: "catalog.provider_status_changed", stream: "CATALOG", owner: "provider-service", version: 1, schema: "schemas/catalog.schema.json#/$defs/CatalogProviderStatusChanged", consumers: ["matching-service", "appointment-service", "notification-service", "monitoring-service"] },
+  "catalog.facility_status_changed": { type: "catalog.facility_status_changed", stream: "CATALOG", owner: "provider-service", version: 1, schema: "schemas/catalog.schema.json#/$defs/CatalogFacilityStatusChanged", consumers: ["matching-service", "appointment-service", "monitoring-service"] },
+  "catalog.affiliation_changed": { type: "catalog.affiliation_changed", stream: "CATALOG", owner: "provider-service", version: 1, schema: "schemas/catalog.schema.json#/$defs/CatalogAffiliationChanged", consumers: ["appointment-service", "notification-service", "monitoring-service"] },
+  "catalog.availability_changed": { type: "catalog.availability_changed", stream: "CATALOG", owner: "provider-service", version: 1, schema: "schemas/catalog.schema.json#/$defs/CatalogAvailabilityChanged", consumers: ["appointment-service"] },
+
   "auth.user_registered": { type: "auth.user_registered", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthUserRegistered", consumers: ["profile-service", "crm-service", "monitoring-service"] },
   "auth.session_revoked": { type: "auth.session_revoked", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSessionRevoked", consumers: ["realtime-gateway", "monitoring-service"] },
   "auth.security_event": { type: "auth.security_event", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSecurityEvent", consumers: ["monitoring-service"] },

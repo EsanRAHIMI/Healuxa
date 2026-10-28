@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+# Simulated edge secret so principal_headers() is trusted; forged headers without it are not.
+os.environ.setdefault("HEALUXA_EDGE_SECRET", "test-edge-secret")
+
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://healuxa:dev@localhost:5432/transformation_test",
@@ -19,6 +22,7 @@ from transformation_engine.main import app, lifespan
 _TRUNCATE_SQL = text(
     """
     TRUNCATE TABLE
+        outbox_events,
         journey_assessment_links,
         processed_events,
         idempotency_records,

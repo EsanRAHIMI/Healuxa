@@ -5,14 +5,16 @@ from typing import Any
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.events.envelope import EventActor
 from healuxa_py_common.middleware.auth import Principal
-from pymongo.asynchronous.collection import AsyncCollection
 from pymongo import ReturnDocument
+from pymongo.asynchronous.client_session import AsyncClientSession
+from pymongo.asynchronous.collection import AsyncCollection
+from pymongo.errors import DuplicateKeyError
 
 from profile_service.config import settings
 from profile_service.domain.schemas import Profile
 from profile_service.domain.security import format_etag, utcnow
 from profile_service.events.publisher import event_publisher
-from profile_service.infra.mongo import get_database
+from profile_service.infra.mongo import get_client, get_database
 
 COLLECTION_NAME = "customer_profiles"
 
@@ -97,83 +99,99 @@ class ProfileService:
         now = utcnow()
         new_data = _profile_payload(body)
 
-        if existing is not None:
-            current_etag = format_etag(int(existing["version"]))
-            if if_match is not None and if_match != current_etag:
-                raise ApiError(
-                    status=409,
-                    code="conflict",
-                    title="Conflict",
-                    detail="If-Match does not match current profile version",
+        async def apply(session: AsyncClientSession) -> dict[str, Any]:
+            # Profile write and profile.updated outbox entry commit atomically.
+            if existing is not None:
+                current_etag = format_etag(int(existing["version"]))
+                if if_match is not None and if_match != current_etag:
+                    raise ApiError(
+                        status=409,
+                        code="conflict",
+                        title="Conflict",
+                        detail="If-Match does not match current profile version",
+                    )
+                next_version = int(existing["version"]) + 1
+                update_doc = {
+                    **new_data,
+                    "version": next_version,
+                    "updated_at": now,
+                }
+                result = await _collection().find_one_and_update(
+                    {
+                        "tenant_id": settings.tenant_default,
+                        "user_id": user_id,
+                        "version": existing["version"],
+                    },
+                    {"$set": update_doc},
+                    return_document=ReturnDocument.AFTER,
+                    session=session,
                 )
-            next_version = int(existing["version"]) + 1
-            update_doc = {
-                **new_data,
-                "version": next_version,
-                "updated_at": now,
-            }
-            result = await _collection().find_one_and_update(
-                {
+                if result is None:
+                    raise ApiError(
+                        status=409,
+                        code="conflict",
+                        title="Conflict",
+                        detail="Profile was modified concurrently",
+                    )
+                doc = result
+                before_snapshot = {
+                    "lifecycle_stage": existing.get("lifecycle_stage"),
+                    "vip_tier": existing.get("vip_tier"),
+                    "scores": existing.get("scores"),
+                    "consent": existing.get("consent"),
+                }
+            else:
+                if if_match is not None:
+                    raise ApiError(
+                        status=409,
+                        code="conflict",
+                        title="Conflict",
+                        detail="If-Match provided but profile does not exist",
+                    )
+                doc = {
                     "tenant_id": settings.tenant_default,
                     "user_id": user_id,
-                    "version": existing["version"],
-                },
-                {"$set": update_doc},
-                return_document=ReturnDocument.AFTER,
-            )
-            if result is None:
-                raise ApiError(
-                    status=409,
-                    code="conflict",
-                    title="Conflict",
-                    detail="Profile was modified concurrently",
-                )
-            doc = result
-            before_snapshot = {
-                "lifecycle_stage": existing.get("lifecycle_stage"),
-                "vip_tier": existing.get("vip_tier"),
-                "scores": existing.get("scores"),
-                "consent": existing.get("consent"),
-            }
-        else:
-            if if_match is not None:
-                raise ApiError(
-                    status=409,
-                    code="conflict",
-                    title="Conflict",
-                    detail="If-Match provided but profile does not exist",
-                )
-            doc = {
-                "tenant_id": settings.tenant_default,
+                    **new_data,
+                    "version": 1,
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                try:
+                    await _collection().insert_one(doc, session=session)
+                except DuplicateKeyError as exc:
+                    raise ApiError(
+                        status=409,
+                        code="conflict",
+                        title="Conflict",
+                        detail="Profile was created concurrently",
+                    ) from exc
+                before_snapshot = None
+
+            updated_fields = _diff_updated_fields(before_snapshot, new_data)
+            if not updated_fields:
+                updated_fields = ["consent"] if "consent" in new_data else ["scores"]
+
+            event_payload: dict[str, Any] = {
                 "user_id": user_id,
-                **new_data,
-                "version": 1,
-                "created_at": now,
-                "updated_at": now,
+                "updated_fields": updated_fields,
+                "updated_at": now.isoformat(),
             }
-            await _collection().insert_one(doc)
-            before_snapshot = None
+            if body.lifecycle_stage is not None:
+                event_payload["lifecycle_stage"] = body.lifecycle_stage
+            if body.vip_tier is not None:
+                event_payload["vip_tier"] = body.vip_tier
 
-        updated_fields = _diff_updated_fields(before_snapshot, new_data)
-        if not updated_fields:
-            updated_fields = ["consent"] if "consent" in new_data else ["scores"]
+            await event_publisher.publish(
+                event_type="profile.updated",
+                tenant_id=settings.tenant_default,
+                payload=event_payload,
+                actor=EventActor(type="user", id=principal.user_id),
+                session=session,
+            )
+            return doc
 
-        event_payload: dict[str, Any] = {
-            "user_id": user_id,
-            "updated_fields": updated_fields,
-            "updated_at": now.isoformat(),
-        }
-        if body.lifecycle_stage is not None:
-            event_payload["lifecycle_stage"] = body.lifecycle_stage
-        if body.vip_tier is not None:
-            event_payload["vip_tier"] = body.vip_tier
-
-        await event_publisher.publish(
-            event_type="profile.updated",
-            tenant_id=settings.tenant_default,
-            payload=event_payload,
-            actor=EventActor(type="user", id=principal.user_id),
-        )
+        async with get_client().start_session() as session:
+            doc = await session.with_transaction(apply)
 
         return _doc_to_profile(doc), format_etag(int(doc["version"]))
 

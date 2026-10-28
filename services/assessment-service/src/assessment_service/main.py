@@ -10,16 +10,28 @@ from healuxa_py_common.observability.tracing import TraceMiddleware, configure_l
 
 from assessment_service.api.assessments import router as assessments_router
 from assessment_service.config import settings
-from assessment_service.infra.mongo import close_client, ensure_indexes, ping_database
+from healuxa_py_common.events.outbox_mongo import OUTBOX_COLLECTION, MongoOutboxStore
+from healuxa_py_common.events.runtime import EventRuntime
+
+from assessment_service.infra.mongo import close_client, ensure_indexes, get_database, ping_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging(settings.service_name, settings.log_level)
+    runtime: EventRuntime | None = None
     if settings.mongodb_uri:
         await ensure_indexes()
-    yield
-    await close_client()
+        if settings.nats_enabled:
+            runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
+            runtime.add_outbox(MongoOutboxStore(get_database()[OUTBOX_COLLECTION]))
+            await runtime.start()
+    try:
+        yield
+    finally:
+        if runtime is not None:
+            await runtime.stop()
+        await close_client()
 
 
 def create_app() -> FastAPI:
@@ -65,7 +77,8 @@ def create_app() -> FastAPI:
                 status_code=503,
                 content={"status": "not_ready", "detail": str(exc)},
             )
-        return {"status": "ready"}
+        pending = await MongoOutboxStore(get_database()[OUTBOX_COLLECTION]).pending_count()
+        return {"status": "ready", "outbox_pending": pending}
 
     @app.get("/metrics")
     async def metrics() -> Response:

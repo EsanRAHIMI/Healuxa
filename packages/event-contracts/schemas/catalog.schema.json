@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/catalog.schema.json",
+  "title": "Provider & Catalog events",
+  "description": "Events owned by provider-service: verification and lifecycle of providers and facilities, affiliations, bookable offerings and availability rules. Never carries credential numbers or documents.",
+  "$defs": {
+    "CatalogProviderStatusChanged": {
+      "title": "CatalogProviderStatusChanged",
+      "description": "payload of catalog.provider_status_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "status", "verification_status", "changed_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "previous_status": { "type": ["string", "null"], "enum": ["pending", "active", "suspended", "offboarded", null] },
+        "status": { "type": "string", "enum": ["pending", "active", "suspended", "offboarded"] },
+        "verification_status": { "type": "string", "enum": ["unverified", "under_review", "verified", "rejected"] },
+        "reason": { "type": ["string", "null"], "maxLength": 1000 },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CatalogFacilityStatusChanged": {
+      "title": "CatalogFacilityStatusChanged",
+      "description": "payload of catalog.facility_status_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facility_id", "status", "verification_status", "changed_at"],
+      "properties": {
+        "facility_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "status": { "type": "string", "enum": ["pending", "active", "suspended", "offboarded"] },
+        "verification_status": { "type": "string", "enum": ["unverified", "under_review", "verified", "rejected"] },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CatalogAffiliationChanged": {
+      "title": "CatalogAffiliationChanged",
+      "description": "payload of catalog.affiliation_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affiliation_id", "provider_id", "facility_id", "branch_id", "status", "changed_at"],
+      "properties": {
+        "affiliation_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "facility_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "branch_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "status": { "type": "string", "enum": ["pending", "active", "declined", "ended"] },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "CatalogAvailabilityChanged": {
+      "title": "CatalogAvailabilityChanged",
+      "description": "payload of catalog.availability_changed (v1). Signals appointment-service to re-derive slots for the provider.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "change", "changed_at"],
+      "properties": {
+        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "branch_id": { "type": ["string", "null"] },
+        "change": { "type": "string", "enum": ["rule_added", "rule_removed", "exception_added", "operating_hours_replaced"] },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}
