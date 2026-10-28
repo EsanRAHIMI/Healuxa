@@ -1,11 +1,22 @@
 openapi: 3.1.0
 info:
   title: Healuxa Provider Service API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    Provider & Catalog Open Host Service. Owns typed providers, clinics, brands, services,
-    availability, geo. quality_score/success_score are read-model caches (owned by Review /
-    Provider Success). See Healuxa_DDD_Boundaries.md §3.6 and Healuxa_TechSpec.md §10.6.
+    Provider & Catalog Open Host Service. Owns typed providers, their professional credentials and
+    verification, facilities (clinics/hospitals) and branches, provider–facility affiliations, the
+    service catalog with transparent pricing, operating hours and availability rules.
+    quality_score/success_score are read-model caches (owned by Review / Provider Success).
+    See Healuxa_DDD_Boundaries.md §3.6 and Healuxa_TechSpec.md §10.6.
+
+    Trust rules: public reads return only verified + active data and never credential numbers or
+    documents. A provider becomes `active` only with a verified, unexpired license credential. An
+    affiliation becomes `active` only when both provider and facility are verified and the
+    counterparty approved it. Appointment slots are derived by appointment-service from these rules;
+    this service never claims a slot is bookable.
+
+    Pricing is shown as separate professional and facility fees. Platform fees, taxes and
+    settlements belong to the commercial/payment contexts; no referral commissions are modelled here.
 servers:
   - url: https://api.healuxa.com/v1
     description: Production edge (Traefik)
@@ -15,18 +26,23 @@ security:
   - bearerAuth: []
 tags:
   - name: providers
+  - name: credentials
+  - name: facilities
+  - name: affiliations
   - name: services
+  - name: availability
 paths:
   /providers:
     get:
       operationId: searchProviders
-      summary: Search providers (hard filters for Matching)
+      summary: Search the public provider directory (verified, active providers only)
       tags: [providers]
-      x-required-permission: providers:read
+      security: []
       parameters:
-        - { name: type, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/ProviderType" } }
         - { name: specialty, in: query, schema: { type: string } }
         - { name: language, in: query, schema: { type: string } }
+        - { name: city, in: query, schema: { type: string } }
         - { name: near, in: query, description: "lat,lng", schema: { type: string } }
         - { name: radius_km, in: query, schema: { type: number } }
         - $ref: "./_shared/components.yaml#/components/parameters/Limit"
@@ -44,31 +60,29 @@ paths:
                   page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
     post:
       operationId: createProvider
-      summary: Onboard a provider
+      summary: Submit a provider application for the authenticated user
       tags: [providers]
-      x-required-permission: providers:write
+      x-required-permission: providers:onboard
       parameters:
         - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/Provider" }
+            schema: { $ref: "#/components/schemas/ProviderInput" }
       responses:
         "201":
-          description: Created
+          description: Created (status pending, verification unverified)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Provider" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
-  /providers/{id}:
+  /providers/me:
     get:
-      operationId: getProvider
-      summary: Get a provider
+      operationId: getMyProvider
+      summary: Get the provider profile owned by the authenticated user
       tags: [providers]
-      x-required-permission: providers:read
-      parameters:
-        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      x-required-permission: providers:onboard
       responses:
         "200":
           description: OK
@@ -76,14 +90,253 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Provider" }
         "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /providers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    get:
+      operationId: getProvider
+      summary: Get a provider (public view unless caller is the owner or staff)
+      tags: [providers]
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    patch:
+      operationId: updateProvider
+      summary: Update profile fields (owner or staff). Identity fields reset verification.
+      tags: [providers]
+      x-required-permission: providers:onboard
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderPatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /providers/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      operationId: changeProviderStatus
+      summary: Activate, suspend or offboard a provider (staff only)
+      tags: [providers]
+      x-required-permission: providers:verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StatusChange" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /providers/{id}/credentials:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    get:
+      operationId: listCredentials
+      summary: List a provider's credentials (owner or staff)
+      tags: [credentials]
+      x-required-permission: providers:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Credential" } }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    post:
+      operationId: submitCredential
+      summary: Submit a license or certification for review (owner)
+      tags: [credentials]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CredentialInput" }
+      responses:
+        "201":
+          description: Created (status submitted)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Credential" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /providers/{id}/credentials/{credential_id}/review:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+      - { name: credential_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    post:
+      operationId: reviewCredential
+      summary: Verify or reject a credential after checking the issuing authority (staff only)
+      tags: [credentials]
+      x-required-permission: providers:verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewDecision" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Credential" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /providers/{id}/affiliations:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    get:
+      operationId: listProviderAffiliations
+      summary: List a provider's facility affiliations (owner or staff)
+      tags: [affiliations]
+      x-required-permission: providers:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Affiliation" } }
+  /providers/{id}/services:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    post:
+      operationId: createServiceOffering
+      summary: Add a service offering at an affiliated branch (owner, or that facility's admin)
+      tags: [services]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOfferingInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /providers/{id}/availability-rules:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    get:
+      operationId: listAvailabilityRules
+      summary: List weekly availability rules (owner, affiliated facility schedulers, staff, services)
+      tags: [availability]
+      x-required-permission: providers:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/AvailabilityRule" } }
+    post:
+      operationId: createAvailabilityRule
+      summary: Add a weekly working window at an active affiliation's branch
+      tags: [availability]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AvailabilityRuleInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvailabilityRule" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /providers/{id}/availability-exceptions:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    get:
+      operationId: listAvailabilityExceptions
+      summary: List date-specific unavailability (leave, holidays)
+      tags: [availability]
+      x-required-permission: providers:onboard
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/AvailabilityException" } }
+    post:
+      operationId: createAvailabilityException
+      summary: Block a time range (leave, holiday, training)
+      tags: [availability]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AvailabilityExceptionInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvailabilityException" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /availability-rules/{rule_id}:
+    delete:
+      operationId: deleteAvailabilityRule
+      summary: Remove a weekly availability rule
+      tags: [availability]
+      x-required-permission: providers:onboard
+      parameters:
+        - { name: rule_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
   /services:
     get:
       operationId: listServices
-      summary: List service catalog entries
+      summary: Public service catalog (bookable offerings of verified, active, affiliated providers)
       tags: [services]
-      x-required-permission: providers:read
+      security: []
       parameters:
         - { name: category, in: query, schema: { type: string } }
+        - { name: provider_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: facility_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
         - $ref: "./_shared/components.yaml#/components/parameters/Limit"
         - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
       responses:
@@ -97,28 +350,642 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/ServiceOffering" } }
                   page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /services/{service_id}:
+    parameters:
+      - { name: service_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    get:
+      operationId: getServiceOffering
+      summary: Get one service offering (public if bookable)
+      tags: [services]
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    patch:
+      operationId: updateServiceOffering
+      summary: Update price, duration or status of an offering
+      tags: [services]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ServiceOfferingPatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /facilities:
+    get:
+      operationId: searchFacilities
+      summary: Public facility directory (verified, active facilities)
+      tags: [facilities]
+      security: []
+      parameters:
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/FacilityType" } }
+        - { name: city, in: query, schema: { type: string } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Facility" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    post:
+      operationId: createFacility
+      summary: Register a facility; the caller becomes its first facility_admin
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FacilityInput" }
+      responses:
+        "201":
+          description: Created (status pending, verification unverified)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Facility" }
+  /facilities/{facility_id}:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+    get:
+      operationId: getFacility
+      summary: Get a facility (public view unless caller is its staff or platform staff)
+      tags: [facilities]
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Facility" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    patch:
+      operationId: updateFacility
+      summary: Update facility details (facility_admin)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FacilityPatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Facility" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /facilities/{facility_id}/review:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+    post:
+      operationId: reviewFacility
+      summary: Verify or reject the facility license, activating or rejecting it (staff only)
+      tags: [facilities]
+      x-required-permission: facilities:verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewDecision" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Facility" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /facilities/{facility_id}/branches:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+    get:
+      operationId: listBranches
+      summary: List a facility's branches
+      tags: [facilities]
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Branch" } }
+    post:
+      operationId: createBranch
+      summary: Add a branch (facility_admin)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Branch" }
+  /branches/{branch_id}/operating-hours:
+    parameters:
+      - { name: branch_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    get:
+      operationId: getOperatingHours
+      summary: Weekly opening hours of a branch (branch-local time)
+      tags: [facilities]
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatingHours" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    put:
+      operationId: replaceOperatingHours
+      summary: Replace the weekly opening hours (facility_admin)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OperatingHours" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatingHours" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /facilities/{facility_id}/staff:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+    get:
+      operationId: listFacilityStaff
+      summary: List staff memberships (facility_admin or platform staff)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/StaffMember" } }
+    post:
+      operationId: addFacilityStaff
+      summary: Grant a user a facility role (facility_admin)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StaffMemberInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaffMember" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /facilities/{facility_id}/staff/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+      - { name: user_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    delete:
+      operationId: removeFacilityStaff
+      summary: Revoke a user's facility role (facility_admin; the last admin cannot be removed)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      responses:
+        "204": { description: Removed }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /facilities/{facility_id}/affiliations:
+    parameters:
+      - $ref: "#/components/parameters/FacilityId"
+    get:
+      operationId: listFacilityAffiliations
+      summary: List practitioners affiliated with a facility (facility staff)
+      tags: [affiliations]
+      x-required-permission: facilities:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Affiliation" } }
+  /affiliations:
+    post:
+      operationId: requestAffiliation
+      summary: Provider requests, or facility_admin invites, an affiliation at a branch
+      tags: [affiliations]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AffiliationInput" }
+      responses:
+        "201":
+          description: Created (status pending)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Affiliation" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /affiliations/{affiliation_id}/decision:
+    parameters:
+      - { name: affiliation_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    post:
+      operationId: decideAffiliation
+      summary: Counterparty approves/declines a pending affiliation, or either side ends an active one
+      tags: [affiliations]
+      x-required-permission: providers:onboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AffiliationDecision" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Affiliation" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
 components:
   securitySchemes:
     bearerAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
     serviceAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  parameters:
+    ProviderId:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+    FacilityId:
+      name: facility_id
+      in: path
+      required: true
+      schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
   schemas:
+    ProviderType:
+      type: string
+      enum: [doctor, clinic, therapist, trainer, nutritionist, pharmacy, brand, home_visit]
+    ProviderStatus:
+      type: string
+      enum: [pending, active, suspended, offboarded]
+    VerificationStatus:
+      type: string
+      enum: [unverified, under_review, verified, rejected]
+    LocalizedText:
+      type: object
+      description: Text keyed by BCP 47 language tag (en, ar, fa, fr, de).
+      additionalProperties: { type: string, maxLength: 4000 }
     Provider:
       type: object
+      required: [id, type, display_name, specialties, languages, status, verification_status]
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        type: { type: string, enum: [doctor, clinic, therapist, trainer, nutritionist, pharmacy, brand, home_visit] }
+        type: { $ref: "#/components/schemas/ProviderType" }
+        display_name: { type: string }
+        title: { type: string, description: "Professional title, e.g. 'Consultant Infectious Diseases'." }
+        bio: { $ref: "#/components/schemas/LocalizedText" }
         specialties: { type: array, items: { type: string } }
         languages: { type: array, items: { type: string } }
-        quality_score: { type: number, readOnly: true, description: "Read-model cache owned by Review service." }
-        success_score: { type: number, readOnly: true, description: "Read-model cache owned by Provider Success." }
-        status: { type: string, enum: [pending, active, suspended, offboarded] }
-    ServiceOffering:
+        quality_score: { type: [number, "null"], readOnly: true, description: "Read-model cache owned by Review service." }
+        success_score: { type: [number, "null"], readOnly: true, description: "Read-model cache owned by Provider Success." }
+        status: { $ref: "#/components/schemas/ProviderStatus" }
+        verification_status: { $ref: "#/components/schemas/VerificationStatus" }
+        verified_credentials:
+          type: array
+          readOnly: true
+          description: Public summary of verified credentials (authority, kind, expiry) — never numbers.
+          items:
+            type: object
+            properties:
+              kind: { $ref: "#/components/schemas/CredentialKind" }
+              issuing_authority: { type: string }
+              valid_until: { type: [string, "null"], format: date }
+        user_id: { type: string, readOnly: true, description: "Owner account; returned to owner and staff only." }
+        version: { type: integer, readOnly: true }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        updated_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    ProviderInput:
       type: object
+      additionalProperties: false
+      required: [type, display_name, specialties, languages]
+      properties:
+        type: { $ref: "#/components/schemas/ProviderType" }
+        display_name: { type: string, minLength: 2, maxLength: 160 }
+        title: { type: string, maxLength: 160 }
+        bio: { $ref: "#/components/schemas/LocalizedText" }
+        specialties: { type: array, minItems: 1, maxItems: 20, items: { type: string, maxLength: 80 } }
+        languages: { type: array, minItems: 1, maxItems: 20, items: { type: string, maxLength: 16 } }
+    ProviderPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 160 }
+        title: { type: string, maxLength: 160 }
+        bio: { $ref: "#/components/schemas/LocalizedText" }
+        specialties: { type: array, minItems: 1, maxItems: 20, items: { type: string, maxLength: 80 } }
+        languages: { type: array, minItems: 1, maxItems: 20, items: { type: string, maxLength: 16 } }
+    StatusChange:
+      type: object
+      additionalProperties: false
+      required: [status, reason]
+      properties:
+        status: { $ref: "#/components/schemas/ProviderStatus" }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+    CredentialKind:
+      type: string
+      enum: [professional_license, board_certification, malpractice_insurance, other]
+    Credential:
+      type: object
+      required: [id, provider_id, kind, issuing_authority, number, status]
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        kind: { $ref: "#/components/schemas/CredentialKind" }
+        issuing_authority: { type: string, description: "e.g. DHA, DOH, MOHAP" }
+        jurisdiction: { type: string, description: "ISO 3166-2, e.g. AE-DU" }
+        number: { type: string }
+        valid_from: { type: [string, "null"], format: date }
+        valid_until: { type: [string, "null"], format: date }
+        document_ref: { type: [string, "null"], description: "Encrypted object-storage key of the uploaded document." }
+        status: { type: string, enum: [submitted, verified, rejected, expired] }
+        review_note: { type: [string, "null"] }
+        reviewed_at: { type: [string, "null"], format: date-time }
+    CredentialInput:
+      type: object
+      additionalProperties: false
+      required: [kind, issuing_authority, number]
+      properties:
+        kind: { $ref: "#/components/schemas/CredentialKind" }
+        issuing_authority: { type: string, minLength: 2, maxLength: 64 }
+        jurisdiction: { type: string, maxLength: 16 }
+        number: { type: string, minLength: 2, maxLength: 64 }
+        valid_from: { type: string, format: date }
+        valid_until: { type: string, format: date }
+        document_ref: { type: string, maxLength: 512 }
+    ReviewDecision:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [verify, reject] }
+        note: { type: string, maxLength: 1000, description: "Required when rejecting." }
+    FacilityType:
+      type: string
+      enum: [clinic, hospital, medical_center, day_surgery, diagnostic_center, pharmacy, wellness_center]
+    Facility:
+      type: object
+      required: [id, type, name, status, verification_status]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        type: { $ref: "#/components/schemas/FacilityType" }
+        name: { type: string }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        license_authority: { type: string, description: "Returned to facility staff and platform staff only." }
+        license_number: { type: string, description: "Returned to facility staff and platform staff only." }
+        website: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        status: { type: string, enum: [pending, active, suspended, offboarded] }
+        verification_status: { $ref: "#/components/schemas/VerificationStatus" }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    FacilityInput:
+      type: object
+      additionalProperties: false
+      required: [type, name, license_authority, license_number]
+      properties:
+        type: { $ref: "#/components/schemas/FacilityType" }
+        name: { type: string, minLength: 2, maxLength: 200 }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        license_authority: { type: string, minLength: 2, maxLength: 64 }
+        license_number: { type: string, minLength: 2, maxLength: 64 }
+        website: { type: string, maxLength: 300 }
+        phone: { type: string, maxLength: 32 }
+    FacilityPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        website: { type: string, maxLength: 300 }
+        phone: { type: string, maxLength: 32 }
+    Branch:
+      type: object
+      required: [id, facility_id, name, city, country, timezone]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        name: { type: string }
+        address_line: { type: string }
+        city: { type: string }
+        emirate: { type: [string, "null"] }
+        country: { type: string, description: "ISO 3166-1 alpha-2" }
+        timezone: { type: string, description: "IANA zone, e.g. Asia/Dubai" }
+        latitude: { type: [number, "null"] }
+        longitude: { type: [number, "null"] }
+        phone: { type: [string, "null"] }
+        status: { type: string, enum: [active, closed] }
+    BranchInput:
+      type: object
+      additionalProperties: false
+      required: [name, address_line, city, country, timezone]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+        address_line: { type: string, minLength: 2, maxLength: 300 }
+        city: { type: string, minLength: 2, maxLength: 100 }
+        emirate: { type: string, maxLength: 64 }
+        country: { type: string, pattern: "^[A-Z]{2}$" }
+        timezone: { type: string, maxLength: 64 }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        phone: { type: string, maxLength: 32 }
+    TimeWindow:
+      type: object
+      additionalProperties: false
+      required: [weekday, start, end]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6, description: "0 = Monday … 6 = Sunday (ISO)" }
+        start: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        end: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$" }
+    OperatingHours:
+      type: object
+      additionalProperties: false
+      required: [windows]
+      properties:
+        branch_id: { type: string, readOnly: true }
+        timezone: { type: string, readOnly: true }
+        windows: { type: array, maxItems: 28, items: { $ref: "#/components/schemas/TimeWindow" } }
+    StaffRole:
+      type: string
+      enum: [facility_admin, scheduler, billing]
+    StaffMember:
+      type: object
+      required: [facility_id, user_id, role]
+      properties:
+        facility_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        role: { $ref: "#/components/schemas/StaffRole" }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    StaffMemberInput:
+      type: object
+      additionalProperties: false
+      required: [user_id, role]
+      properties:
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        role: { $ref: "#/components/schemas/StaffRole" }
+    Affiliation:
+      type: object
+      required: [id, provider_id, facility_id, branch_id, status, initiated_by]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: string, enum: [pending, active, declined, ended] }
+        initiated_by: { type: string, enum: [provider, facility] }
+        decided_at: { type: [string, "null"], format: date-time }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    AffiliationInput:
+      type: object
+      additionalProperties: false
+      required: [provider_id, branch_id]
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+    AffiliationDecision:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, decline, end] }
+    ServiceOffering:
+      type: object
+      required: [id, provider_id, branch_id, category, name, duration_minutes, price_type, status]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         category: { type: string }
         name: { type: string }
-        price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        duration_minutes: { type: integer }
+        buffer_minutes: { type: integer, description: "Turnaround after each appointment." }
+        mode: { type: string, enum: [in_person, home_visit] }
+        price_type: { type: string, enum: [fixed, from, on_request] }
+        price: { oneOf: [{ $ref: "./_shared/components.yaml#/components/schemas/Money" }, { type: "null" }], description: "Total = professional_fee + facility_fee. Null when on_request." }
+        professional_fee: { oneOf: [{ $ref: "./_shared/components.yaml#/components/schemas/Money" }, { type: "null" }] }
+        facility_fee: { oneOf: [{ $ref: "./_shared/components.yaml#/components/schemas/Money" }, { type: "null" }] }
+        status: { type: string, enum: [draft, active, retired] }
+    ServiceOfferingInput:
+      type: object
+      additionalProperties: false
+      required: [branch_id, category, name, duration_minutes, price_type]
+      properties:
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        category: { type: string, minLength: 2, maxLength: 80 }
+        name: { type: string, minLength: 2, maxLength: 200 }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        duration_minutes: { type: integer, minimum: 5, maximum: 720 }
+        buffer_minutes: { type: integer, minimum: 0, maximum: 240, default: 0 }
+        mode: { type: string, enum: [in_person, home_visit], default: in_person }
+        price_type: { type: string, enum: [fixed, from, on_request] }
+        professional_fee_minor: { type: integer, minimum: 0 }
+        facility_fee_minor: { type: integer, minimum: 0 }
+        currency: { type: string, pattern: "^[A-Z]{3}$", default: AED }
+    ServiceOfferingPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+        description: { $ref: "#/components/schemas/LocalizedText" }
+        duration_minutes: { type: integer, minimum: 5, maximum: 720 }
+        buffer_minutes: { type: integer, minimum: 0, maximum: 240 }
+        price_type: { type: string, enum: [fixed, from, on_request] }
+        professional_fee_minor: { type: integer, minimum: 0 }
+        facility_fee_minor: { type: integer, minimum: 0 }
+        status: { type: string, enum: [draft, active, retired] }
+    AvailabilityRule:
+      type: object
+      required: [id, provider_id, branch_id, weekday, start, end, effective_from]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        timezone: { type: string, readOnly: true, description: "Branch timezone the times are expressed in." }
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        start: { type: string }
+        end: { type: string }
+        effective_from: { type: string, format: date }
+        effective_until: { type: [string, "null"], format: date }
+    AvailabilityRuleInput:
+      type: object
+      additionalProperties: false
+      required: [branch_id, weekday, start, end, effective_from]
+      properties:
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        start: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        end: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$|^24:00$" }
+        effective_from: { type: string, format: date }
+        effective_until: { type: string, format: date }
+    AvailabilityException:
+      type: object
+      required: [id, provider_id, starts_at, ends_at, reason]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { type: [string, "null"], description: "Null = applies at every branch." }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        reason: { type: string, enum: [leave, public_holiday, training, other] }
+    AvailabilityExceptionInput:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at, reason]
+      properties:
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        reason: { type: string, enum: [leave, public_holiday, training, other] }
