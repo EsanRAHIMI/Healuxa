@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+# Simulated edge secret so principal_headers() is trusted; forged headers without it are not.
+os.environ.setdefault("HEALUXA_EDGE_SECRET", "test-edge-secret")
+
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://healuxa:dev@localhost:5432/transformation_test",
