@@ -308,6 +308,87 @@ export interface AssessmentCompleted {
 }
 
 /**
+ * payload of catalog.provider_status_changed (v1)
+ */
+
+export interface CatalogProviderStatusChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  previous_status?: "pending" | "active" | "suspended" | "offboarded" | null;
+  status: "pending" | "active" | "suspended" | "offboarded";
+  verification_status: "unverified" | "under_review" | "verified" | "rejected";
+  reason?: string | null;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
+ * payload of catalog.facility_status_changed (v1)
+ */
+
+export interface CatalogFacilityStatusChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id: string;
+  status: "pending" | "active" | "suspended" | "offboarded";
+  verification_status: "unverified" | "under_review" | "verified" | "rejected";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
+ * payload of catalog.affiliation_changed (v1)
+ */
+
+export interface CatalogAffiliationChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  affiliation_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  branch_id: string;
+  status: "pending" | "active" | "declined" | "ended";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
+ * payload of catalog.availability_changed (v1). Signals appointment-service to re-derive slots for the provider.
+ */
+
+export interface CatalogAvailabilityChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id: string;
+  branch_id?: string | null;
+  change: "rule_added" | "rule_removed" | "exception_added" | "operating_hours_replaced";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
  * payload of commercial.offer_recommended (v1) — Transformation presents at the right moment.
  */
 
