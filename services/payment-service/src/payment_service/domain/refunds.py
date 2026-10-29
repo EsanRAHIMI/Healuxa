@@ -87,6 +87,8 @@ async def create_refund(
         else:
             if payment.status not in CAPTURED_FAMILY:
                 raise conflict(f"Only captured payments can be refunded (status {payment.status}); void instead")
+            if payment.status == "refunded":
+                raise conflict("Payment is already fully refunded")
             left = remaining(payment)
             if body.get("apply_policy"):
                 cancelled_at = body.get("cancelled_at")

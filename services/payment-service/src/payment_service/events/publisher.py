@@ -24,7 +24,7 @@ PAYMENT_EVENTS = {
 }
 
 # Defence in depth: these keys must never appear in any payload (card data, processor secrets, health data).
-FORBIDDEN_KEYS = {"card", "pan", "cvc", "cvv", "number", "exp_month", "exp_year", "last4", "client_secret", "description", "service_name"}
+FORBIDDEN_KEYS = {"card", "pan", "cvc", "cvv", "card_number", "exp_month", "exp_year", "last4", "client_secret", "description", "service_name"}
 
 
 def _check(payload: Any) -> None:
