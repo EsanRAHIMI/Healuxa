@@ -12,6 +12,8 @@ Authoritative design: `Healuxa_TechSpec.md`, `Healuxa_DDD_Boundaries.md`, `packa
 | assessment-service | MongoDB | `assessment.completed` | — |
 | transformation-engine | PostgreSQL | `journey.*` | `assessment.completed` |
 | provider-service | PostgreSQL | `catalog.*` (provider/facility status, affiliations, availability) | — |
+| concierge-service | PostgreSQL | `concierge.case_submitted`, `concierge.case_status_changed`, `concierge.message_posted` (ids only) | — |
+| notification-service | PostgreSQL | — | `concierge.case_status_changed`, `concierge.message_posted`, `catalog.provider_status_changed`, `catalog.affiliation_changed`, `appointment.*` |
 
 ## Authentication at service boundaries
 

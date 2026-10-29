@@ -283,6 +283,110 @@ jobs:
           pytest -q -rs
           python -c "from appointment_service.main import app; print('app ok', app.title)"
 
+  concierge-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create concierge_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE concierge_test;"
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
+      - name: Install packages and concierge-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/concierge-service[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/concierge_test
+          TENANT_DEFAULT: healuxa-dubai
+          IDENTITY_INTROSPECT_URL: http://127.0.0.1:1/v1/auth/introspect
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/concierge-service
+        run: |
+          alembic upgrade head
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          # Models and migrations must not drift.
+          alembic check
+          test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
+          pytest -q -rs
+          python -c "from concierge_service.main import app; print('app ok', app.title)"
+
+  notification-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create notification_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE notification_test;"
+      - name: Install NATS JetStream (native)
+        run: scripts/ci/install-nats.sh | tee -a "$GITHUB_ENV"
+      - name: Install packages and notification-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/notification-service[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/notification_test
+          TENANT_DEFAULT: healuxa-dubai
+          IDENTITY_INTROSPECT_URL: http://127.0.0.1:1/v1/auth/introspect
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/notification-service
+        run: |
+          alembic upgrade head
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          # Models and migrations must not drift.
+          alembic check
+          test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
+          pytest -q -rs
+          python -c "from notification_service.main import app; print('app ok', app.title)"
+
   profile-service:
     # Pinned: MongoDB's apt repo must publish packages for the runner's Ubuntu release.
     runs-on: ubuntu-24.04

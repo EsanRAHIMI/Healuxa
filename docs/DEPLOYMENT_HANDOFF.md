@@ -16,6 +16,8 @@ Status words: **Implemented / Tested** apply to code; **Deployed** is your job; 
 | assessment-service | `services/assessment-service` | `services/assessment-service/Dockerfile` | 8003 | MongoDB (replica set / Atlas) | none (indexes ensured at start) |
 | transformation-engine | `services/transformation-engine` | `services/transformation-engine/Dockerfile` | 8000 | PostgreSQL `transformation` | `alembic upgrade head` |
 | provider-service | `services/provider-service` | `services/provider-service/Dockerfile` | 8005 | PostgreSQL `provider` | `alembic upgrade head` |
+| concierge-service | `services/concierge-service` | `services/concierge-service/Dockerfile` | 8021 | PostgreSQL `concierge` | `alembic upgrade head` |
+| notification-service | `services/notification-service` | `services/notification-service/Dockerfile` | 8022 | PostgreSQL `notification` | `alembic upgrade head` |
 
 Further components (appointment-service, web) are added to this table when their branches merge;
 check `docs/EXECUTION_LEDGER.md` for the current list before deploying.
@@ -109,3 +111,33 @@ development default; the error names the variables without printing values.
 - Forged-header check: `POST /v1/providers` with only `X-Healuxa-User`/`X-Healuxa-Perms` headers → 401.
 - `scripts/smoke/assessment_to_transformation_events.sh` against staging (needs psql access to the
   transformation DB) proves the event path end to end.
+
+## 8. concierge-service and notification-service (added with feat/concierge-notifications)
+
+Both follow sections 2–7 (same image facts, secret guard, pre-deploy `alembic upgrade head`,
+`/ready` probe). Deploy them after identity-service; identity migration
+`0009_concierge_permissions` grants `concierge:request` + `notifications:read/write` to `user` and
+`concierge:coordinate` + `concierge:supervise` to `admin`.
+
+**Public routes** (Traefik, paths per the contracts):
+- `/v1/concierge/*` → concierge-service (8021).
+- `/v1/notifications`, `/v1/notifications/unread-count`, `/v1/notifications/{id}/read`,
+  `/v1/notifications/read-all`, `/v1/notifications/preferences/*`, `/v1/notification-devices*`
+  → notification-service (8022).
+- **Internal only — never route publicly:** `/v1/notifications/send` and
+  `/v1/notifications/recipient-links*` (service tokens, `service` permission), plus `/metrics`.
+
+**Environment variables** (names only):
+- concierge-service: `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `FIRST_RESPONSE_SLA_MINUTES`
+  (default 240) and the common variables in section 5. `NATS_ENABLED=true` starts its outbox relay.
+- notification-service: `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `DEFAULT_LOCALE`,
+  `DEFAULT_TIMEZONE`, `DELIVERY_WORKER_ENABLED`, `DELIVERY_POLL_SECONDS`, `DELIVERY_BATCH_SIZE`,
+  `DELIVERY_MAX_ATTEMPTS`, `DELIVERY_BACKOFF_BASE_SECONDS`, `DELIVERY_BACKOFF_MAX_SECONDS`,
+  `EMAIL_DRIVER`, `SMS_DRIVER`, `WHATSAPP_DRIVER`, `PUSH_DRIVER` (`log` | `disabled`; `smtp` for
+  email), `ALLOW_REAL_DELIVERY` (keep `false` until a contact directory and provider accounts exist;
+  real drivers refuse to start without it), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_STARTTLS`. `NATS_ENABLED=true` starts its durable consumers
+  (concierge.*, catalog.provider_status_changed, catalog.affiliation_changed, appointment.*).
+  Run a single replica of the delivery worker per environment, or several — deliveries are leased
+  with `SKIP LOCKED`.
+

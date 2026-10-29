@@ -795,6 +795,101 @@ export interface CommercialKpiAlert {
 }
 
 /**
+ * payload of concierge.case_submitted (v1)
+ */
+
+export interface ConciergeCaseSubmitted {
+  /**
+   * ULID or UUID identifier.
+   */
+  case_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  customer_id: string;
+  category: "medical_travel" | "specialist_search" | "second_opinion_coordination" | "logistics" | "other";
+  status: "submitted";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  first_response_due_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  submitted_at: string;
+}
+
+/**
+ * payload of concierge.case_status_changed (v1)
+ */
+
+export interface ConciergeCaseStatusChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  case_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  customer_id: string;
+  coordinator_id?: string | null;
+  previous_status:
+    | "submitted"
+    | "triaged"
+    | "assigned"
+    | "in_progress"
+    | "awaiting_customer"
+    | "arranged"
+    | "completed"
+    | "cancelled"
+    | "escalated";
+  status:
+    | "submitted"
+    | "triaged"
+    | "assigned"
+    | "in_progress"
+    | "awaiting_customer"
+    | "arranged"
+    | "completed"
+    | "cancelled"
+    | "escalated";
+  changed_by_role: "customer" | "coordinator" | "supervisor";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
+ * payload of concierge.message_posted (v1). Never contains the message text.
+ */
+
+export interface ConciergeMessagePosted {
+  /**
+   * ULID or UUID identifier.
+   */
+  case_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  message_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  customer_id: string;
+  coordinator_id?: string | null;
+  /**
+   * ULID or UUID identifier.
+   */
+  sender_id: string;
+  sender_role: "customer" | "coordinator";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  posted_at: string;
+}
+
+/**
  * payload of auth.user_registered (v1)
  */
 
