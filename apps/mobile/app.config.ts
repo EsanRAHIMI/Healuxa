@@ -43,12 +43,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'healuxa',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
-  splash: {
-    image: './assets/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#F7F4EF',
-    dark: { image: './assets/splash-icon.png', backgroundColor: '#14110F' },
-  },
   ios: {
     bundleIdentifier: BUNDLE_ID,
     buildNumber: '1',
@@ -58,6 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
       CFBundleLocalizations: ['en', 'ar', 'fa'],
+      LSApplicationQueriesSchemes: ['mailto'],
       NSFaceIDUsageDescription:
         'Healuxa uses Face ID to unlock your signed-in session on this device when you turn on biometric unlock.',
     },
@@ -113,7 +108,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#F7F4EF',
     },
-    edgeToEdgeEnabled: true,
     // Only what the app needs; expo-notifications adds POST_NOTIFICATIONS on Android 13+.
     permissions: ['USE_BIOMETRIC', 'USE_FINGERPRINT'],
     blockedPermissions: [
@@ -138,7 +132,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-secure-store',
-    'expo-localization',
+    ['expo-localization', { supportsRTL: true, supportedLocales: ['en', 'ar', 'fa'] }],
     [
       'expo-local-authentication',
       {
