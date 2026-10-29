@@ -914,7 +914,7 @@ export interface MlPredictionReady {
 }
 
 /**
- * payload of payment.succeeded (v1)
+ * payload of payment.succeeded (v1) — funds captured (verified webhook or server-side retrieval). This is the 'captured' signal for bookings.
  */
 
 export interface PaymentSucceeded {
@@ -936,11 +936,41 @@ export interface PaymentSucceeded {
   invoice_id?: string;
   amount: Money;
   gateway: "tap_payments" | "stripe";
-  purpose?: "subscription" | "marketplace_order" | "add_on" | "top_up";
+  purpose?:
+    | "subscription"
+    | "marketplace_order"
+    | "add_on"
+    | "top_up"
+    | "appointment"
+    | "concierge_case"
+    | "membership";
   /**
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   captured_at: string;
+  subject_type?: "appointment" | "concierge_case" | "membership";
+  /**
+   * ULID or UUID identifier.
+   */
+  subject_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  quote_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  capture_method?: "automatic" | "manual";
+  billing_reason?: "one_off" | "subscription_create" | "subscription_cycle" | "subscription_update";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  billing_period_end?: string;
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -971,6 +1001,11 @@ export interface PaymentFailed {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   failed_at: string;
+  subject_type?: "appointment" | "concierge_case" | "membership";
+  /**
+   * ULID or UUID identifier.
+   */
+  subject_id?: string;
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -1011,6 +1046,230 @@ export interface CommissionComputed {
 /**
  * Monetary amount. Integer minor units to avoid float error.
  */
+
+/**
+ * payload of payment.authorized (v1) — funds held, not captured (manual capture / confirm-then-charge).
+ */
+
+export interface PaymentAuthorized {
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  amount: Money;
+  gateway: "tap_payments" | "stripe";
+  subject_type: "appointment" | "concierge_case" | "membership";
+  /**
+   * ULID or UUID identifier.
+   */
+  subject_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  quote_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  provider_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  authorized_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.canceled (v1) — uncaptured payment voided / authorisation released.
+ */
+
+export interface PaymentCanceled {
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  amount: Money;
+  gateway: "tap_payments" | "stripe";
+  subject_type: "appointment" | "concierge_case" | "membership";
+  /**
+   * ULID or UUID identifier.
+   */
+  subject_id: string;
+  reason?: string | null;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  canceled_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.refunded (v1) — a refund was issued (processor confirmed).
+ */
+
+export interface PaymentRefunded {
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  refund_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  amount: Money;
+  total_refunded: Money;
+  fully_refunded: boolean;
+  reason: string;
+  subject_type: "appointment" | "concierge_case" | "membership";
+  /**
+   * ULID or UUID identifier.
+   */
+  subject_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  credit_note_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  refunded_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.dispute_opened (v1) — chargeback opened at the processor.
+ */
+
+export interface PaymentDisputeOpened {
+  /**
+   * ULID or UUID identifier.
+   */
+  dispute_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  amount: Money;
+  status: string;
+  reason?: string | null;
+  evidence_due_by?: string | null;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  opened_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.dispute_closed (v1).
+ */
+
+export interface PaymentDisputeClosed {
+  /**
+   * ULID or UUID identifier.
+   */
+  dispute_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  amount: Money;
+  outcome: "won" | "lost" | "warning_closed" | "other";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  closed_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.invoice_issued (v1) — tax invoice or credit note issued (gap-free number per tenant and series).
+ */
+
+export interface PaymentInvoiceIssued {
+  /**
+   * ULID or UUID identifier.
+   */
+  invoice_id: string;
+  number: string;
+  kind: "invoice" | "credit_note";
+  /**
+   * ULID or UUID identifier.
+   */
+  payment_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  refund_id?: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  total: Money;
+  tax: Money;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  issued_at: string;
+}
+/**
+ * Monetary amount. Integer minor units to avoid float error.
+ */
+
+/**
+ * payload of payment.billing_agreement_updated (v1) — processor subscription state of a membership (consumed by subscription-service).
+ */
+
+export interface PaymentBillingAgreementUpdated {
+  /**
+   * ULID or UUID identifier.
+   */
+  subscription_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  status: "incomplete" | "active" | "past_due" | "unpaid" | "canceled" | "incomplete_expired" | "paused";
+  current_period_end?: string | null;
+  cancel_at_period_end: boolean;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  updated_at: string;
+}
 
 /**
  * payload of profile.updated (v1)
@@ -1210,6 +1469,7 @@ export interface SubscriptionCreated {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   started_at: string;
+  status?: "incomplete" | "active";
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -1267,6 +1527,8 @@ export interface SubscriptionUpgraded {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   changed_at: string;
+  price?: Money;
+  billing_cycle?: "monthly" | "quarterly" | "annual";
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -1292,6 +1554,8 @@ export interface SubscriptionDowngraded {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   changed_at: string;
+  price?: Money;
+  billing_cycle?: "monthly" | "quarterly" | "annual";
 }
 /**
  * Monetary amount. Integer minor units to avoid float error.
@@ -1321,3 +1585,47 @@ export interface SubscriptionChurned {
 /**
  * Monetary amount. Integer minor units to avoid float error.
  */
+
+/**
+ * payload of subscription.cancellation_scheduled (v1) — membership ends at period end; payment-service stops renewal at the processor.
+ */
+
+export interface SubscriptionCancellationScheduled {
+  /**
+   * ULID or UUID identifier.
+   */
+  subscription_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  plan_id: string;
+  cancel_at?: string | null;
+  reason?: string | null;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  requested_at: string;
+}
+
+/**
+ * payload of subscription.status_changed (v1)
+ */
+
+export interface SubscriptionStatusChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  subscription_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  plan_id: string;
+  from_status: string;
+  to_status: "incomplete" | "active" | "past_due" | "paused" | "cancelled" | "expired";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}

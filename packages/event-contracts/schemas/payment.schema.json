@@ -2,23 +2,97 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.healuxa.com/events/payment.schema.json",
   "title": "PaymentEvents",
-  "description": "Events owned by payment-service (money ledger = source of truth). Owner is the only publisher.",
+  "description": "Events owned by payment-service (money ledger = source of truth). Owner is the only publisher. Payloads never carry card data (PAN/CVC/last4/expiry), processor client secrets, or health data (no service names).",
   "$defs": {
     "PaymentSucceeded": {
       "title": "PaymentSucceeded",
-      "description": "payload of payment.succeeded (v1)",
+      "description": "payload of payment.succeeded (v1) — funds captured (verified webhook or server-side retrieval). This is the 'captured' signal for bookings.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["payment_id", "user_id", "amount", "gateway", "captured_at"],
+      "required": [
+        "payment_id",
+        "user_id",
+        "amount",
+        "gateway",
+        "captured_at"
+      ],
       "properties": {
-        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "invoice_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "amount": { "$ref": "common.schema.json#/$defs/Money" },
-        "gateway": { "type": "string", "enum": ["tap_payments", "stripe"] },
-        "purpose": { "type": "string", "enum": ["subscription", "marketplace_order", "add_on", "top_up"] },
-        "captured_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "invoice_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "gateway": {
+          "type": "string",
+          "enum": [
+            "tap_payments",
+            "stripe"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "subscription",
+            "marketplace_order",
+            "add_on",
+            "top_up",
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "captured_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "subject_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "quote_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "facility_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "capture_method": {
+          "type": "string",
+          "enum": [
+            "automatic",
+            "manual"
+          ]
+        },
+        "billing_reason": {
+          "type": "string",
+          "enum": [
+            "one_off",
+            "subscription_create",
+            "subscription_cycle",
+            "subscription_update"
+          ]
+        },
+        "billing_period_end": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "PaymentFailed": {
@@ -26,16 +100,55 @@
       "description": "payload of payment.failed (v1) — triggers dunning + journey.at_risk.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["payment_id", "user_id", "amount", "gateway", "failure_code", "failed_at"],
+      "required": [
+        "payment_id",
+        "user_id",
+        "amount",
+        "gateway",
+        "failure_code",
+        "failed_at"
+      ],
       "properties": {
-        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "amount": { "$ref": "common.schema.json#/$defs/Money" },
-        "gateway": { "type": "string", "enum": ["tap_payments", "stripe"] },
-        "failure_code": { "type": "string" },
-        "dunning_attempt": { "type": "integer", "minimum": 0 },
-        "failed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "gateway": {
+          "type": "string",
+          "enum": [
+            "tap_payments",
+            "stripe"
+          ]
+        },
+        "failure_code": {
+          "type": "string"
+        },
+        "dunning_attempt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "subject_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        }
       }
     },
     "CommissionComputed": {
@@ -43,16 +156,386 @@
       "description": "payload of commission.computed (v1) — consumed by Provider Success + Commercial.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["commission_id", "provider_id", "amount", "computed_at"],
+      "required": [
+        "commission_id",
+        "provider_id",
+        "amount",
+        "computed_at"
+      ],
       "properties": {
-        "commission_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "payment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "appointment_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "gross": { "$ref": "common.schema.json#/$defs/Money" },
-        "amount": { "$ref": "common.schema.json#/$defs/Money" },
-        "rate": { "$ref": "common.schema.json#/$defs/Score01" },
-        "computed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "commission_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "appointment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "gross": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "rate": {
+          "$ref": "common.schema.json#/$defs/Score01"
+        },
+        "computed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentAuthorized": {
+      "title": "PaymentAuthorized",
+      "description": "payload of payment.authorized (v1) — funds held, not captured (manual capture / confirm-then-charge).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_id",
+        "user_id",
+        "amount",
+        "gateway",
+        "subject_type",
+        "subject_id",
+        "authorized_at"
+      ],
+      "properties": {
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "gateway": {
+          "type": "string",
+          "enum": [
+            "tap_payments",
+            "stripe"
+          ]
+        },
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "subject_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "quote_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "facility_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "authorized_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentCanceled": {
+      "title": "PaymentCanceled",
+      "description": "payload of payment.canceled (v1) — uncaptured payment voided / authorisation released.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_id",
+        "user_id",
+        "amount",
+        "gateway",
+        "subject_type",
+        "subject_id",
+        "canceled_at"
+      ],
+      "properties": {
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "gateway": {
+          "type": "string",
+          "enum": [
+            "tap_payments",
+            "stripe"
+          ]
+        },
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "subject_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "canceled_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentRefunded": {
+      "title": "PaymentRefunded",
+      "description": "payload of payment.refunded (v1) — a refund was issued (processor confirmed).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payment_id",
+        "refund_id",
+        "user_id",
+        "amount",
+        "total_refunded",
+        "fully_refunded",
+        "reason",
+        "subject_type",
+        "subject_id",
+        "refunded_at"
+      ],
+      "properties": {
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "refund_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "total_refunded": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "fully_refunded": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "appointment",
+            "concierge_case",
+            "membership"
+          ]
+        },
+        "subject_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "credit_note_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "refunded_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentDisputeOpened": {
+      "title": "PaymentDisputeOpened",
+      "description": "payload of payment.dispute_opened (v1) — chargeback opened at the processor.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispute_id",
+        "payment_id",
+        "user_id",
+        "amount",
+        "status",
+        "opened_at"
+      ],
+      "properties": {
+        "dispute_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_due_by": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "opened_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentDisputeClosed": {
+      "title": "PaymentDisputeClosed",
+      "description": "payload of payment.dispute_closed (v1).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispute_id",
+        "payment_id",
+        "user_id",
+        "amount",
+        "outcome",
+        "closed_at"
+      ],
+      "properties": {
+        "dispute_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "amount": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "won",
+            "lost",
+            "warning_closed",
+            "other"
+          ]
+        },
+        "closed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentInvoiceIssued": {
+      "title": "PaymentInvoiceIssued",
+      "description": "payload of payment.invoice_issued (v1) — tax invoice or credit note issued (gap-free number per tenant and series).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invoice_id",
+        "number",
+        "kind",
+        "payment_id",
+        "user_id",
+        "total",
+        "tax",
+        "issued_at"
+      ],
+      "properties": {
+        "invoice_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "number": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "invoice",
+            "credit_note"
+          ]
+        },
+        "payment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "refund_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "total": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "tax": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "issued_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "PaymentBillingAgreementUpdated": {
+      "title": "PaymentBillingAgreementUpdated",
+      "description": "payload of payment.billing_agreement_updated (v1) — processor subscription state of a membership (consumed by subscription-service).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_id",
+        "user_id",
+        "status",
+        "cancel_at_period_end",
+        "updated_at"
+      ],
+      "properties": {
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "incomplete",
+            "active",
+            "past_due",
+            "unpaid",
+            "canceled",
+            "incomplete_expired",
+            "paused"
+          ]
+        },
+        "current_period_end": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "cancel_at_period_end": {
+          "type": "boolean"
+        },
+        "updated_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     }
   }
