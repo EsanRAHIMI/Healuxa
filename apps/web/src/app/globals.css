@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@import "@healuxa/design-tokens/tokens.css";
+@import "@healuxa/design-tokens/theme.css";
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--hx-color-bg);
+    color: var(--hx-color-text);
+    font-family: var(--hx-font-family-sans);
+    line-height: 1.625;
+  }
+  /* Arabic script: no letter-spacing, taller leading, and headings use the script's sans face. */
+  html[dir="rtl"] {
+    --hx-font-serif: var(--hx-font-sans);
+  }
+  html[dir="rtl"] body {
+    line-height: 1.85;
+  }
+  html[dir="rtl"] * {
+    letter-spacing: 0 !important;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--hx-font-family-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a {
+    color: var(--hx-color-primary);
+    text-underline-offset: 0.2em;
+  }
+  :focus-visible {
+    outline: 3px solid var(--hx-color-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: var(--hx-color-primary-soft);
+    color: var(--hx-color-on-primary-soft);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .hx-container {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 48rem) {
+    .hx-container {
+      padding-inline: 2rem;
+    }
+  }
+  .hx-prose > * + * {
+    margin-top: 1rem;
+  }
+  .hx-prose h2 {
+    font-size: 1.5rem;
+    margin-top: 2.25rem;
+  }
+  .hx-prose h3 {
+    font-size: 1.2rem;
+    margin-top: 1.5rem;
+  }
+  .hx-prose ul {
+    list-style: disc;
+    padding-inline-start: 1.25rem;
+  }
+  .hx-prose li + li {
+    margin-top: 0.4rem;
+  }
+  /* Numbers inside RTL text (fees, times) keep their own direction. */
+  .hx-ltr-nums {
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+  }
+}
