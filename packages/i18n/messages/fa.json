@@ -1,0 +1,193 @@
+{
+  "common": {
+    "appName": "هیلوکسا",
+    "tagline": "کنسیرژ خصوصی سلامت",
+    "loading": "در حال بارگذاری…",
+    "save": "ذخیره",
+    "saving": "در حال ذخیره…",
+    "saved": "ذخیره شد",
+    "cancel": "انصراف",
+    "submit": "ارسال",
+    "continue": "ادامه",
+    "back": "بازگشت",
+    "close": "بستن",
+    "edit": "ویرایش",
+    "delete": "حذف",
+    "remove": "برداشتن",
+    "add": "افزودن",
+    "create": "ایجاد",
+    "search": "جستجو",
+    "filter": "فیلتر",
+    "clearFilters": "پاک کردن فیلترها",
+    "apply": "اعمال",
+    "next": "بعدی",
+    "previous": "قبلی",
+    "loadMore": "نمایش بیشتر",
+    "viewDetails": "مشاهده جزئیات",
+    "optional": "اختیاری",
+    "required": "الزامی",
+    "yes": "بله",
+    "no": "خیر",
+    "none": "هیچ",
+    "notProvided": "ارائه نشده",
+    "retry": "تلاش دوباره",
+    "results": "{count, plural, =0 {نتیجه‌ای یافت نشد} one {# نتیجه} other {# نتیجه}}",
+    "id": "شناسه",
+    "copy": "کپی",
+    "status": "وضعیت",
+    "actions": "اقدامات",
+    "language": "زبان",
+    "theme": "پوسته",
+    "themeLight": "روشن",
+    "themeDark": "تیره",
+    "themeSystem": "مطابق سیستم"
+  },
+  "a11y": {
+    "skipToContent": "رفتن به محتوای اصلی",
+    "mainNav": "ناوبری اصلی",
+    "footerNav": "پیوندهای پانویس",
+    "languageSwitcher": "انتخاب زبان",
+    "breadcrumb": "مسیر صفحه",
+    "pagination": "صفحه‌بندی",
+    "openMenu": "باز کردن منو",
+    "closeMenu": "بستن منو",
+    "externalLink": "(در زبانه جدید باز می‌شود)",
+    "required": "فیلد الزامی"
+  },
+  "errors": {
+    "title": "مشکلی پیش آمد",
+    "validation_error": "لطفاً فیلدهای مشخص‌شده را بررسی کنید.",
+    "unauthorized": "نشست شما به پایان رسیده است. لطفاً دوباره وارد شوید.",
+    "forbidden": "شما اجازه انجام این کار را ندارید.",
+    "not_found": "آنچه به دنبالش بودید پیدا نشد.",
+    "conflict": "این درخواست با وضعیت فعلی در تعارض است. صفحه را تازه کنید و دوباره تلاش کنید.",
+    "idempotency_conflict": "این درخواست قبلاً با جزئیات متفاوتی ارسال شده است.",
+    "rate_limited": "تلاش‌های بیش از حد. لطفاً چند دقیقه صبر کنید و دوباره تلاش کنید.",
+    "unprocessable": "این درخواست هنوز قابل انجام نیست.",
+    "internal_error": "خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.",
+    "service_unavailable": "سرویس موقتاً در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید.",
+    "network_error": "ارتباط با سرورهای ما برقرار نشد. اتصال خود را بررسی کنید و دوباره تلاش کنید.",
+    "csrf": "اعتبار فرم به پایان رسیده است. لطفاً صفحه را دوباره بارگذاری و ارسال کنید.",
+    "detail": "جزئیات: {detail}",
+    "reference": "کد پیگیری: {traceId}",
+    "notFoundTitle": "صفحه پیدا نشد",
+    "notFoundBody": "ممکن است صفحه جابه‌جا شده یا پیوند نادرست باشد.",
+    "goHome": "رفتن به صفحه اصلی"
+  },
+  "enums": {
+    "providerType": {
+      "doctor": "پزشک",
+      "clinic": "کلینیک",
+      "therapist": "درمانگر",
+      "trainer": "مربی",
+      "nutritionist": "متخصص تغذیه",
+      "pharmacy": "داروخانه",
+      "brand": "برند",
+      "home_visit": "ویزیت در منزل"
+    },
+    "facilityType": {
+      "clinic": "کلینیک",
+      "hospital": "بیمارستان",
+      "medical_center": "مرکز پزشکی",
+      "day_surgery": "مرکز جراحی سرپایی",
+      "diagnostic_center": "مرکز تشخیصی",
+      "pharmacy": "داروخانه",
+      "wellness_center": "مرکز تندرستی"
+    },
+    "providerStatus": {
+      "pending": "در انتظار",
+      "active": "فعال",
+      "suspended": "تعلیق‌شده",
+      "offboarded": "خارج‌شده"
+    },
+    "verificationStatus": {
+      "unverified": "تأییدنشده",
+      "under_review": "در حال بررسی",
+      "verified": "تأییدشده",
+      "rejected": "ردشده"
+    },
+    "credentialKind": {
+      "professional_license": "پروانه حرفه‌ای",
+      "board_certification": "گواهی بورد تخصصی",
+      "malpractice_insurance": "بیمه مسئولیت حرفه‌ای",
+      "other": "مدرک دیگر"
+    },
+    "credentialStatus": {
+      "submitted": "ارسال‌شده",
+      "verified": "تأییدشده",
+      "rejected": "ردشده",
+      "expired": "منقضی‌شده"
+    },
+    "affiliationStatus": {
+      "pending": "در انتظار",
+      "active": "فعال",
+      "declined": "ردشده",
+      "ended": "پایان‌یافته"
+    },
+    "initiatedBy": {
+      "provider": "درخواست ارائه‌دهنده",
+      "facility": "دعوت مرکز درمانی"
+    },
+    "staffRole": {
+      "facility_admin": "مدیر مرکز",
+      "scheduler": "هماهنگ‌کننده نوبت‌ها",
+      "billing": "امور مالی"
+    },
+    "offeringStatus": {
+      "draft": "پیش‌نویس",
+      "active": "فعال",
+      "retired": "متوقف‌شده"
+    },
+    "offeringMode": {
+      "in_person": "حضوری",
+      "home_visit": "ویزیت در منزل"
+    },
+    "priceType": {
+      "fixed": "قیمت ثابت",
+      "from": "قیمت پایه",
+      "on_request": "قیمت با استعلام"
+    },
+    "exceptionReason": {
+      "leave": "مرخصی",
+      "public_holiday": "تعطیل رسمی",
+      "training": "آموزش",
+      "other": "سایر"
+    },
+    "branchStatus": {
+      "active": "باز",
+      "closed": "بسته"
+    }
+  },
+  "auth": {
+    "signIn": "ورود",
+    "signOut": "خروج",
+    "signUp": "ایجاد حساب",
+    "email": "ایمیل یا شماره تلفن",
+    "password": "رمز عبور",
+    "passwordHint": "حداقل ۸ نویسه.",
+    "invalidCredentials": "ایمیل/تلفن یا رمز عبور نادرست است.",
+    "alreadyRegistered": "حسابی با این ایمیل یا شماره تلفن وجود دارد."
+  },
+  "legal": {
+    "reviewNotice": "پیش‌نویس در انتظار بررسی حقوقی. این متن هنوز توسط مشاور حقوقی هیلوکسا تأیید نشده و ممکن است پیش از راه‌اندازی تغییر کند.",
+    "notMedicalAdvice": "هیلوکسا مراقبت را با ارائه‌دهندگان دارای مجوز هماهنگ می‌کند. اطلاعات این سایت توصیه پزشکی نیست و جایگزین مشاوره با پزشک واجد شرایط نمی‌شود.",
+    "emergency": "در موارد اورژانسی پزشکی در امارات، فوراً با ۹۹۸ (آمبولانس) یا ۹۹۹ (پلیس) تماس بگیرید. هیلوکسا خدمات اورژانس ارائه نمی‌دهد."
+  },
+  "consent": {
+    "marketingEmail": "اخبار و پیشنهادها را از طریق ایمیل برایم بفرستید",
+    "marketingSms": "اخبار را از طریق پیامک یا واتس‌اپ برایم بفرستید",
+    "analytics": "اجازه تحلیل ناشناس استفاده برای بهبود خدمات",
+    "termsAgreement": "با ایجاد حساب، شرایط استفاده را می‌پذیرید و اطلاعیه حریم خصوصی را تأیید می‌کنید."
+  },
+  "clinical": {
+    "verifiedCredentialsExplainer": "هیلوکسا این مدارک را نزد مرجع صادرکننده سلامت بررسی کرده است. این تأیید تنها وضعیت ثبت را نشان می‌دهد و به معنای تضمین نتایج درمانی نیست."
+  },
+  "payment": {
+    "feeBreakdownExplainer": "مبلغ کل برابر است با حق‌الزحمه پزشک به‌اضافه هزینه مرکز درمانی. مالیات و هرگونه کارمزد پلتفرم، در صورت وجود، پیش از پرداخت نمایش داده می‌شود.",
+    "professionalFee": "حق‌الزحمه پزشک",
+    "facilityFee": "هزینه مرکز درمانی",
+    "total": "مبلغ کل",
+    "from": "از {amount}",
+    "onRequest": "قیمت با استعلام"
+  }
+}

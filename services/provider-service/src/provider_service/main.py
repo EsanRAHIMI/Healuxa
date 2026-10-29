@@ -11,6 +11,7 @@ from healuxa_py_common.observability.metrics import metrics_payload
 from healuxa_py_common.observability.tracing import TraceMiddleware, configure_logging, get_trace_id
 from sqlalchemy import text
 
+from provider_service.api.admin import router as admin_router
 from provider_service.api.catalog import router as catalog_router
 from provider_service.api.facilities import router as facilities_router
 from provider_service.api.providers import router as providers_router
@@ -38,7 +39,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Healuxa Provider Service",
-        version="3.4.0",
+        version="3.5.0",
         description="Providers, credentials, facilities, affiliations, catalog and availability per provider.openapi.yaml",
         lifespan=lifespan,
     )
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(providers_router)
     app.include_router(facilities_router)
     app.include_router(catalog_router)
+    app.include_router(admin_router)
 
     @app.exception_handler(ApiError)
     async def handle_api_error(request: Request, exc: ApiError) -> JSONResponse:

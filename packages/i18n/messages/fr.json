@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "Healuxa",
+    "tagline": "Conciergerie de santé privée",
+    "loading": "Chargement…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "search": "Rechercher",
+    "language": "Langue"
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "signUp": "Créer un compte"
+  }
+}

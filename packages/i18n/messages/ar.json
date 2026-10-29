@@ -1,0 +1,193 @@
+{
+  "common": {
+    "appName": "هيلوكسا",
+    "tagline": "خدمة كونسيرج صحية خاصة",
+    "loading": "جارٍ التحميل…",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم الحفظ",
+    "cancel": "إلغاء",
+    "submit": "إرسال",
+    "continue": "متابعة",
+    "back": "رجوع",
+    "close": "إغلاق",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "remove": "إزالة",
+    "add": "إضافة",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "clearFilters": "مسح عوامل التصفية",
+    "apply": "تطبيق",
+    "next": "التالي",
+    "previous": "السابق",
+    "loadMore": "عرض المزيد",
+    "viewDetails": "عرض التفاصيل",
+    "optional": "اختياري",
+    "required": "مطلوب",
+    "yes": "نعم",
+    "no": "لا",
+    "none": "لا يوجد",
+    "notProvided": "غير متوفر",
+    "retry": "حاول مرة أخرى",
+    "results": "{count, plural, =0 {لا توجد نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
+    "id": "المعرّف",
+    "copy": "نسخ",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "themeLight": "فاتح",
+    "themeDark": "داكن",
+    "themeSystem": "حسب النظام"
+  },
+  "a11y": {
+    "skipToContent": "انتقل إلى المحتوى الرئيسي",
+    "mainNav": "التنقل الرئيسي",
+    "footerNav": "روابط التذييل",
+    "languageSwitcher": "اختر اللغة",
+    "breadcrumb": "مسار التنقل",
+    "pagination": "التنقل بين الصفحات",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "externalLink": "(يفتح في علامة تبويب جديدة)",
+    "required": "حقل مطلوب"
+  },
+  "errors": {
+    "title": "حدث خطأ ما",
+    "validation_error": "يرجى مراجعة الحقول المحددة.",
+    "unauthorized": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
+    "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.",
+    "not_found": "لم نتمكن من العثور على ما تبحث عنه.",
+    "conflict": "يتعارض هذا مع الحالة الحالية. حدّث الصفحة وحاول مرة أخرى.",
+    "idempotency_conflict": "تم إرسال هذا الطلب سابقًا بتفاصيل مختلفة.",
+    "rate_limited": "محاولات كثيرة جدًا. يرجى الانتظار بضع دقائق ثم المحاولة مرة أخرى.",
+    "unprocessable": "لا يمكن إتمام هذا الطلب بعد.",
+    "internal_error": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
+    "service_unavailable": "الخدمة غير متاحة مؤقتًا. يرجى المحاولة بعد قليل.",
+    "network_error": "تعذّر الاتصال بخوادمنا. تحقّق من اتصالك وحاول مرة أخرى.",
+    "csrf": "انتهت صلاحية النموذج. يرجى إعادة تحميل الصفحة والإرسال مرة أخرى.",
+    "detail": "التفاصيل: {detail}",
+    "reference": "الرقم المرجعي: {traceId}",
+    "notFoundTitle": "الصفحة غير موجودة",
+    "notFoundBody": "ربما نُقلت الصفحة أو أن الرابط غير صحيح.",
+    "goHome": "الذهاب إلى الصفحة الرئيسية"
+  },
+  "enums": {
+    "providerType": {
+      "doctor": "طبيب",
+      "clinic": "عيادة",
+      "therapist": "معالج",
+      "trainer": "مدرّب",
+      "nutritionist": "أخصائي تغذية",
+      "pharmacy": "صيدلية",
+      "brand": "علامة تجارية",
+      "home_visit": "زيارة منزلية"
+    },
+    "facilityType": {
+      "clinic": "عيادة",
+      "hospital": "مستشفى",
+      "medical_center": "مركز طبي",
+      "day_surgery": "مركز جراحة اليوم الواحد",
+      "diagnostic_center": "مركز تشخيصي",
+      "pharmacy": "صيدلية",
+      "wellness_center": "مركز عافية"
+    },
+    "providerStatus": {
+      "pending": "قيد الانتظار",
+      "active": "نشط",
+      "suspended": "موقوف",
+      "offboarded": "منتهية عضويته"
+    },
+    "verificationStatus": {
+      "unverified": "غير موثّق",
+      "under_review": "قيد المراجعة",
+      "verified": "موثّق",
+      "rejected": "مرفوض"
+    },
+    "credentialKind": {
+      "professional_license": "ترخيص مزاولة المهنة",
+      "board_certification": "شهادة البورد",
+      "malpractice_insurance": "تأمين ضد الأخطاء المهنية",
+      "other": "مؤهل آخر"
+    },
+    "credentialStatus": {
+      "submitted": "مُرسل",
+      "verified": "موثّق",
+      "rejected": "مرفوض",
+      "expired": "منتهي الصلاحية"
+    },
+    "affiliationStatus": {
+      "pending": "قيد الانتظار",
+      "active": "نشط",
+      "declined": "مرفوض",
+      "ended": "منتهٍ"
+    },
+    "initiatedBy": {
+      "provider": "بطلب من مقدّم الخدمة",
+      "facility": "بدعوة من المنشأة"
+    },
+    "staffRole": {
+      "facility_admin": "مسؤول المنشأة",
+      "scheduler": "منسّق المواعيد",
+      "billing": "الفوترة"
+    },
+    "offeringStatus": {
+      "draft": "مسودة",
+      "active": "نشط",
+      "retired": "متوقف"
+    },
+    "offeringMode": {
+      "in_person": "حضوري",
+      "home_visit": "زيارة منزلية"
+    },
+    "priceType": {
+      "fixed": "سعر ثابت",
+      "from": "سعر ابتدائي",
+      "on_request": "السعر عند الطلب"
+    },
+    "exceptionReason": {
+      "leave": "إجازة",
+      "public_holiday": "عطلة رسمية",
+      "training": "تدريب",
+      "other": "أخرى"
+    },
+    "branchStatus": {
+      "active": "مفتوح",
+      "closed": "مغلق"
+    }
+  },
+  "auth": {
+    "signIn": "تسجيل الدخول",
+    "signOut": "تسجيل الخروج",
+    "signUp": "إنشاء حساب",
+    "email": "البريد الإلكتروني أو رقم الهاتف",
+    "password": "كلمة المرور",
+    "passwordHint": "8 أحرف على الأقل.",
+    "invalidCredentials": "البريد الإلكتروني/الهاتف أو كلمة المرور غير صحيحة.",
+    "alreadyRegistered": "يوجد حساب مسجّل بهذا البريد الإلكتروني أو الهاتف."
+  },
+  "legal": {
+    "reviewNotice": "مسودة بانتظار المراجعة القانونية. لم يعتمد المستشار القانوني لهيلوكسا هذا النص بعد، وقد يتغيّر قبل الإطلاق.",
+    "notMedicalAdvice": "تنسّق هيلوكسا الرعاية مع مقدّمي خدمات مرخّصين. المعلومات الواردة في هذا الموقع ليست استشارة طبية ولا تغني عن استشارة طبيب مؤهّل.",
+    "emergency": "في حالات الطوارئ الطبية في الإمارات، اتصل فورًا بالرقم 998 (الإسعاف) أو 999 (الشرطة). هيلوكسا ليست خدمة طوارئ."
+  },
+  "consent": {
+    "marketingEmail": "أرسلوا لي التحديثات والعروض عبر البريد الإلكتروني",
+    "marketingSms": "أرسلوا لي التحديثات عبر الرسائل النصية أو واتساب",
+    "analytics": "السماح بتحليلات استخدام مجهولة الهوية لتحسين الخدمة",
+    "termsAgreement": "بإنشاء حساب، فإنك توافق على شروط الاستخدام وتقرّ بإشعار الخصوصية."
+  },
+  "clinical": {
+    "verifiedCredentialsExplainer": "تحقّقت هيلوكسا من هذه المؤهلات لدى الجهة الصحية المُصدِرة. يؤكّد التوثيق حالة التسجيل فقط، ولا يُعدّ تزكية للنتائج العلاجية."
+  },
+  "payment": {
+    "feeBreakdownExplainer": "الإجمالي هو أتعاب الطبيب المهنية مضافًا إليها رسوم المنشأة. تُعرض الضرائب وأي رسوم للمنصة، إن وُجدت، قبل الدفع.",
+    "professionalFee": "الأتعاب المهنية",
+    "facilityFee": "رسوم المنشأة",
+    "total": "الإجمالي",
+    "from": "ابتداءً من {amount}",
+    "onRequest": "السعر عند الطلب"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "policy": "Catalogs are static, reviewed files. Runtime machine translation is prohibited. Machine-drafted translations are acceptable for UI chrome only; every key listed under needs_professional_review must be approved by a qualified reviewer (legal counsel for legal/consent, a licensed clinician for clinical, finance/compliance for payment) and a professional translator for ar/fa before public launch.",
+  "locales": {
+    "en": {
+      "status": "source",
+      "reviewed": false
+    },
+    "ar": {
+      "status": "machine_draft",
+      "reviewed": false
+    },
+    "fa": {
+      "status": "machine_draft",
+      "reviewed": false
+    },
+    "fr": {
+      "status": "scaffold",
+      "reviewed": false
+    },
+    "de": {
+      "status": "scaffold",
+      "reviewed": false
+    }
+  },
+  "needs_professional_review": {
+    "namespaces": [
+      "legal",
+      "consent",
+      "clinical",
+      "payment"
+    ],
+    "extra_keys": [],
+    "keys": [
+      "clinical.verifiedCredentialsExplainer",
+      "consent.analytics",
+      "consent.marketingEmail",
+      "consent.marketingSms",
+      "consent.termsAgreement",
+      "legal.emergency",
+      "legal.notMedicalAdvice",
+      "legal.reviewNotice",
+      "payment.facilityFee",
+      "payment.feeBreakdownExplainer",
+      "payment.from",
+      "payment.onRequest",
+      "payment.professionalFee",
+      "payment.total"
+    ]
+  },
+  "ui_chrome_allowlist": ["enums.facilityType.diagnostic_center"]
+}

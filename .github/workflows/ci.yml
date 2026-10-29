@@ -298,3 +298,23 @@ jobs:
           test -n "${NATS_URL:-}" || { echo "NATS_URL missing"; exit 1; }
           pytest -q -rs
           python -c "from assessment_service.main import app; print('app ok', app.title)"
+
+  shared-packages:
+    # @healuxa/api-client, design-tokens, i18n (consumed by apps/web and the Expo app).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Generated client, token CSS and review manifest are up to date
+        run: |
+          npm run packages:check
+          npm run check:manifest -w @healuxa/i18n
+      - name: Typecheck
+        run: npm run packages:typecheck
+      - name: Unit tests (client, WCAG contrast, i18n completeness)
+        run: npm run packages:test

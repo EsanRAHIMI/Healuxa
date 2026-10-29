@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Healuxa Provider Service API
-  version: 3.4.0
+  version: 3.5.0
   description: >
     Provider & Catalog Open Host Service. Owns typed providers, their professional credentials and
     verification, facilities (clinics/hospitals) and branches, provider–facility affiliations, the
@@ -31,6 +31,8 @@ tags:
   - name: affiliations
   - name: services
   - name: availability
+  - name: admin
+    description: Staff-only verification queues (read-only; decisions use the review/status operations).
 paths:
   /providers:
     get:
@@ -647,6 +649,78 @@ paths:
         "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /admin/providers:
+    get:
+      operationId: listAdminProviders
+      summary: Staff queue of providers in this tenant, filterable by status (oldest first)
+      tags: [admin]
+      x-required-permission: providers:verify
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ProviderStatus" } }
+        - { name: verification_status, in: query, schema: { $ref: "#/components/schemas/VerificationStatus" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK (private provider view)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /admin/credentials:
+    get:
+      operationId: listAdminCredentials
+      summary: Staff credential review queue (defaults to submitted; oldest first)
+      tags: [admin]
+      x-required-permission: providers:verify
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [submitted, verified, rejected], default: submitted } }
+        - { name: provider_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/AdminCredential" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /admin/facilities:
+    get:
+      operationId: listAdminFacilities
+      summary: Staff facility verification queue, filterable by status (oldest first)
+      tags: [admin]
+      x-required-permission: facilities:verify
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ProviderStatus" } }
+        - { name: verification_status, in: query, schema: { $ref: "#/components/schemas/VerificationStatus" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK (private facility view, including license fields)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Facility" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
 components:
   securitySchemes:
     bearerAuth:
@@ -765,6 +839,13 @@ components:
         valid_from: { type: string, format: date }
         valid_until: { type: string, format: date }
         document_ref: { type: string, maxLength: 512 }
+    AdminCredential:
+      allOf:
+        - $ref: "#/components/schemas/Credential"
+        - type: object
+          required: [submitted_at]
+          properties:
+            submitted_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
     ReviewDecision:
       type: object
       additionalProperties: false

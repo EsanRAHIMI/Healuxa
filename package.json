@@ -6,13 +6,29 @@
   "workspaces": [
     "packages/api-contracts",
     "packages/event-contracts",
-    "packages/ts-common"
+    "packages/ts-common",
+    "packages/api-client",
+    "packages/design-tokens",
+    "packages/i18n",
+    "apps/web"
   ],
   "scripts": {
     "contracts:validate": "npm run validate -w @healuxa/event-contracts && npm run validate -w @healuxa/api-contracts",
     "contracts:lint": "npm run lint -w @healuxa/api-contracts",
     "ci:contracts": "npm run contracts:validate && npm test -w @healuxa/event-contracts",
-    "ci:python": "pytest -q packages/py-common && npm test -w @healuxa/ts-common"
+    "ci:python": "pytest -q packages/py-common && npm test -w @healuxa/ts-common",
+    "packages:typecheck": "npm run typecheck -w @healuxa/api-client -w @healuxa/design-tokens -w @healuxa/i18n",
+    "packages:test": "npm test -w @healuxa/api-client -w @healuxa/design-tokens -w @healuxa/i18n",
+    "packages:check": "npm run check:generated -w @healuxa/api-client && npm run check:css -w @healuxa/design-tokens",
+    "web:lint": "npm run lint -w @healuxa/web",
+    "web:typecheck": "npm run typecheck -w @healuxa/web",
+    "web:test": "npm test -w @healuxa/web",
+    "web:build": "npm run build -w @healuxa/web",
+    "web:e2e": "npm run e2e -w @healuxa/web"
+  },
+  "devDependencies": {
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
   },
   "engines": {
     "node": ">=22"

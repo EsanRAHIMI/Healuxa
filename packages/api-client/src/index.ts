@@ -1,0 +1,37 @@
+export {
+  createHealuxaClient,
+  singleFlight,
+  unwrap,
+  unwrapResponse,
+  type FetchLike,
+  type HealuxaClient,
+  type HealuxaClientOptions,
+  type ServiceClient,
+  type ServiceName,
+  type ServicePaths,
+  type TokenProvider,
+  type Unwrapped,
+} from "./client";
+export {
+  ConflictError,
+  ForbiddenError,
+  HealuxaApiError,
+  IdempotencyConflictError,
+  InternalServerError,
+  NetworkError,
+  NotFoundError,
+  RateLimitedError,
+  ServiceUnavailableError,
+  UnauthorizedError,
+  UnprocessableError,
+  ValidationError,
+  isApiError,
+  networkError,
+  normalizeProblem,
+  toApiError,
+  type ErrorCode,
+  type FieldError,
+  type ProblemDetails,
+} from "./errors";
+export { idempotencyHeader, isValidIdempotencyKey, newIdempotencyKey } from "./idempotency";
+export * from "./types";

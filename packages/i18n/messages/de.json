@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "Healuxa",
+    "tagline": "Privater Gesundheits-Concierge",
+    "loading": "Wird geladen…",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "search": "Suchen",
+    "language": "Sprache"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "signUp": "Konto erstellen"
+  }
+}

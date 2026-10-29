@@ -1,0 +1,193 @@
+{
+  "common": {
+    "appName": "Healuxa",
+    "tagline": "Private healthcare concierge",
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "continue": "Continue",
+    "back": "Back",
+    "close": "Close",
+    "edit": "Edit",
+    "delete": "Delete",
+    "remove": "Remove",
+    "add": "Add",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "clearFilters": "Clear filters",
+    "apply": "Apply",
+    "next": "Next",
+    "previous": "Previous",
+    "loadMore": "Show more",
+    "viewDetails": "View details",
+    "optional": "optional",
+    "required": "required",
+    "yes": "Yes",
+    "no": "No",
+    "none": "None",
+    "notProvided": "Not provided",
+    "retry": "Try again",
+    "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "id": "ID",
+    "copy": "Copy",
+    "status": "Status",
+    "actions": "Actions",
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System"
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content",
+    "mainNav": "Main navigation",
+    "footerNav": "Footer navigation",
+    "languageSwitcher": "Choose language",
+    "breadcrumb": "Breadcrumb",
+    "pagination": "Pagination",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "externalLink": "(opens in a new tab)",
+    "required": "Required field"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "validation_error": "Please check the highlighted fields.",
+    "unauthorized": "Your session has ended. Please sign in again.",
+    "forbidden": "You don’t have access to this action.",
+    "not_found": "We couldn’t find what you were looking for.",
+    "conflict": "This conflicts with the current state. Refresh and try again.",
+    "idempotency_conflict": "This request was already submitted with different details.",
+    "rate_limited": "Too many attempts. Please wait a few minutes and try again.",
+    "unprocessable": "This request can’t be completed yet.",
+    "internal_error": "An unexpected error occurred. Please try again.",
+    "service_unavailable": "The service is temporarily unavailable. Please try again shortly.",
+    "network_error": "We couldn’t reach our servers. Check your connection and try again.",
+    "csrf": "Your form expired. Please reload the page and submit again.",
+    "detail": "Details: {detail}",
+    "reference": "Reference: {traceId}",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page may have moved, or the link may be incorrect.",
+    "goHome": "Go to the home page"
+  },
+  "enums": {
+    "providerType": {
+      "doctor": "Doctor",
+      "clinic": "Clinic",
+      "therapist": "Therapist",
+      "trainer": "Trainer",
+      "nutritionist": "Nutritionist",
+      "pharmacy": "Pharmacy",
+      "brand": "Brand",
+      "home_visit": "Home visit"
+    },
+    "facilityType": {
+      "clinic": "Clinic",
+      "hospital": "Hospital",
+      "medical_center": "Medical centre",
+      "day_surgery": "Day surgery centre",
+      "diagnostic_center": "Diagnostic centre",
+      "pharmacy": "Pharmacy",
+      "wellness_center": "Wellness centre"
+    },
+    "providerStatus": {
+      "pending": "Pending",
+      "active": "Active",
+      "suspended": "Suspended",
+      "offboarded": "Offboarded"
+    },
+    "verificationStatus": {
+      "unverified": "Not verified",
+      "under_review": "Under review",
+      "verified": "Verified",
+      "rejected": "Rejected"
+    },
+    "credentialKind": {
+      "professional_license": "Professional licence",
+      "board_certification": "Board certification",
+      "malpractice_insurance": "Malpractice insurance",
+      "other": "Other credential"
+    },
+    "credentialStatus": {
+      "submitted": "Submitted",
+      "verified": "Verified",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "affiliationStatus": {
+      "pending": "Pending",
+      "active": "Active",
+      "declined": "Declined",
+      "ended": "Ended"
+    },
+    "initiatedBy": {
+      "provider": "Requested by provider",
+      "facility": "Invited by facility"
+    },
+    "staffRole": {
+      "facility_admin": "Facility admin",
+      "scheduler": "Scheduler",
+      "billing": "Billing"
+    },
+    "offeringStatus": {
+      "draft": "Draft",
+      "active": "Active",
+      "retired": "Retired"
+    },
+    "offeringMode": {
+      "in_person": "In person",
+      "home_visit": "Home visit"
+    },
+    "priceType": {
+      "fixed": "Fixed price",
+      "from": "Starting price",
+      "on_request": "Price on request"
+    },
+    "exceptionReason": {
+      "leave": "Leave",
+      "public_holiday": "Public holiday",
+      "training": "Training",
+      "other": "Other"
+    },
+    "branchStatus": {
+      "active": "Open",
+      "closed": "Closed"
+    }
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Create account",
+    "email": "Email or phone",
+    "password": "Password",
+    "passwordHint": "At least 8 characters.",
+    "invalidCredentials": "The email/phone or password is incorrect.",
+    "alreadyRegistered": "An account with this email or phone already exists."
+  },
+  "legal": {
+    "reviewNotice": "Draft pending legal review. This text has not yet been approved by Healuxa’s legal counsel and may change before launch.",
+    "notMedicalAdvice": "Healuxa coordinates care with licensed providers. Information on this site is not medical advice and does not replace a consultation with a qualified clinician.",
+    "emergency": "In a medical emergency in the UAE, call 998 (ambulance) or 999 (police) immediately. Healuxa is not an emergency service."
+  },
+  "consent": {
+    "marketingEmail": "Send me updates and offers by email",
+    "marketingSms": "Send me updates by SMS or WhatsApp",
+    "analytics": "Allow anonymous usage analytics to improve the service",
+    "termsAgreement": "By creating an account you agree to the Terms of use and acknowledge the Privacy notice."
+  },
+  "clinical": {
+    "verifiedCredentialsExplainer": "Healuxa checked these credentials with the issuing health authority. Verification confirms registration status only; it is not an endorsement of clinical outcomes."
+  },
+  "payment": {
+    "feeBreakdownExplainer": "The total is the clinician’s professional fee plus the facility fee. Taxes and any platform fees, if applicable, are shown before you pay.",
+    "professionalFee": "Professional fee",
+    "facilityFee": "Facility fee",
+    "total": "Total",
+    "from": "From {amount}",
+    "onRequest": "Price on request"
+  }
+}
