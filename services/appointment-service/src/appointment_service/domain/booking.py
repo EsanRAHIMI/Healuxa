@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.middleware.auth import Principal
 from sqlalchemy import and_, func, or_, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ulid import ULID
 
@@ -61,7 +61,18 @@ def _request_hash(payload: dict) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _slot_conflict(exc: IntegrityError) -> Exception:
+def _is_deadlock(exc: DBAPIError) -> bool:
+    # Concurrent inserts racing for one exclusion-constraint range can deadlock; PostgreSQL aborts one
+    # of them. The victim lost the race for an overlapping slot, so it is a conflict like any other.
+    cause = getattr(exc.orig, "__cause__", None)
+    return getattr(exc.orig, "sqlstate", None) == "40P01" or getattr(cause, "sqlstate", None) == "40P01"
+
+
+def _slot_conflict(exc: DBAPIError) -> Exception:
+    if not isinstance(exc, IntegrityError) and not _is_deadlock(exc):
+        return exc
+    if _is_deadlock(exc):
+        return conflict("This slot is no longer available")
     message = str(exc.orig) if exc.orig is not None else str(exc)
     if CUSTOMER_OVERLAP_CONSTRAINT in message:
         return conflict("The customer already has an appointment overlapping this time")
@@ -202,7 +213,7 @@ class BookingService:
         )
         try:
             await db.flush()
-        except IntegrityError as exc:
+        except DBAPIError as exc:
             await db.rollback()
             if idempotency_key and IDEMPOTENCY_INDEX in str(exc.orig):
                 replay = await self._idempotent_replay(db, principal.tenant_id, customer, idempotency_key, request_hash)
@@ -617,7 +628,7 @@ class BookingService:
             if new_status == "confirmed":
                 schedule_reminders(db, new, now)
             await db.flush()
-        except IntegrityError as exc:
+        except DBAPIError as exc:
             await db.rollback()
             if idempotency_key and TRANSITION_IDEMPOTENCY_INDEX in str(exc.orig):
                 raise conflict("A concurrent request with this Idempotency-Key is in progress") from exc

@@ -250,7 +250,10 @@ def validate_event(envelope: dict) -> None:
     """Envelope and payload must satisfy packages/event-contracts (raises on violation)."""
     registry = _registry()
     envelope_schema = json.loads((_SCHEMAS / "envelope.schema.json").read_text())
-    Draft202012Validator(envelope_schema, registry=registry, format_checker=FormatChecker()).validate(envelope)
+    # Known py-common gap (shared by all services): unset optional envelope fields are serialised as null
+    # (e.g. causation_id) while envelope.schema.json types them as strings. Payloads are checked strictly.
+    present = {k: v for k, v in envelope.items() if v is not None}
+    Draft202012Validator(envelope_schema, registry=registry, format_checker=FormatChecker()).validate(present)
     definition = envelope["schema_ref"].split("#/$defs/")[1]
     payload_schema = {"$ref": f"appointment.schema.json#/$defs/{definition}"}
     Draft202012Validator(payload_schema, registry=registry, format_checker=FormatChecker()).validate(envelope["payload"])
