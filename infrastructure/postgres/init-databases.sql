@@ -6,3 +6,7 @@ CREATE DATABASE transformation;
 CREATE DATABASE transformation_test;
 CREATE DATABASE provider;
 CREATE DATABASE provider_test;
+CREATE DATABASE concierge;
+CREATE DATABASE concierge_test;
+CREATE DATABASE notification;
+CREATE DATABASE notification_test;

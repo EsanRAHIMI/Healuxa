@@ -27,6 +27,8 @@ jobs:
           - { service: identity-service, port: 8001, db: identity, migrations: true }
           - { service: transformation-engine, port: 8000, db: transformation, migrations: true }
           - { service: provider-service, port: 8005, db: provider, migrations: true }
+          - { service: concierge-service, port: 8021, db: concierge, migrations: true }
+          - { service: notification-service, port: 8022, db: notification, migrations: true }
           - { service: profile-service, port: 8002, db: "", migrations: false }
           - { service: assessment-service, port: 8003, db: "", migrations: false }
     services:
