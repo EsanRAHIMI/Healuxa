@@ -229,6 +229,60 @@ jobs:
           pytest -q -rs
           python -c "from provider_service.main import app; print('app ok', app.title)"
 
+  appointment-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create appointment_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE appointment_test;"
+      - name: Install packages and appointment-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/appointment-service[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/appointment_test
+          TENANT_DEFAULT: healuxa-dubai
+          IDENTITY_INTROSPECT_URL: http://127.0.0.1:1/v1/auth/introspect
+          IDENTITY_SERVICE_TOKEN_URL: http://127.0.0.1:1/v1/auth/service-token
+          PROVIDER_SERVICE_URL: http://127.0.0.1:1
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/appointment-service
+        run: |
+          alembic upgrade head
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          # Models and migrations must not drift.
+          alembic check
+          # The exclusive-slot invariant must exist in the database, not only in code.
+          PGPASSWORD=dev psql -h localhost -U healuxa -d appointment_test -v ON_ERROR_STOP=1 -Atc \
+            "SELECT count(*) FROM pg_constraint WHERE contype = 'x'" | grep -qx 2
+          pytest -q -rs
+          python -c "from appointment_service.main import app; print('app ok', app.title)"
+
   profile-service:
     # Pinned: MongoDB's apt repo must publish packages for the runner's Ubuntu release.
     runs-on: ubuntu-24.04
