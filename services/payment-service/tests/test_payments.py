@@ -231,3 +231,37 @@ async def test_list_payments_shows_only_own(client: AsyncClient, gateway, catalo
     assert all(p["client_secret"] is None for p in mine["data"])
     everyone = await ok(await client.get("/v1/payments", headers=staff()))
     assert len(everyone["data"]) == 2
+
+
+async def test_appointment_cancellation_refunds_per_party_and_policy(client: AsyncClient, gateway, catalog) -> None:
+    user = new_id()
+    by_customer = await paid_appointment(client, gateway, catalog, user, hours_ahead=2)
+    await appointment_event("appointment.cancelled", {**by_customer["appointment"], "cancelled_at": datetime.now(UTC).isoformat(),
+                                                      "party": "customer", "reason": "changed_mind"})
+    partial = await ok(await client.get(f"/v1/payments/{by_customer['payment']['id']}", headers=customer(user)))
+    assert partial["status"] == "partially_refunded" and partial["amount_refunded_minor"] == 38_588
+    by_provider = await paid_appointment(client, gateway, catalog, user, hours_ahead=2)
+    await appointment_event("appointment.cancelled", {**by_provider["appointment"], "cancelled_at": datetime.now(UTC).isoformat(),
+                                                      "party": "provider", "reason": "sick"})
+    full = await ok(await client.get(f"/v1/payments/{by_provider['payment']['id']}", headers=customer(user)))
+    assert full["status"] == "refunded"
+
+
+async def test_expired_booking_releases_hold_and_reschedule_moves_payment(client: AsyncClient, gateway, catalog) -> None:
+    user = new_id()
+    appointment, _ = await booked_appointment(catalog, user)
+    quote = await quote_for(client, user, appointment)
+    payment = await create_payment(client, user, quote["id"])
+    await pi_event(client, gateway, last_pi(gateway), "authorized")
+    moved = {**appointment, "appointment_id": new_id(), "previous_appointment_id": appointment["appointment_id"],
+             "previous_scheduled_at": appointment["scheduled_at"], "party": "customer", "status": "requested"}
+    await appointment_event("appointment.rescheduled", moved)
+    await appointment_event("appointment.accepted", {k: v for k, v in moved.items() if k in appointment})
+    assert (await ok(await client.get(f"/v1/payments/{payment['id']}", headers=customer(user))))["status"] == "succeeded"
+
+    other, _ = await booked_appointment(catalog, user)
+    q2 = await quote_for(client, user, other)
+    p2 = await create_payment(client, user, q2["id"])
+    await pi_event(client, gateway, last_pi(gateway), "authorized")
+    await appointment_event("appointment.expired", {**other, "expired_at": datetime.now(UTC).isoformat()})
+    assert (await ok(await client.get(f"/v1/payments/{p2['id']}", headers=customer(user))))["status"] == "canceled"

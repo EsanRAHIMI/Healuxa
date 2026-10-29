@@ -15,7 +15,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from healuxa_py_common.errors import ApiError
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -37,7 +38,12 @@ APPOINTMENT_STATUS = {
     "appointment.declined": "declined",
     "appointment.completed": "completed",
     "appointment.no_show": "no_show",
+    # On feat/appointment-service's registry (not yet on main); handled here so wiring is ready at merge.
+    "appointment.cancelled": "cancelled",
+    "appointment.expired": "expired",
+    "appointment.rescheduled": "rescheduled",
 }
+TERMINAL_APPOINTMENT = {"declined", "completed", "no_show", "cancelled", "expired", "rescheduled"}
 SUBSCRIPTION_EVENTS = {"subscription.created", "subscription.upgraded", "subscription.downgraded", "subscription.cancellation_scheduled"}
 
 
@@ -80,11 +86,28 @@ async def handle_appointment_event(sessions: async_sessionmaker[AsyncSession], e
                     status=status,
                 )
             )
-        elif view.status not in {"declined", "completed", "no_show"} or status in {"completed", "no_show"}:
+        elif view.status not in TERMINAL_APPOINTMENT or status in {"completed", "no_show"}:
             # Terminal outcomes are never overwritten by a late requested/created/accepted event.
             if not (view.status in {"accepted", "completed"} and status in {"requested", "created"}):
                 view.status = status
             view.scheduled_at = _dt(payload["scheduled_at"])
+        if event_type == "appointment.rescheduled" and payload.get("previous_appointment_id"):
+            # The booking moved to a new appointment id: the held payment follows it.
+            await db.execute(
+                update(Payment)
+                .where(
+                    Payment.tenant_id == tenant_id,
+                    Payment.subject_type == "appointment",
+                    Payment.subject_id == payload["previous_appointment_id"],
+                )
+                .values(subject_id=appointment_id)
+            )
+            previous = await db.get(AppointmentView, payload["previous_appointment_id"])
+            if previous is not None:
+                previous.status = "rescheduled"
+            if view is not None:
+                view.status = "requested"
+            await db.flush()
         payment_ids = list(
             await db.scalars(
                 select(Payment.id).where(
@@ -97,18 +120,32 @@ async def handle_appointment_event(sessions: async_sessionmaker[AsyncSession], e
             payment = await db.get(Payment, payment_id)
         if event_type in {"appointment.accepted", "appointment.completed"} and payment.status == "authorized":
             await payment_flow.capture(sessions, payment_id)
-        elif event_type == "appointment.declined":
+        elif event_type in {"appointment.declined", "appointment.expired"} or (
+            event_type == "appointment.cancelled" and payment.status not in CAPTURED_FAMILY
+        ):
             if payment.status in {"pending", "processing", "failed", "authorized"} and payment.processor_payment_id:
-                await payment_flow.cancel(sessions, payment_id, reason="provider_declined")
+                await payment_flow.cancel(sessions, payment_id, reason="provider_declined" if event_type == "appointment.declined" else "abandoned" if event_type == "appointment.expired" else "requested_by_customer")
             elif payment.status in CAPTURED_FAMILY and refund_flow.remaining(payment) > 0:
                 await refund_flow.create_refund(
                     sessions,
                     None,
                     tenant_id=tenant_id,
                     payment_id=payment_id,
-                    body={"reason": "provider_declined"},
+                    body={"reason": "provider_declined" if event_type == "appointment.declined" else "appointment_cancelled"},
                     key=f"declined:{envelope['event_id']}",
                 )
+        elif event_type == "appointment.cancelled" and refund_flow.remaining(payment) > 0:
+            # Provider/platform cancellations refund in full; customer cancellations follow the policy.
+            body: dict[str, Any] = {"reason": "appointment_cancelled"}
+            if payload.get("party") in {"customer", "user", "patient"}:
+                body.update(apply_policy=True, cancelled_at=_dt(payload["cancelled_at"]))
+            try:
+                await refund_flow.create_refund(
+                    sessions, None, tenant_id=tenant_id, payment_id=payment_id, body=body, key=f"cancelled:{envelope['event_id']}"
+                )
+            except ApiError as exc:
+                if exc.status != 422:  # the policy allowing nothing is not a consumer failure
+                    raise
     await _mark(sessions, envelope)
 
 
