@@ -152,3 +152,33 @@ Evidence (local, Python 3.12.12, pymongo 4.19, pytest 9.1.1, pytest-asyncio 1.4.
 5. Availability + appointment service with exclusive-slot concurrency control and hold expiry.
 6. Payment service behind a processor-agnostic port (sandbox only until merchant account exists).
 7. Next.js public web + customer portal; Expo app — after the booking API exists.
+
+## Session 2026-10-29 — Stage C: appointment-service (booking engine)
+
+Branch `feat/appointment-service` (from `main` 93c6723; not merged). Stage C status: **Tested** (not deployed).
+
+- Contract `appointment.openapi.yaml` 3.4: 7 operations (existing operationIds kept) — `listAvailableSlots`,
+  `listAppointments`, `createAppointment` (hold), `getAppointment`, `transitionAppointment`
+  (submit/accept/decline/cancel/check_in/complete/no_show), `rescheduleAppointment`,
+  `listAppointmentTransitions`. All implemented; routes diffed against the contract by a test.
+- Events: existing `appointment.*` payloads gained optional `facility_id`/`branch_id`/`ends_at`; new
+  `appointment.cancelled`, `.rescheduled`, `.expired`, `.reminder_due` (registry now 54 events).
+- provider-service: service-authenticated `GET /v1/internal/scheduling/services/{id}` and
+  `/actors/{user_id}` (`api/internal.py`, documented in `provider.openapi.yaml` with `serviceAuth`).
+- Identity migration `0008_appointment_permissions`: users `appointments:create|read|write`, admins also
+  `appointments:manage`.
+- Design (details in `docs/ARCHITECTURE.md` → Booking): synchronous provider-service reads (503 on failure,
+  never invented slots); explicit state machine; reschedule = linked close + create; PostgreSQL
+  `btree_gist` exclusion constraints per provider (visit + buffer) and per customer; holds with TTL, lazy
+  expiry and a sweeper; reminders as data handed to notification-service by event; `payment_status` hook.
+- Tests: appointment-service 81 (pure slot derivation incl. Asia/Dubai and Europe/Berlin both DST
+  transitions, buffers, exceptions, hours clipping, effective dates; hold expiry; 10-way parallel holds →
+  exactly one 201; raw-SQL overlap rejected by the DB; customer/provider/scheduler/billing/stranger/other
+  tenant authorisation; forged headers; idempotent create incl. concurrent retries; audit trail; every
+  staged event validated against the JSON Schemas; HTTP client failure modes), provider-service 42
+  (37 + 5 internal), identity 33 (31 + 2), contracts valid.
+- Found, not fixed (outside Stage C scope): py-common envelopes serialise unset optional fields as `null`
+  (`causation_id`, sometimes `trace_id`/`actor`), which `envelope.schema.json` rejects — affects every
+  service's events; fix in `outbox_fields` (`exclude_none`) or allow null in the schema.
+- Not done: payment-service integration (only the hook), notification delivery, booking UIs, a cached
+  read model of catalog data, waitlists, multi-resource bookings (rooms/equipment).

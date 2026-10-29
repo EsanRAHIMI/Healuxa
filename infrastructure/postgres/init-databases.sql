@@ -6,3 +6,5 @@ CREATE DATABASE transformation;
 CREATE DATABASE transformation_test;
 CREATE DATABASE provider;
 CREATE DATABASE provider_test;
+CREATE DATABASE appointment;
+CREATE DATABASE appointment_test;
