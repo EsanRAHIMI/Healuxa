@@ -6,24 +6,32 @@ Status words are used strictly: **Implemented** (code exists), **Tested** (autom
 
 ## Status board
 
+Updated 2026-10-29 on `feat/integration`. "Tested" = automated tests pass locally and in CI.
+
 | Stage | Item | Status | Evidence |
 |---|---|---|---|
-| A | PR #1 stabilization merged | Tested | `b1d592f`, CI run 40564345781 (7/7) |
-| A | Native local stack (no Docker) | Tested | `scripts/dev/start-infra.sh` |
-| A | Transactional outbox (Postgres + Mongo) | Tested | py-common + service tests; branch `feat/reliable-events` |
-| A | Durable JetStream consumers, retry, DLQ | Tested | `test_events_integration.py` |
-| A | Idempotent consumer (transformation) | Tested | redelivery test, live smoke |
-| A | Correlation/trace propagation through events | Tested | envelope + outbox tests |
-| A | Consistent service configuration | In Progress | `NATS_ENABLED`/`NATS_URL` shared; per-service settings not yet unified |
-| — | Security: forged identity headers rejected | Tested | branch `fix/edge-header-trust`, CI 40706171858 |
-| B | Provider & facility service (API, migrations, RBAC) | Tested | branch `feat/provider-service`; 37 tests; live smoke |
-| B | Provider/facility portal UIs | Not Started | — |
-| C | Booking engine | Not Started | — |
-| D | Payments | Not Started | — |
-| E | Concierge operations | Not Started | — |
-| F | Web applications | Not Started | — |
-| G | Mobile applications | Not Started | — |
-| — | Deployed / Externally Approved / Published | none | — |
+| A | Repository stabilisation (PR #1) | Tested | merged `b1d592f`; CI 40564345781 |
+| A | Native local stack (no Docker) | Tested | `scripts/dev/start-infra.sh` (Redis now snapshot-free) |
+| A | Transactional outbox, JetStream relay, durable consumers, DLQ | Tested | py-common 23 tests; outage drill |
+| A | Envelope wire format matches `envelope.schema.json` | Tested | `a275577`, schema-validation test |
+| A | Production secret guard (`APP_ENV=production` refuses dev/empty secrets) | Tested | `test_production_settings.py` |
+| — | Forged identity headers rejected (edge secret) | Tested | per-service regression tests |
+| — | Hardened images (non-root, healthcheck) built + probed in CI | Tested | Images workflow 40836784227 |
+| B | provider-service (providers, credentials, facilities, affiliations, catalog, availability) | Tested | 42 tests |
+| C | appointment-service (slots, holds, exclusive-slot DB constraint, lifecycle, reminders) | Tested | 81 tests; CI 40836184672 |
+| E | concierge-service (cases, queue, options, secure messaging, escalation, audit) | Tested | 60 tests; CI 40836387378 |
+| — | notification-service (inbox, preferences, quiet hours, channels, event consumers) | Tested | 55 tests; CI 40836387378 |
+| D | payment-service (quotes, intents, webhooks, refunds, ledger, invoices) | In Progress | agent branch `feat/payment-service` |
+| F | Web platform + shared TS packages | In Progress | agent branch `feat/web-platform` |
+| G | Mobile app (iOS/Android) | In Progress | agent branch `feat/mobile-app` |
+| — | Integration branch (A–E merged) | In Progress | `feat/integration` `07abfd6`; local regression all green |
+| — | Deployed / Externally Approved / Published | none | deployment is out of scope for this codebase work |
+
+Known follow-ups:
+- notification-service resolves catalog-event recipients from recipient links; provider-service does not
+  yet register them, so catalog events are acknowledged as `no_recipient`.
+- One unreproduced failure in py-common JetStream integration tests while several agents shared the
+  local NATS server; 11 subsequent runs clean. Watch CI.
 
 ## Session 2026-10-28 (cont.) — security fix and Stage B provider-service
 
