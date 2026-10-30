@@ -72,6 +72,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/delete-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Permanently delete the caller's account (password re-confirmation)
+         * @description Anonymises the identifier, removes the credential and roles, revokes all sessions and emits auth.user_deleted so every service erases or anonymises its data for this user.
+         */
+        post: operations["authDeleteAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/introspect": {
         parameters: {
             query?: never;
@@ -296,8 +316,8 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Authenticated but lacks permission/scope/ownership. */
-        Forbidden: {
+        /** @description Resource not found. */
+        NotFound: {
             headers: {
                 [name: string]: unknown;
             };
@@ -305,8 +325,8 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Resource not found. */
-        NotFound: {
+        /** @description Authenticated but lacks permission/scope/ownership. */
+        Forbidden: {
             headers: {
                 [name: string]: unknown;
             };
@@ -434,6 +454,32 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    authDeleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     authIntrospect: {

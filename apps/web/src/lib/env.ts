@@ -21,32 +21,41 @@ export const env = {
   get siteUrl() {
     return read("SITE_URL", "http://localhost:3000").replace(/\/+$/, "");
   },
+  /**
+   * Single API gateway base (production: the nginx edge routes /v1/* to the owning service), e.g.
+   * https://api.healuxa.com/v1. Per-service *_API_URL variables override it (local dev without a
+   * gateway). With neither set, local service ports are used.
+   */
+  get apiBaseUrl(): string | null {
+    const v = process.env.API_BASE_URL;
+    return v ? v.replace(/\/+$/, "") : null;
+  },
   get identityApiUrl() {
-    return read("IDENTITY_API_URL", "http://127.0.0.1:8001/v1");
+    return read("IDENTITY_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8001/v1");
   },
   get providerApiUrl() {
-    return read("PROVIDER_API_URL", "http://127.0.0.1:8005/v1");
+    return read("PROVIDER_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8005/v1");
   },
   get profileApiUrl() {
-    return read("PROFILE_API_URL", "http://127.0.0.1:8002/v1");
+    return read("PROFILE_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8002/v1");
   },
   get assessmentApiUrl() {
-    return read("ASSESSMENT_API_URL", "http://127.0.0.1:8003/v1");
+    return read("ASSESSMENT_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8003/v1");
   },
   get appointmentApiUrl() {
-    return read("APPOINTMENT_API_URL", "http://127.0.0.1:8007/v1");
+    return read("APPOINTMENT_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8007/v1");
   },
   get conciergeApiUrl() {
-    return read("CONCIERGE_API_URL", "http://127.0.0.1:8021/v1");
+    return read("CONCIERGE_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8021/v1");
   },
   get notificationApiUrl() {
-    return read("NOTIFICATION_API_URL", "http://127.0.0.1:8022/v1");
+    return read("NOTIFICATION_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8022/v1");
   },
   get paymentApiUrl() {
-    return read("PAYMENT_API_URL", "http://127.0.0.1:8010/v1");
+    return read("PAYMENT_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8010/v1");
   },
   get subscriptionApiUrl() {
-    return read("SUBSCRIPTION_API_URL", "http://127.0.0.1:8009/v1");
+    return read("SUBSCRIPTION_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8009/v1");
   },
   /** JWKS of identity-service, used to verify access tokens locally (no service secret in the web tier). */
   get identityJwksUrl() {

@@ -6,9 +6,13 @@ import { useEffect, useState } from "react";
 export function HoldCountdown({ expiresAt, label, expiredLabel }: { expiresAt: string; label: string; expiredLabel: string }) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, []);
   if (now === null) return null;
   const left = Math.max(0, Math.floor((Date.parse(expiresAt) - now) / 1000));

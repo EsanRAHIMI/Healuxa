@@ -20,7 +20,8 @@ export async function GET(request: Request) {
       return "unreachable";
     }
   };
-  const [identity, provider] = await Promise.all([probe(process.env.IDENTITY_API_URL), probe(process.env.PROVIDER_API_URL)]);
+  const base = process.env.API_BASE_URL;
+  const [identity, provider] = await Promise.all([probe(process.env.IDENTITY_API_URL ?? base), probe(process.env.PROVIDER_API_URL ?? base)]);
   const healthy = identity === "ok" && provider === "ok";
   return NextResponse.json({ ...body, status: healthy ? "ok" : "degraded", dependencies: { identity, provider } }, { status: healthy ? 200 : 503, headers: { "cache-control": "no-store" } });
 }

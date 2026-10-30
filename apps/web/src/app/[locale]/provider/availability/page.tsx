@@ -10,6 +10,7 @@ import { Form } from "@/components/forms/Form";
 import { Alert, Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
 import { userApi } from "@/lib/api";
 import { getT, resolveLocale } from "@/lib/i18n";
+import { isoDateInDays } from "@/lib/time";
 import { branchLabels, getMyProvider } from "@/lib/portal";
 
 export default async function AvailabilityPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -20,7 +21,7 @@ export default async function AvailabilityPage({ params }: { params: Promise<{ l
   const { provider } = mine;
   const api = await userApi();
   const today = new Date().toISOString().slice(0, 10);
-  const until = new Date(Date.now() + 180 * 86400_000).toISOString().slice(0, 10);
+  const until = isoDateInDays(180);
   const data = await settle(async () => {
     const [affs, rules, exceptions] = await Promise.all([
       unwrap(api.provider.GET("/providers/{id}/affiliations", { params: { path: { id: provider.id } } })),

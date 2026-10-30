@@ -614,7 +614,16 @@
     "providerBody": "Apply as a practitioner, manage your profile, credentials and availability.",
     "facilityBody": "Register a clinic or hospital and manage branches, staff and services.",
     "adminBody": "Verification queues, concierge coordination and finance.",
-    "bookingsPending": "Need help with a booking? Contact the concierge from the Concierge section."
+    "bookingsPending": "Need help with a booking? Contact the concierge from the Concierge section.",
+    "deleteTitle": "Delete my account",
+    "deleteLead": "Permanently delete your account and ask every Healuxa service to erase or anonymise your data.",
+    "deleteConfirmLabel": "Type DELETE to confirm",
+    "deleteConfirmHint": "This cannot be undone.",
+    "deleteConfirmError": "Type DELETE in capital letters to confirm.",
+    "deleteButton": "Delete account",
+    "deleteWarning": "Your bookings, requests and profile will be removed or anonymised. Records we must keep by law (such as tax invoices) are retained in anonymised form.",
+    "deleteWrongPassword": "The password is incorrect.",
+    "deleted": "Your account has been deleted."
   },
   "bookings": {
     "title": "Bookings",

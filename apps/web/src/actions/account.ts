@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { act } from "@/lib/actions";
+import { act, invalid } from "@/lib/actions";
 import { CONSENT_KEYS } from "@/lib/consent";
 import { userApi } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
@@ -75,5 +75,24 @@ export async function revokeSessionAction(_prev: FormState, fd: FormData): Promi
     return getT(locale)("account.sessionRevoked");
   });
   if (state.ok && signedOutLocale) redirect(`/${signedOutLocale}/login`);
+  return state;
+}
+
+/** Permanent account deletion (identity-service re-checks the password and fans out auth.user_deleted). */
+export async function deleteAccountAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  let done = "";
+  const state = await act(fd, async (locale) => {
+    await requireUser();
+    const t = getT(locale);
+    const password = typeof fd.get("password") === "string" ? (fd.get("password") as string) : "";
+    if (!password) return invalid(locale, { password: t("auth.passwordRequired") });
+    if (str(fd, "confirm_text") !== "DELETE") return invalid(locale, { confirm_text: t("account.deleteConfirmError") });
+    const api = await userApi();
+    await unwrap(api.identity.POST("/auth/delete-account", { body: { password } }));
+    const store = await cookies();
+    for (const c of clearedTokenCookies()) store.set(c);
+    done = locale;
+  }, (locale) => ({ unauthorized: getT(locale)("account.deleteWrongPassword") }));
+  if (state.ok && done) redirect(`/${done}?accountDeleted=1`);
   return state;
 }

@@ -46,3 +46,8 @@ export function hhmmToMinutes(v: string, allowEndOfDay = false): number {
   const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(v);
   return m ? Number(m[1]) * 60 + Number(m[2]) : Number.NaN;
 }
+
+/** UTC calendar date `days` from now (YYYY-MM-DD). */
+export function isoDateInDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}

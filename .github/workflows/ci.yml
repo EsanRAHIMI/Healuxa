@@ -575,3 +575,25 @@ jobs:
         run: npm run packages:typecheck
       - name: Unit tests (client, WCAG contrast, i18n completeness)
         run: npm run packages:test
+
+  web:
+    # apps/web: lint, typecheck, i18n key coverage, production build (standalone).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run web:lint
+      - name: Typecheck
+        run: npm run web:typecheck
+      - name: Every t("…") key exists in the English catalog
+        run: node apps/web/scripts/i18n-keys.mjs
+      - name: Production build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run web:build

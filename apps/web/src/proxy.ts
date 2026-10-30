@@ -16,7 +16,7 @@ import { buildCsp, newCsrfToken, newNonce } from "@/lib/security";
 const launch = LAUNCH_LOCALES as readonly Locale[];
 
 function identityApiUrl(): string {
-  return process.env.IDENTITY_API_URL || "http://127.0.0.1:8001/v1";
+  return process.env.IDENTITY_API_URL || process.env.API_BASE_URL?.replace(/\/+$/, "") || "http://127.0.0.1:8001/v1";
 }
 
 function isPrefetch(request: NextRequest): boolean {

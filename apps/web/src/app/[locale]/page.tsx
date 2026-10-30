@@ -27,6 +27,7 @@ export default async function HomePage({ params, searchParams }: Props) {
       <section className="border-b border-border bg-surface">
         <div className="hx-container grid gap-10 py-14 md:grid-cols-[1.3fr_1fr] md:py-20">
           <div>
+            {sp.accountDeleted ? <Alert tone="success" role="status" className="mb-6" title={t("account.deleted")} /> : null}
             {sp.signedOut ? (
               <Alert tone="success" role="status" className="mb-6" title={t("auth.signedOut")} />
             ) : null}
