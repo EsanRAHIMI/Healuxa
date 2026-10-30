@@ -100,16 +100,11 @@ async def auth_introspect(
 
 @router.post("/service-token", response_model=TokenResponse)
 async def issue_service_token(
-    request: Request,
     db: AsyncSession = Depends(get_db),
-    _: str = Depends(require_service_auth),
+    client_id: str = Depends(require_service_auth),
 ) -> TokenResponse:
-    client_id = request.headers.get("X-Service-Client-Id") or request.headers.get("X-Healuxa-Service-Client")
-    client_secret = request.headers.get("X-Service-Client-Secret") or ""
-    from identity_service.config import settings
-
-    client_id = client_id or settings.service_auth_client_id
-    return await auth_service.issue_service_token(db, client_id, client_secret or settings.service_auth_client_secret)
+    """Client-credentials grant for the internal mesh; the token's subject is the authenticated client."""
+    return await auth_service.issue_service_token_for(db, client_id)
 
 
 @router.post("/delete-account", status_code=status.HTTP_204_NO_CONTENT)

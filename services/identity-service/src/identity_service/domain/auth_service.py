@@ -338,6 +338,22 @@ class AuthService:
         if not claims:
             return IntrospectionResponse(active=False)
         session_id = claims.get("session_id")
+        if claims.get("typ") == "service":
+            # Service tokens (POST /v1/auth/service-token) have no user session row; they are valid
+            # while signed, unexpired and issued to a client that still exists. Without this branch
+            # every service-to-service call (e.g. appointment → provider scheduling) is rejected.
+            client_id = claims.get("sub")
+            known = client_id == settings.service_auth_client_id or await db.get(ServiceClient, client_id) is not None
+            if not known:
+                return IntrospectionResponse(active=False)
+            return IntrospectionResponse(
+                active=True,
+                sub=client_id,
+                tenant=claims.get("tenant"),
+                roles=claims.get("roles", []),
+                perms=claims.get("perms", []),
+                session_id=session_id,
+            )
         if session_id and await is_session_denied(redis, session_id):
             return IntrospectionResponse(active=False)
         if session_id:
@@ -361,7 +377,10 @@ class AuthService:
             pass
         else:
             raise ApiError(status=401, code="unauthorized", title="Unauthorized", detail="Invalid service credentials")
+        return await self.issue_service_token_for(db, client_id)
 
+    async def issue_service_token_for(self, db: AsyncSession, client_id: str) -> TokenResponse:
+        """Issue a token for a client the caller has already authenticated (see require_service_auth)."""
         await jwt_service.ensure_active_key(db)
         access_token, expires_in = jwt_service.issue_access_token(
             user_id=client_id,
