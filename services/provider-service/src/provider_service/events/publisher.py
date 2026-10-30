@@ -15,6 +15,7 @@ CATALOG_EVENTS = {
     "catalog.facility_status_changed": "CatalogFacilityStatusChanged",
     "catalog.affiliation_changed": "CatalogAffiliationChanged",
     "catalog.availability_changed": "CatalogAvailabilityChanged",
+    "catalog.facility_staff_changed": "CatalogFacilityStaffChanged",
 }
 
 
