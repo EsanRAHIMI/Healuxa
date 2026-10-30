@@ -157,6 +157,17 @@ class FacilityService:
         await db.refresh(facility)
         return facility_schema(facility, private=True), True
 
+    async def mine(self, db: AsyncSession, principal: Principal) -> list[schemas.Facility]:
+        """Facilities where the caller holds any staff role (facility portal home), newest first."""
+        rows = await db.scalars(
+            select(Facility)
+            .join(FacilityStaff, FacilityStaff.facility_id == Facility.id)
+            .where(Facility.tenant_id == principal.tenant_id, FacilityStaff.user_id == principal.user_id)
+            .order_by(Facility.created_at.desc())
+            .limit(200)
+        )
+        return [facility_schema(f, private=True) for f in rows]
+
     async def get(self, db: AsyncSession, principal: Principal | None, tenant_id: str, facility_id: str) -> schemas.Facility:
         facility, private = await _visible_facility(db, principal, tenant_id, facility_id)
         return facility_schema(facility, private=private)

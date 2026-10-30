@@ -8,14 +8,13 @@ import { Form } from "@/components/forms/Form";
 import { FacilityFields } from "@/components/portal/FacilityFields";
 import { Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
 import { getT, resolveLocale } from "@/lib/i18n";
-import { getFacilityAs } from "@/lib/portal";
-import { rememberedFacilities } from "@/lib/remembered";
+import { getMyFacilities } from "@/lib/portal";
 
 export default async function FacilityHome({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await resolveLocale(params);
   const t = getT(locale);
-  const ids = await rememberedFacilities();
-  const facilities = (await Promise.all(ids.map((id) => getFacilityAs(id).catch(() => null)))).filter((f) => !!f);
+  // Server-side membership lookup: works on any device, no browser-held state.
+  const facilities = await getMyFacilities();
   return (
     <>
       <PageHeader eyebrow={t("nav.forFacilities")} title={t("fp.title")} lead={t("fp.lead")} />

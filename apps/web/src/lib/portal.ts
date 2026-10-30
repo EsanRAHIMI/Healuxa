@@ -19,6 +19,12 @@ export const getMyProvider = cache(async (): Promise<{ provider: Provider; etag:
   }
 });
 
+/** Facilities where the signed-in user holds a staff role (provider-service /facilities/mine). */
+export const getMyFacilities = cache(async (): Promise<Facility[]> => {
+  const api = await userApi();
+  return (await unwrap(api.provider.GET("/facilities/mine"))).data;
+});
+
 /** Facility as visible to the current user (private view for its staff), or null. */
 export const getFacilityAs = cache(async (id: string): Promise<Facility | null> => {
   const api = await userApi();

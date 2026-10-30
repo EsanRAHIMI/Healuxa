@@ -425,6 +425,22 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Facility" }
+  /facilities/mine:
+    get:
+      operationId: listMyFacilities
+      summary: Facilities where the caller holds a staff role (private view)
+      tags: [facilities]
+      x-required-permission: facilities:onboard
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Facility" } }
   /facilities/{facility_id}:
     parameters:
       - $ref: "#/components/parameters/FacilityId"

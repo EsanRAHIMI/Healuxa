@@ -7,8 +7,8 @@ import { FACILITIES_COOKIE, cookieSecure } from "@/lib/auth/tokens";
 const ID = /^[A-Za-z0-9-]{10,36}$/;
 
 /**
- * provider-service has no "facilities I administer" endpoint yet, so this browser remembers the
- * facilities the user registered/opened. Ids only (no PII); every page re-checks access via the API.
+ * Recently opened facilities on this browser (convenience only — the portal home lists memberships
+ * from provider-service /facilities/mine). Ids only (no PII); every page re-checks access via the API.
  */
 export async function rememberedFacilities(): Promise<string[]> {
   const raw = (await cookies()).get(FACILITIES_COOKIE)?.value ?? "";

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+from datetime import UTC, date, datetime
 
 from httpx import AsyncClient
 
@@ -69,7 +69,7 @@ async def test_retired_offering_leaves_catalog(client: AsyncClient) -> None:
 
 
 def _rule(branch_id: str, weekday: int = 0, start: str = "09:00", end: str = "12:00") -> dict:
-    return {"branch_id": branch_id, "weekday": weekday, "start": start, "end": end, "effective_from": str(date.today())}
+    return {"branch_id": branch_id, "weekday": weekday, "start": start, "end": end, "effective_from": str(datetime.now(UTC).date())}
 
 
 async def test_rules_must_fit_opening_hours_and_not_overlap(client: AsyncClient) -> None:
