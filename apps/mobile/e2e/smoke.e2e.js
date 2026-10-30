@@ -1,4 +1,3 @@
-/* eslint-env detox/detox, jest */
 /**
  * Smoke test against the REAL local backends (scripts/e2e-backends.sh + e2e/seed.mjs):
  * launch → browse directory → open provider → register → sign out → sign in → sign out.
