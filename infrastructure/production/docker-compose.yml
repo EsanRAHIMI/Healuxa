@@ -1,0 +1,288 @@
+# Healuxa production stack for Dokploy (Docker Compose deployment). Build context = repo root.
+#
+#   Dokploy → Create Compose service → repository = this repo, compose path =
+#   infrastructure/production/docker-compose.yml. Create every env file listed below from its
+#   *.env.example in infrastructure/production/env/ (Dokploy "Environment" / mounted files).
+#
+# Topology: all containers share the private "healuxa" network. Only the HTTP services are given to
+# Traefik (attach Dokploy domains to them); Postgres, Redis and NATS are never published.
+# MongoDB is external (Atlas, replica set required for transactions) via MONGODB_URI.
+# Each Postgres-backed service has a one-shot "<service>-migrate" job that runs
+# `alembic upgrade head` from the same image before the service starts.
+
+name: healuxa
+
+x-service: &service
+  restart: unless-stopped
+  networks: [healuxa]
+  env_file: [env/common.env]
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [healuxa]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-healuxa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: healuxa
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/10-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-healuxa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [healuxa]
+    # Ephemeral by design (session deny-lists, lockouts, caches); no persistence needed.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    networks: [healuxa]
+    # JetStream with file storage: the durable event bus (outbox relays publish, consumers pull).
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  identity-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/identity-service/Dockerfile }
+    image: healuxa/identity-service:latest
+    env_file: [env/common.env, env/identity-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  identity-service:
+    <<: *service
+    image: healuxa/identity-service:latest
+    env_file: [env/common.env, env/identity-service.env]
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+    expose: ["8001"]
+    depends_on:
+      nats: { condition: service_healthy }
+      identity-service-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  provider-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/provider-service/Dockerfile }
+    image: healuxa/provider-service:latest
+    env_file: [env/common.env, env/provider-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  provider-service:
+    <<: *service
+    image: healuxa/provider-service:latest
+    env_file: [env/common.env, env/provider-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8005"]
+    depends_on:
+      nats: { condition: service_healthy }
+      provider-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+
+  appointment-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/appointment-service/Dockerfile }
+    image: healuxa/appointment-service:latest
+    env_file: [env/common.env, env/appointment-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  appointment-service:
+    <<: *service
+    image: healuxa/appointment-service:latest
+    env_file: [env/common.env, env/appointment-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+      IDENTITY_SERVICE_TOKEN_URL: http://identity-service:8001/v1/auth/service-token
+      PROVIDER_SERVICE_URL: http://provider-service:8005
+    expose: ["8007"]
+    depends_on:
+      nats: { condition: service_healthy }
+      appointment-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      provider-service: { condition: service_healthy }
+
+  subscription-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/subscription-service/Dockerfile }
+    image: healuxa/subscription-service:latest
+    env_file: [env/common.env, env/subscription-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  subscription-service:
+    <<: *service
+    image: healuxa/subscription-service:latest
+    env_file: [env/common.env, env/subscription-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8009"]
+    depends_on:
+      nats: { condition: service_healthy }
+      subscription-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+
+  payment-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/payment-service/Dockerfile }
+    image: healuxa/payment-service:latest
+    env_file: [env/common.env, env/payment-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  payment-service:
+    <<: *service
+    image: healuxa/payment-service:latest
+    env_file: [env/common.env, env/payment-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+      PROVIDER_SERVICE_URL: http://provider-service:8005
+    expose: ["8010"]
+    depends_on:
+      nats: { condition: service_healthy }
+      payment-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      provider-service: { condition: service_healthy }
+
+  concierge-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/concierge-service/Dockerfile }
+    image: healuxa/concierge-service:latest
+    env_file: [env/common.env, env/concierge-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  concierge-service:
+    <<: *service
+    image: healuxa/concierge-service:latest
+    env_file: [env/common.env, env/concierge-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8021"]
+    depends_on:
+      nats: { condition: service_healthy }
+      concierge-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+
+  notification-service-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/notification-service/Dockerfile }
+    image: healuxa/notification-service:latest
+    env_file: [env/common.env, env/notification-service.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  notification-service:
+    <<: *service
+    image: healuxa/notification-service:latest
+    env_file: [env/common.env, env/notification-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8022"]
+    depends_on:
+      nats: { condition: service_healthy }
+      notification-service-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+
+  transformation-engine-migrate:
+    <<: *service
+    restart: "no"
+    build: { context: ../.., dockerfile: services/transformation-engine/Dockerfile }
+    image: healuxa/transformation-engine:latest
+    env_file: [env/common.env, env/transformation-engine.env]
+    entrypoint: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  transformation-engine:
+    <<: *service
+    image: healuxa/transformation-engine:latest
+    env_file: [env/common.env, env/transformation-engine.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8000"]
+    depends_on:
+      nats: { condition: service_healthy }
+      transformation-engine-migrate: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+
+  profile-service:
+    <<: *service
+    build: { context: ../.., dockerfile: services/profile-service/Dockerfile }
+    image: healuxa/profile-service:latest
+    env_file: [env/common.env, env/profile-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8002"]
+    depends_on:
+      nats: { condition: service_healthy }
+
+  assessment-service:
+    <<: *service
+    build: { context: ../.., dockerfile: services/assessment-service/Dockerfile }
+    image: healuxa/assessment-service:latest
+    env_file: [env/common.env, env/assessment-service.env]
+    environment:
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      NATS_URL: nats://nats:4222
+    expose: ["8003"]
+    depends_on:
+      nats: { condition: service_healthy }
+
+networks:
+  healuxa:
+    name: healuxa
+    # Dokploy's Traefik must join this network to reach the HTTP services:
+    # set Dokploy's "dokploy-network" here instead if you route through it.
+
+volumes:
+  postgres-data:
+  nats-data:

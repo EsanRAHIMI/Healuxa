@@ -44,3 +44,6 @@ infrastructure/volumes/
 .venv312/
 .local/
 .claude/
+
+# Production env files hold secrets; only *.env.example templates are committed.
+infrastructure/production/env/*.env
