@@ -57,6 +57,7 @@ async function main() {
   const existing = await call(PROVIDER, 'GET', '/v1/providers?limit=5');
   if (existing.data.length >= 2) {
     console.log(`already seeded (${existing.data.length} public providers)`);
+    await ensureAvailability();
     return;
   }
 
@@ -150,6 +151,28 @@ async function main() {
     console.log(`seeded provider ${provider.display_name} (${provider.id})`);
   }
   console.log(`seeded facility ${facility.name} (${facility.id})`);
+  await ensureAvailability();
+}
+
+/** Weekly availability (Mon–Sat 09:00–17:00 branch time) so appointment-service can derive slots. */
+async function ensureAvailability() {
+  for (const email of ['e2e-seed-dr-amal@healuxa.test', 'e2e-seed-dr-reza@healuxa.test']) {
+    const owner = (await account(email)).access_token;
+    const me = await call(PROVIDER, 'GET', '/v1/providers/me', { token: owner });
+    const rules = await call(PROVIDER, 'GET', `/v1/providers/${me.id}/availability-rules`, { token: owner });
+    if (rules.data.length) continue;
+    const services = await call(PROVIDER, 'GET', `/v1/services?provider_id=${me.id}`);
+    const branchId = services.data[0]?.branch_id;
+    if (!branchId) continue;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const weekday of [0, 1, 2, 3, 4, 5]) {
+      await call(PROVIDER, 'POST', `/v1/providers/${me.id}/availability-rules`, {
+        token: owner,
+        body: { branch_id: branchId, weekday, start: '09:00', end: '17:00', effective_from: today },
+      });
+    }
+    console.log(`availability added for ${me.display_name}`);
+  }
 }
 
 main().catch((e) => {
