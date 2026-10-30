@@ -34,8 +34,12 @@ export default function TabsLayout() {
         options={{ title: t('tabs.directory'), tabBarIcon: icon('search-outline'), tabBarButtonTestID: 'tab-directory' }}
       />
       <Tabs.Screen
-        name="services"
-        options={{ title: t('tabs.services'), tabBarIcon: icon('pricetags-outline'), tabBarButtonTestID: 'tab-services' }}
+        name="bookings"
+        options={{ title: t('tabs.bookings'), tabBarIcon: icon('calendar-outline'), tabBarButtonTestID: 'tab-bookings' }}
+      />
+      <Tabs.Screen
+        name="concierge"
+        options={{ title: t('tabs.concierge'), tabBarIcon: icon('chatbubbles-outline'), tabBarButtonTestID: 'tab-concierge' }}
       />
       <Tabs.Screen
         name="account"

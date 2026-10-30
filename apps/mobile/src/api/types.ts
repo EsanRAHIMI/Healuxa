@@ -173,6 +173,8 @@ export interface ServiceOffering {
   status: 'draft' | 'active' | 'retired';
 }
 
+export * from './careTypes';
+
 export interface ServiceSearch {
   category?: string;
   provider_id?: string;

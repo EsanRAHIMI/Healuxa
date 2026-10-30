@@ -17,6 +17,8 @@ export class SessionManager {
   private session: StoredSession | null = null;
   private refreshing: Promise<StoredSession> | null = null;
   private listeners = new Set<SessionListener>();
+  /** Server-side cleanup that must run while the session is still valid (e.g. push token removal). */
+  private signOutHooks = new Set<(accessToken: string) => Promise<void>>();
 
   constructor(
     private readonly identity: IdentityApi,
@@ -118,6 +120,11 @@ export class SessionManager {
     return readClaims(this.session?.accessToken);
   }
 
+  addSignOutHook(hook: (accessToken: string) => Promise<void>): () => void {
+    this.signOutHooks.add(hook);
+    return () => this.signOutHooks.delete(hook);
+  }
+
   /**
    * Revokes the session server-side, then always clears it locally.
    * Returns false when the server could not be reached (the local session is cleared anyway and
@@ -126,6 +133,9 @@ export class SessionManager {
   async signOut(): Promise<boolean> {
     let revoked = true;
     if (this.session) {
+      for (const hook of this.signOutHooks) {
+        await this.withAuth(hook).catch(() => undefined);
+      }
       try {
         await this.withAuth((t) => this.identity.logout(t));
       } catch (e) {

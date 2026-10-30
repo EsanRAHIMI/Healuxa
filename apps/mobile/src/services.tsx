@@ -6,6 +6,7 @@ import { SessionManager } from './auth/sessionManager';
 import { TokenStore } from './auth/tokenStore';
 import { PublicCache } from './cache/publicCache';
 import { config } from './config';
+import { installPushSignOutHook } from './notifications/push';
 import { createFileStore, type KeyValueStore } from './storage/fileStore';
 
 export interface Services {
@@ -19,16 +20,16 @@ export function createServices(): Services {
   const api = createApiClient({
     identityBaseUrl: config.identityBaseUrl,
     providerBaseUrl: config.providerBaseUrl,
+    appointmentBaseUrl: config.appointmentBaseUrl,
+    conciergeBaseUrl: config.conciergeBaseUrl,
+    notificationBaseUrl: config.notificationBaseUrl,
     fetch: (input, init) => fetch(input, init),
     cache: new PublicCache(createFileStore('cache', 'public-directory')),
   });
   const tokenStore = new TokenStore();
-  return {
-    api,
-    tokenStore,
-    session: new SessionManager(api.identity, tokenStore),
-    prefs: createFileStore('document', 'prefs'),
-  };
+  const session = new SessionManager(api.identity, tokenStore);
+  installPushSignOutHook({ notifications: api.notifications, session, tokenStore });
+  return { api, tokenStore, session, prefs: createFileStore('document', 'prefs') };
 }
 
 export const biometrics = deviceBiometrics;

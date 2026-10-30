@@ -91,8 +91,14 @@ function Navigation() {
           <Stack.Screen name="account/sessions" options={{ title: t('sessions.title') }} />
           <Stack.Screen name="account/language" options={{ title: t('language.title') }} />
           <Stack.Screen name="account/security" options={{ title: t('security.title') }} />
-          <Stack.Screen name="account/notifications" options={{ title: t('notifications.title') }} />
+          <Stack.Screen name="account/notifications" options={{ title: t('prefs.title') }} />
           <Stack.Screen name="account/delete" options={{ title: t('delete.title') }} />
+          <Stack.Screen name="services" options={{ title: t('services.title') }} />
+          <Stack.Screen name="book/[serviceId]" options={{ title: t('book.title') }} />
+          <Stack.Screen name="appointments/[id]" options={{ title: '' }} />
+          <Stack.Screen name="concierge/new" options={{ presentation: 'modal', title: t('concierge.new') }} />
+          <Stack.Screen name="concierge/[id]" options={{ title: '' }} />
+          <Stack.Screen name="notifications" options={{ title: t('inbox.title') }} />
         </Stack>
       )}
     </ThemeProvider>

@@ -26,6 +26,14 @@ export function OfferingCard({ offering, showProviderLink }: { offering: Service
       </AppText>
       {description ? <AppText variant="small">{description}</AppText> : null}
       <FeeBreakdownView offering={offering} testID={`fees-${offering.id}`} />
+      {offering.status === 'active' ? (
+        <Button
+          label={t('book.cta')}
+          icon="calendar-outline"
+          onPress={() => router.push({ pathname: '/book/[serviceId]', params: { serviceId: offering.id } })}
+          testID={`book-${offering.id}`}
+        />
+      ) : null}
       {showProviderLink ? (
         <Button
           kind="link"

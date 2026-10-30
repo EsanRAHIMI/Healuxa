@@ -7,6 +7,9 @@ export interface AppConfig {
   appEnv: AppEnv;
   identityBaseUrl: string;
   providerBaseUrl: string;
+  appointmentBaseUrl: string;
+  conciergeBaseUrl: string;
+  notificationBaseUrl: string;
   linkDomain: string;
   supportEmail: string;
   privacyPolicyUrl: string;
@@ -31,10 +34,14 @@ function load(): AppConfig {
   const appEnv = (extra.appEnv ?? 'development') as AppEnv;
   const identity = extra.identityBaseUrl ?? 'http://localhost:8201';
   const provider = extra.providerBaseUrl ?? 'http://localhost:8205';
+  const host = (url: string | undefined, local: string) => resolveHost(url ?? local, Platform.OS, appEnv);
   return {
     appEnv,
     identityBaseUrl: resolveHost(identity, Platform.OS, appEnv),
     providerBaseUrl: resolveHost(provider, Platform.OS, appEnv),
+    appointmentBaseUrl: host(extra.appointmentBaseUrl, 'http://localhost:8207'),
+    conciergeBaseUrl: host(extra.conciergeBaseUrl, 'http://localhost:8221'),
+    notificationBaseUrl: host(extra.notificationBaseUrl, 'http://localhost:8222'),
     linkDomain: extra.linkDomain ?? 'healuxa.ae',
     supportEmail: extra.supportEmail ?? 'privacy@healuxa.ae',
     privacyPolicyUrl: extra.privacyPolicyUrl ?? 'https://healuxa.ae/privacy',

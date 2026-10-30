@@ -1,23 +1,27 @@
 import { Redirect, useRouter } from 'expo-router';
 
 import { useAuth } from '@/auth/AuthProvider';
-import { usePublic } from '@/hooks/useRemote';
+import { usePublic, useRemote } from '@/hooks/useRemote';
 import { useI18n } from '@/i18n';
 import { usePrefs } from '@/prefs';
 import { useApi } from '@/services';
-import { useTheme } from '@/theme';
-import { AppText, Button, Card, EmptyState, ErrorState, Loading, OfflineBanner, Row, Screen, Section } from '@/ui/primitives';
+import { AppText, Button, EmptyState, ErrorState, Loading, OfflineBanner, Row, Screen, Section } from '@/ui/primitives';
 import { ProviderCard } from '@/ui/ProviderCard';
 
-/** Home. Uses provider: searchProviders (limit 3). */
+/** Home. Uses provider: searchProviders (limit 3) and notification: getUnreadNotificationCount. */
 export default function Home() {
   const { t } = useI18n();
-  const theme = useTheme();
   const router = useRouter();
   const api = useApi();
   const auth = useAuth();
   const { prefs } = usePrefs();
   const featured = usePublic(() => api.directory.searchProviders({ limit: 3 }), [api]);
+  const signedIn = auth.status === 'signedIn';
+  // notification: getUnreadNotificationCount (signed-in only, never cached)
+  const unread = useRemote(
+    () => (signedIn ? auth.withAuth((tk) => api.notifications.unreadCount(tk)) : Promise.resolve(null)),
+    [api, signedIn, auth.withAuth]
+  );
 
   if (!prefs.welcomeSeen && auth.status === 'signedOut') return <Redirect href="/welcome" />;
 
@@ -25,6 +29,15 @@ export default function Home() {
     <Screen testID="home-screen" onRefresh={featured.reload} refreshing={featured.refreshing}>
       <AppText variant="title">{auth.status === 'signedIn' ? t('home.greetingSignedIn') : t('home.greeting')}</AppText>
       <AppText muted>{t('home.intro')}</AppText>
+      {signedIn ? (
+        <Button
+          kind="secondary"
+          icon="notifications-outline"
+          label={unread.data?.unread ? `${t('inbox.title')} · ${t('inbox.unread', { n: unread.data.unread })}` : t('inbox.title')}
+          onPress={() => router.push('/notifications')}
+          testID="home-inbox"
+        />
+      ) : null}
       {featured.fromCache ? <OfflineBanner storedAt={featured.storedAt} /> : null}
       <Section title={t('home.featured')}>
         {featured.loading ? (
@@ -40,12 +53,8 @@ export default function Home() {
           <Button kind="link" label={t('home.seeAll')} onPress={() => router.navigate('/directory')} testID="home-see-all" />
         </Row>
       </Section>
-      <Button kind="secondary" label={t('home.services')} icon="pricetags-outline" onPress={() => router.navigate('/services')} />
-      <Card style={{ backgroundColor: theme.color.surfaceAlt }}>
-        <AppText variant="small" muted>
-          {t('home.bookingPending')}
-        </AppText>
-      </Card>
+      <Button kind="secondary" label={t('home.services')} icon="pricetags-outline" onPress={() => router.push('/services')} />
+      <Button kind="secondary" label={t('concierge.new')} icon="chatbubbles-outline" onPress={() => router.push(signedIn ? '/concierge/new' : '/sign-in')} />
     </Screen>
   );
 }

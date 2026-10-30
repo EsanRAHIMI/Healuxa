@@ -25,6 +25,7 @@ const KEY = {
   refresh: 'healuxa.session.refresh',
   identifier: 'healuxa.session.identifier',
   biometric: 'healuxa.settings.biometric_lock',
+  pushDevice: 'healuxa.push.device_id',
 } as const;
 
 const OPTIONS: SecureStore.SecureStoreOptions = {
@@ -62,6 +63,16 @@ export class TokenStore {
     await Promise.all(
       [KEY.access, KEY.accessExp, KEY.refresh, KEY.identifier].map((k) => this.kv.deleteItemAsync(k, OPTIONS))
     );
+  }
+
+  /** notification-service device-token id registered for this install (removed on sign-out). */
+  getPushDeviceId(): Promise<string | null> {
+    return this.kv.getItemAsync(KEY.pushDevice, OPTIONS);
+  }
+
+  async setPushDeviceId(id: string | null): Promise<void> {
+    if (id) await this.kv.setItemAsync(KEY.pushDevice, id, OPTIONS);
+    else await this.kv.deleteItemAsync(KEY.pushDevice, OPTIONS);
   }
 
   async getBiometricLock(): Promise<boolean> {

@@ -10,8 +10,11 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  *   API_BASE_URL            single edge base URL for every service (e.g. https://api.healuxa.com)
  *   IDENTITY_BASE_URL       per-service override (local development: http://localhost:8201)
  *   PROVIDER_BASE_URL       per-service override (local development: http://localhost:8205)
+ *   APPOINTMENT_BASE_URL    per-service override (local development: http://localhost:8207)
+ *   CONCIERGE_BASE_URL      per-service override (local development: http://localhost:8221)
+ *   NOTIFICATION_BASE_URL   per-service override (local development: http://localhost:8222)
  *   SUPPORT_EMAIL           account-deletion / support mailbox        (placeholder until confirmed)
- *   FEATURE_PUSH            "1" enables the notification permission + token flow
+ *   FEATURE_PUSH            "0" hides the push opt-in (default on; token goes to notification-service)
  *   EAS_PROJECT_ID          Expo project id (needed for Expo push tokens; owner provides)
  */
 type AppEnv = 'development' | 'e2e' | 'staging' | 'production';
@@ -32,6 +35,9 @@ function baseUrl(specific: string | undefined, localDefault: string): string {
 
 const identityBaseUrl = baseUrl(process.env.IDENTITY_BASE_URL, 'http://localhost:8201');
 const providerBaseUrl = baseUrl(process.env.PROVIDER_BASE_URL, 'http://localhost:8205');
+const appointmentBaseUrl = baseUrl(process.env.APPOINTMENT_BASE_URL, 'http://localhost:8207');
+const conciergeBaseUrl = baseUrl(process.env.CONCIERGE_BASE_URL, 'http://localhost:8221');
+const notificationBaseUrl = baseUrl(process.env.NOTIFICATION_BASE_URL, 'http://localhost:8222');
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -175,11 +181,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appEnv: APP_ENV,
     identityBaseUrl,
     providerBaseUrl,
+    appointmentBaseUrl,
+    conciergeBaseUrl,
+    notificationBaseUrl,
     linkDomain: LINK_DOMAIN,
     supportEmail: process.env.SUPPORT_EMAIL ?? 'privacy@healuxa.ae',
     privacyPolicyUrl: process.env.PRIVACY_POLICY_URL ?? `https://${LINK_DOMAIN}/privacy`,
     features: {
-      push: process.env.FEATURE_PUSH === '1',
+      push: process.env.FEATURE_PUSH !== '0',
     },
     eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined,
   },

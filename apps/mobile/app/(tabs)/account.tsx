@@ -91,7 +91,8 @@ export default function Account() {
         {signedIn ? item('phone-portrait-outline', 'account.sessions', '/account/sessions', 'account-sessions') : null}
         {item('language-outline', 'account.language', '/account/language', 'account-language')}
         {signedIn ? item('finger-print-outline', 'account.security', '/account/security', 'account-security') : null}
-        {config.features.push ? item('notifications-outline', 'account.notifications', '/account/notifications', 'account-notifications') : null}
+        {signedIn ? item('mail-unread-outline', 'inbox.title', '/notifications', 'account-inbox') : null}
+        {signedIn ? item('notifications-outline', 'prefs.title', '/account/notifications', 'account-notifications') : null}
         <Item icon="document-text-outline" label={t('account.privacy')} onPress={() => Linking.openURL(config.privacyPolicyUrl)} />
         {signedIn ? item('trash-outline', 'account.delete', '/account/delete', 'account-delete', true) : null}
       </Card>
