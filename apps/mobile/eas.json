@@ -21,7 +21,7 @@
       "channel": "staging",
       "env": {
         "APP_ENV": "staging",
-        "API_BASE_URL": "https://api.staging.healuxa.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.staging.healuxa.ae"
       }
     },
     "production": {
@@ -30,7 +30,7 @@
       "channel": "production",
       "env": {
         "APP_ENV": "production",
-        "API_BASE_URL": "https://api.healuxa.com"
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.healuxa.ae"
       },
       "android": { "buildType": "app-bundle" }
     }

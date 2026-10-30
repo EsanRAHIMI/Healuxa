@@ -8,7 +8,7 @@ Package: `ae.healuxa.app`. Basis: `apps/mobile` at this commit (no ads, analytic
 |---|---|
 | Does your app collect or share any of the required user data types? | Yes (collect); **no sharing** |
 | Is all of the user data collected by your app encrypted in transit? | Yes — production builds refuse non-HTTPS base URLs (`app.config.ts`), Android cleartext is disabled outside local dev/E2E builds |
-| Do you provide a way for users to request that their data is deleted? | Yes — in-app: Account → Delete account (email request today); web: `<https://healuxa.ae/account-deletion — owner must publish this page, Play requires a web URL>` |
+| Do you provide a way for users to request that their data is deleted? | Yes — in-app: Account → Delete account (immediate, password-confirmed); web: `<https://healuxa.ae/account-deletion — owner must publish this page, Play requires a web URL>` |
 
 ## Data types
 

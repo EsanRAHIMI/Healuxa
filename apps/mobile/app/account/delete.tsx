@@ -1,57 +1,76 @@
-import { Redirect } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Linking } from 'react-native';
-
-import { useAuth } from '@/auth/AuthProvider';
-import { config } from '@/config';
-import { useI18n } from '@/i18n';
-import { useTheme } from '@/theme';
-import { AppText, Button, Card, Screen } from '@/ui/primitives';
-
 /**
- * Account deletion entry point (App Store 5.1.1(v) / Google Play account-deletion policy).
- *
- * identity-service has NO account-deletion endpoint yet, so this screen explains how deletion is
- * requested and opens a pre-filled email to support. It never claims the account was deleted.
+ * In-app account deletion (App Store 5.1.1(v), Google Play account-deletion policy).
+ * identity: authDeleteAccount with password re-confirmation. On 204 the account is anonymised,
+ * every session revoked and auth.user_deleted emitted so other services erase their data; the app
+ * then wipes its local session. A wrong password (401) leaves the account untouched.
  */
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Alert } from 'react-native';
+
+import { ApiError } from '@/api/errors';
+import { useAuth } from '@/auth/AuthProvider';
+import { errorKey } from '@/hooks/useRemote';
+import { type MessageKey, useI18n } from '@/i18n';
+import { useTheme } from '@/theme';
+import { AppText, Button, Card, Screen, TextField } from '@/ui/primitives';
+import { SignedOutPrompt } from '@/ui/SignedOutPrompt';
+
 export default function DeleteAccount() {
   const { t } = useI18n();
   const theme = useTheme();
   const auth = useAuth();
-  const [opening, setOpening] = useState(false);
+  const router = useRouter();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<MessageKey | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  if (auth.status !== 'signedIn') return <Redirect href="/account" />;
+  if (auth.status !== 'signedIn') return <SignedOutPrompt />;
 
-  const email = config.supportEmail;
-  const request = async () => {
-    setOpening(true);
-    const url = `mailto:${email}?subject=${encodeURIComponent(t('delete.subject'))}&body=${encodeURIComponent(
-      t('delete.mailBody', { id: auth.userId ?? '' })
-    )}`;
+  const run = async () => {
+    setBusy(true);
+    setError(null);
     try {
-      if (await Linking.canOpenURL(url)) await Linking.openURL(url);
-      else Alert.alert(t('delete.title'), t('delete.noMail', { email }));
-    } catch {
-      Alert.alert(t('delete.title'), t('delete.noMail', { email }));
+      await auth.deleteAccount(password);
+      Alert.alert(t('delete.title'), t('delete.done'));
+      router.dismissTo('/');
+    } catch (e) {
+      const err = e instanceof ApiError ? e : new ApiError({ status: 0, code: 'unknown' });
+      setError(err.status === 401 ? 'delete.wrongPassword' : errorKey(err));
     } finally {
-      setOpening(false);
+      setBusy(false);
     }
   };
+
+  const confirm = () =>
+    Alert.alert(t('delete.title'), t('delete.confirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('delete.cta'), style: 'destructive', onPress: run },
+    ]);
 
   return (
     <Screen testID="delete-screen">
       <AppText variant="title">{t('delete.title')}</AppText>
-      <AppText>{t('delete.body')}</AppText>
-      <Card>
-        <AppText>{t('delete.how')}</AppText>
-        <AppText variant="small" selectable muted>
-          {email}
+      <Card style={{ borderColor: theme.color.danger }}>
+        <AppText>{t('delete.body')}</AppText>
+      </Card>
+      <TextField
+        label={t('delete.password')}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        secureToggle
+        autoCapitalize="none"
+        autoComplete="current-password"
+        textContentType="password"
+        testID="delete-password"
+      />
+      {error ? (
+        <AppText accessibilityRole="alert" style={{ color: theme.color.danger }} testID="delete-error">
+          {t(error)}
         </AppText>
-      </Card>
-      <Card accessibilityRole="summary" testID="delete-status" style={{ borderColor: theme.color.danger }}>
-        <AppText variant="label">{t('delete.notDeletedYet')}</AppText>
-      </Card>
-      <Button kind="danger" label={t('delete.cta')} icon="mail-outline" onPress={request} busy={opening} testID="delete-request" />
+      ) : null}
+      <Button kind="danger" label={t('delete.cta')} icon="trash-outline" onPress={confirm} busy={busy} disabled={!password} testID="delete-submit" />
     </Screen>
   );
 }

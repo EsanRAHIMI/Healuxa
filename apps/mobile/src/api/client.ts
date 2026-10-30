@@ -52,6 +52,8 @@ export interface IdentityApi {
   logout(accessToken: string): Promise<void>;
   /** identity: listSessions */
   listSessions(accessToken: string, cursor?: string): Promise<Page<Session>>;
+  /** identity: authDeleteAccount — permanent; requires the password again */
+  deleteAccount(accessToken: string, password: string): Promise<void>;
   /** identity: revokeSession */
   revokeSession(accessToken: string, sessionId: string): Promise<void>;
 }
@@ -193,6 +195,9 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     },
     listSessions: (accessToken, cursor) =>
       request<Page<Session>>(f, ID, '/v1/sessions', { accessToken, query: { limit: 50, cursor } }),
+    deleteAccount: async (accessToken, password) => {
+      await request<void>(f, ID, '/v1/auth/delete-account', { method: 'POST', accessToken, body: { password } });
+    },
     revokeSession: async (accessToken, sessionId) => {
       await request<void>(f, ID, `/v1/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',

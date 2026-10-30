@@ -146,6 +146,17 @@ export class SessionManager {
     return revoked;
   }
 
+  /**
+   * Permanently deletes the account (identity: authDeleteAccount). No 401-refresh retry here: a
+   * 401 means the password was wrong, and must not rotate the session. On success every session
+   * is already revoked server-side, so only local state is wiped.
+   */
+  async deleteAccount(password: string): Promise<void> {
+    const token = await this.accessToken();
+    await this.identity.deleteAccount(token, password);
+    await this.clearLocal('signed_out');
+  }
+
   async clearLocal(reason: 'expired' | 'signed_out' = 'signed_out'): Promise<void> {
     await this.store.clear();
     this.session = null;

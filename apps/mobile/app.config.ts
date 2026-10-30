@@ -7,8 +7,10 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  *   APP_ENV                 development | e2e | staging | production   (default: development)
  *   APP_BUNDLE_ID           iOS bundle id / Android application id     (default: ae.healuxa.app)
  *   APP_LINK_DOMAIN         universal-link / App Links domain          (default: healuxa.ae)
- *   API_BASE_URL            single edge base URL for every service (e.g. https://api.healuxa.com)
- *   IDENTITY_BASE_URL       per-service override (local development: http://localhost:8201)
+ *   EXPO_PUBLIC_API_BASE_URL  the production nginx gateway (routes /v1/* to each service),
+ *                           e.g. https://api.healuxa.ae — one URL for every service
+ *   IDENTITY_BASE_URL       optional per-service override, mainly for local development
+ *                           (defaults when no gateway URL is set: http://localhost:8201)
  *   PROVIDER_BASE_URL       per-service override (local development: http://localhost:8205)
  *   APPOINTMENT_BASE_URL    per-service override (local development: http://localhost:8207)
  *   CONCIERGE_BASE_URL      per-service override (local development: http://localhost:8221)
@@ -24,8 +26,10 @@ const BUNDLE_ID = process.env.APP_BUNDLE_ID ?? 'ae.healuxa.app';
 const LINK_DOMAIN = process.env.APP_LINK_DOMAIN ?? 'healuxa.ae';
 const IS_LOCAL = APP_ENV === 'development' || APP_ENV === 'e2e';
 
+const GATEWAY = process.env.EXPO_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL;
+
 function baseUrl(specific: string | undefined, localDefault: string): string {
-  const url = specific ?? process.env.API_BASE_URL ?? (IS_LOCAL ? localDefault : 'https://api.healuxa.com');
+  const url = specific ?? GATEWAY ?? (IS_LOCAL ? localDefault : 'https://api.healuxa.ae');
   if (!IS_LOCAL && !url.startsWith('https://')) {
     // TLS-only for every non-local build: fail the build instead of shipping cleartext traffic.
     throw new Error(`[app.config] ${APP_ENV} builds require https base URLs, got ${url}`);
@@ -59,7 +63,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,
       CFBundleLocalizations: ['en', 'ar', 'fa'],
-      LSApplicationQueriesSchemes: ['mailto'],
       NSFaceIDUsageDescription:
         'Healuxa uses Face ID to unlock your signed-in session on this device when you turn on biometric unlock.',
     },

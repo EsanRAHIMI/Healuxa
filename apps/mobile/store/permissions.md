@@ -11,6 +11,3 @@ Explicitly **blocked** in the Android manifest (`app.config.ts → android.block
 `SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `RECORD_AUDIO`.
 
 Not used: location, camera, photos, contacts, microphone, calendar, tracking (no ATT prompt).
-
-`LSApplicationQueriesSchemes = [mailto]` lets the deletion screen check that a mail app exists
-before opening the pre-filled deletion request.

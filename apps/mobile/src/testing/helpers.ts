@@ -45,6 +45,7 @@ export function fakeIdentity(overrides: Partial<IdentityApi> = {}): jest.Mocked<
     logout: jest.fn(async () => undefined),
     listSessions: jest.fn(async () => ({ data: [], page: { limit: 50, has_more: false } })),
     revokeSession: jest.fn(async () => undefined),
+    deleteAccount: jest.fn(async () => undefined),
     ...overrides,
   } as jest.Mocked<IdentityApi>;
 }

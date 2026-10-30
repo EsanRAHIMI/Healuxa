@@ -31,9 +31,11 @@ universal links / App Links for `healuxa.ae` (templates in `store/deep-links/`).
 | Notification settings | notification `getPreferences`, `updatePreferences`, `registerDeviceToken`, `deleteDeviceToken` (on sign-out) |
 | Sign in / register / account | identity `authLogin`, `authRegister`, `authRefresh`, `authLogout` |
 | Sessions | identity `listSessions`, `revokeSession` |
-| Delete account | no backend endpoint yet → pre-filled email request (never claims deletion) |
+| Delete account | identity `authDeleteAccount` (password re-confirmation), then local session wipe |
 
-Base URLs come from `app.config.ts` (`API_BASE_URL` or per-service `*_BASE_URL`). Non-local builds
+Base URL: one `EXPO_PUBLIC_API_BASE_URL` pointing at the production nginx gateway
+(`infrastructure/production/gateway/nginx.conf` routes `/v1/*` to each service; default
+`https://api.healuxa.ae`), with optional per-service `*_BASE_URL` overrides for local dev. Non-local builds
 (`APP_ENV=staging|production`) fail to build with a non-https URL. Local builds default to
 `localhost:8201/8205/8207/8221/8222` (Android emulator rewritten to `10.0.2.2`).
 

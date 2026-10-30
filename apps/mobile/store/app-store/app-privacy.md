@@ -26,8 +26,8 @@ Notes for the owner:
   that purpose — confirm the retention policy, otherwise declare *Identifiers → Device ID / Other*.
 - When booking, assessments or push notifications ship, this file must be updated (Health data,
   Device ID for push tokens, Purchase history).
-- Account deletion: offered in-app (Account → Delete account). Today it creates an email request
-  because identity-service has no deletion endpoint — see `docs/EXECUTION_LEDGER.md` (mobile).
+- Account deletion: fully in-app (Account → Delete account, password re-confirmation) via
+  identity-service `authDeleteAccount`.
 
 ## Required-reason APIs declared (privacy manifest)
 

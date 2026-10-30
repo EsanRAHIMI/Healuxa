@@ -16,11 +16,9 @@
    numbers) and each service's total price with the professional fee and facility fee separately.
 3. Account tab → sign in with the demo account → Devices and sessions lets the user sign out any
    device.
-4. **Account deletion** (Guideline 5.1.1(v)): Account → Delete account. In this version the button
-   opens a pre-filled deletion request email to `<privacy@healuxa.ae — confirm mailbox>`; our team
-   completes deletion within 30 days and confirms by email. The screen states clearly that the
-   account is not deleted until then. *(Owner: Apple prefers fully in-app deletion; the
-   identity-service deletion endpoint is tracked as a blocker.)*
+4. **Account deletion** (Guideline 5.1.1(v)): Account → Delete account → enter the password →
+   confirm. The account is deleted immediately (identity-service `POST /v1/auth/delete-account`):
+   sign-in removed, all sessions revoked, other services erase or anonymise the user's data.
 5. Biometric unlock (Account → Biometric unlock) is optional; Face ID is only requested after the
    user turns it on.
 

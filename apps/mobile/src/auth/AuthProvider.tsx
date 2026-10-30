@@ -23,6 +23,8 @@ export interface AuthValue {
   unlock(prompt: string, cancelLabel: string): Promise<boolean>;
   setBiometricLock(enabled: boolean, prompt: string, cancelLabel: string): Promise<boolean>;
   withAuth<T>(call: (accessToken: string) => Promise<T>): Promise<T>;
+  /** identity: authDeleteAccount; resolves once the account is gone and local state is wiped */
+  deleteAccount(password: string): Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -130,6 +132,12 @@ export function AuthProvider({
       unlock,
       setBiometricLock,
       withAuth: (call) => manager.withAuth(call),
+      deleteAccount: async (password) => {
+        await manager.deleteAccount(password);
+        await tokenStore.setBiometricLock(false);
+        await tokenStore.setPushDeviceId(null);
+        setLock(false);
+      },
     };
   }, [status, session, expired, biometricLock, manager, tokenStore, unlock, setBiometricLock]);
 
