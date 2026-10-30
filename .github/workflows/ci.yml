@@ -23,7 +23,8 @@ jobs:
         # nested yaml@1 copies that redocly's swagger2openapi/oas-* dependencies require.
         run: npm ci
       - name: Validate API and event contracts
-        run: npm run contracts:validate
+        run: |
+          npm run contracts:validate > contracts.log 2>&1 || { grep -iE "error|require|at |module" contracts.log | head -25 | sed 's/^/::error::/'; exit 1; }
       - name: event-contracts unit tests
         working-directory: packages/event-contracts
         run: npm test

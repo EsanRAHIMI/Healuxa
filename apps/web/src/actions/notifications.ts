@@ -12,7 +12,7 @@ import { NOTIFICATION_CATEGORIES, NOTIFICATION_CHANNELS } from "@/lib/notify";
 import { isValidTimeZone } from "@/lib/time";
 
 export async function markReadAction(_prev: FormState, fd: FormData): Promise<FormState> {
-  return act(fd, async (locale) => {
+  return act(fd, async () => {
     await actionSession();
     const api = await userApi();
     const id = str(fd, "notification_id");

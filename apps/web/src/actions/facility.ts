@@ -76,7 +76,7 @@ export async function openFacilityAction(_prev: FormState, fd: FormData): Promis
 }
 
 export async function forgetFacilityAction(_prev: FormState, fd: FormData): Promise<FormState> {
-  return act(fd, async (locale) => {
+  return act(fd, async () => {
     await forgetFacility(str(fd, "facility_id"));
     refresh();
   });
