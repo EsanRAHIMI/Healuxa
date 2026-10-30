@@ -32,7 +32,8 @@ export type ServiceName =
   | "commercial-intelligence-engine"
   | "whatsapp-service"
   | "realtime-gateway"
-  | "monitoring-service";
+  | "monitoring-service"
+  | "concierge-service";
 
 export interface EventDescriptor {
   /** Fully-qualified event type `<context>.<event>`. */
@@ -63,12 +64,16 @@ export const EVENTS = {
   "journey.completed": { type: "journey.completed", stream: "JOURNEY", owner: "transformation-engine", version: 1, schema: "schemas/journey.schema.json#/$defs/JourneyCompleted", consumers: ["commercial-intelligence-engine", "ml-service", "monitoring-service"] },
 
   // ── Appointment (Scheduling) ───────────────────────────────────────────────
-  "appointment.requested": { type: "appointment.requested", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentRequested", consumers: ["provider-success-engine", "monitoring-service", "payment-service"] },
+  "appointment.requested": { type: "appointment.requested", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentRequested", consumers: ["provider-success-engine", "monitoring-service", "notification-service", "payment-service"] },
   "appointment.created": { type: "appointment.created", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentCreated", consumers: ["transformation-engine", "notification-service", "monitoring-service", "payment-service"] },
-  "appointment.accepted": { type: "appointment.accepted", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentAccepted", consumers: ["provider-success-engine", "monitoring-service", "payment-service"] },
-  "appointment.declined": { type: "appointment.declined", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentDeclined", consumers: ["provider-success-engine", "matching-service", "monitoring-service", "payment-service"] },
-  "appointment.completed": { type: "appointment.completed", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentCompleted", consumers: ["transformation-engine", "provider-success-engine", "commercial-intelligence-engine", "review-service", "ml-service", "monitoring-service", "payment-service"] },
-  "appointment.no_show": { type: "appointment.no_show", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentNoShow", consumers: ["transformation-engine", "provider-success-engine", "monitoring-service", "payment-service"] },
+  "appointment.accepted": { type: "appointment.accepted", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentAccepted", consumers: ["provider-success-engine", "monitoring-service", "notification-service", "payment-service"] },
+  "appointment.declined": { type: "appointment.declined", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentDeclined", consumers: ["provider-success-engine", "matching-service", "monitoring-service", "notification-service", "payment-service"] },
+  "appointment.completed": { type: "appointment.completed", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentCompleted", consumers: ["transformation-engine", "provider-success-engine", "commercial-intelligence-engine", "review-service", "ml-service", "monitoring-service", "notification-service", "payment-service"] },
+  "appointment.no_show": { type: "appointment.no_show", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentNoShow", consumers: ["transformation-engine", "provider-success-engine", "monitoring-service", "notification-service", "payment-service"] },
+  "appointment.cancelled": { type: "appointment.cancelled", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentCancelled", consumers: ["transformation-engine", "provider-success-engine", "notification-service", "monitoring-service", "payment-service"] },
+  "appointment.rescheduled": { type: "appointment.rescheduled", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentRescheduled", consumers: ["transformation-engine", "provider-success-engine", "notification-service", "monitoring-service", "payment-service"] },
+  "appointment.expired": { type: "appointment.expired", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentExpired", consumers: ["provider-success-engine", "notification-service", "monitoring-service", "payment-service"] },
+  "appointment.reminder_due": { type: "appointment.reminder_due", stream: "APPOINTMENT", owner: "appointment-service", version: 1, schema: "schemas/appointment.schema.json#/$defs/AppointmentReminderDue", consumers: ["notification-service", "whatsapp-service"] },
 
   // ── Payment (money ledger) ─────────────────────────────────────────────────
   "payment.succeeded": { type: "payment.succeeded", stream: "BILLING", owner: "payment-service", version: 1, schema: "schemas/payment.schema.json#/$defs/PaymentSucceeded", consumers: ["transformation-engine", "subscription-service", "provider-success-engine", "commercial-intelligence-engine", "ml-service", "monitoring-service", "appointment-service"] },
@@ -126,6 +131,11 @@ export const EVENTS = {
   "auth.user_registered": { type: "auth.user_registered", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthUserRegistered", consumers: ["profile-service", "crm-service", "monitoring-service"] },
   "auth.session_revoked": { type: "auth.session_revoked", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSessionRevoked", consumers: ["realtime-gateway", "monitoring-service"] },
   "auth.security_event": { type: "auth.security_event", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSecurityEvent", consumers: ["monitoring-service"] },
+
+  // ── Concierge (concierge-service) ──────────────────────────────────────────
+  "concierge.case_submitted": { type: "concierge.case_submitted", stream: "CONCIERGE", owner: "concierge-service", version: 1, schema: "schemas/concierge.schema.json#/$defs/ConciergeCaseSubmitted", consumers: ["monitoring-service"] },
+  "concierge.case_status_changed": { type: "concierge.case_status_changed", stream: "CONCIERGE", owner: "concierge-service", version: 1, schema: "schemas/concierge.schema.json#/$defs/ConciergeCaseStatusChanged", consumers: ["notification-service", "monitoring-service"] },
+  "concierge.message_posted": { type: "concierge.message_posted", stream: "CONCIERGE", owner: "concierge-service", version: 1, schema: "schemas/concierge.schema.json#/$defs/ConciergeMessagePosted", consumers: ["notification-service"] },
 
   // ── Medication ─────────────────────────────────────────────────────────────
   "medication.intake_missed": { type: "medication.intake_missed", stream: "CLINICAL", owner: "medication-service", version: 1, schema: "schemas/medication.schema.json#/$defs/MedicationIntakeMissed", consumers: ["transformation-engine", "notification-service", "ml-service", "monitoring-service"] },

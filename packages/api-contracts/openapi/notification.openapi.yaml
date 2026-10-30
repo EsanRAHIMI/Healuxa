@@ -1,27 +1,111 @@
 openapi: 3.1.0
 info:
   title: Healuxa Notification Service API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    Notification Open Host Service (Generic). Multi-channel fan-out. Wraps SendGrid/Twilio behind
-    an ACL. Event-subscribed; also accepts direct sends. See Healuxa_DDD_Boundaries.md §3.18.
+    Notification Open Host Service (Generic). Multi-channel fan-out (in-app inbox, email, SMS,
+    WhatsApp, push) behind a provider-agnostic driver interface; development and test drivers only
+    log, so no real message is ever sent there. Event-subscribed (concierge.*, catalog.*,
+    appointment.*); also accepts direct sends from internal services. See Healuxa_DDD_Boundaries.md §3.18.
+
+    Notifications reference entity ids only and are rendered from the service's localized template
+    catalog (en/ar/fa) — no health data is accepted or stored. Every channel respects the user's
+    preferences: per-category channel opt-in/out, quiet hours (push/SMS/WhatsApp are deferred), and
+    consent (marketing is off until the user opts in). Deliveries are idempotent per
+    (source event, recipient, channel), retried with exponential backoff and dead-lettered after the
+    final attempt.
 servers:
   - url: https://api.healuxa.com/v1
     description: Production edge (Traefik)
-  - url: http://notification-service:8015/v1
+  - url: http://notification-service:8022/v1
     description: Internal mesh
 security:
   - bearerAuth: []
 tags:
   - name: notifications
+  - name: inbox
+  - name: devices
+  - name: internal
 paths:
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: The caller's in-app inbox (newest first)
+      tags: [inbox]
+      x-required-permission: notifications:read
+      parameters:
+        - { name: unread_only, in: query, schema: { type: boolean, default: false } }
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/Category" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Notification" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /notifications/unread-count:
+    get:
+      operationId: getUnreadNotificationCount
+      summary: Number of unread inbox notifications for the caller
+      tags: [inbox]
+      x-required-permission: notifications:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [unread]
+                properties:
+                  unread: { type: integer, minimum: 0 }
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Mark one of the caller's notifications read (idempotent)
+      tags: [inbox]
+      x-required-permission: notifications:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Notification" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark every unread inbox notification of the caller read
+      tags: [inbox]
+      x-required-permission: notifications:write
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [marked]
+                properties:
+                  marked: { type: integer, minimum: 0 }
   /notifications/send:
     post:
       operationId: sendNotification
       summary: Send a notification (internal; respects consent + quiet hours)
-      tags: [notifications]
+      tags: [internal]
       security:
         - serviceAuth: [service]
+      x-required-permission: service
       parameters:
         - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
       requestBody:
@@ -30,12 +114,17 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/SendRequest" }
       responses:
-        "202": { description: Accepted }
+        "202":
+          description: Accepted (deliveries are queued; skipped channels are reported)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SendResult" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
   /notifications/preferences/{userId}:
     get:
       operationId: getPreferences
-      summary: Get channel preferences + quiet hours
+      summary: Get channel preferences + quiet hours (own user only; defaults when never set)
       tags: [notifications]
       x-required-permission: notifications:read
       parameters:
@@ -45,10 +134,11 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { type: object, additionalProperties: true }
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
     put:
       operationId: updatePreferences
-      summary: Update channel preferences
+      summary: Update channel preferences (own user only; omitted fields keep their value)
       tags: [notifications]
       x-required-permission: notifications:write
       parameters:
@@ -57,9 +147,78 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, additionalProperties: true }
+            schema: { $ref: "#/components/schemas/PreferencesUpdate" }
       responses:
-        "200": { description: OK }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /notification-devices:
+    post:
+      operationId: registerDeviceToken
+      summary: Register (or re-register) a push device token for the caller
+      tags: [devices]
+      x-required-permission: notifications:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeviceTokenCreate" }
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceToken" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /notification-devices/{id}:
+    delete:
+      operationId: deleteDeviceToken
+      summary: Remove one of the caller's device tokens
+      tags: [devices]
+      x-required-permission: notifications:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "204": { description: Removed }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /notifications/recipient-links:
+    post:
+      operationId: registerRecipientLink
+      summary: Register who is notified about an entity (internal; e.g. a provider profile's owner)
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      x-required-permission: service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecipientLink" }
+      responses:
+        "201":
+          description: Registered (idempotent)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecipientLink" }
+  /notifications/recipient-links/{entity_type}/{entity_id}/{user_id}:
+    delete:
+      operationId: removeRecipientLink
+      summary: Stop notifying a user about an entity (internal)
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      x-required-permission: service
+      parameters:
+        - { name: entity_type, in: path, required: true, schema: { $ref: "#/components/schemas/EntityType" } }
+        - { name: entity_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: user_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "204": { description: Removed }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
@@ -67,12 +226,134 @@ components:
     serviceAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
   schemas:
+    Channel:
+      type: string
+      enum: [in_app, email, sms, whatsapp, push]
+    Category:
+      type: string
+      description: concierge, appointments, provider_account and account are transactional; marketing needs consent.
+      enum: [concierge, appointments, provider_account, account, marketing]
+    Locale:
+      type: string
+      enum: [en, ar, fa]
+    EntityType:
+      type: string
+      enum: [provider, facility, concierge_case, appointment, user]
     SendRequest:
       type: object
       additionalProperties: false
-      required: [user_id, channel, template]
+      required: [user_id, template]
       properties:
         user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        channel: { type: string, enum: [push, web_push, email, sms, in_app, whatsapp] }
+        tenant_id: { type: [string, "null"], description: Defaults to the caller's tenant. }
+        channel:
+          type: [string, "null"]
+          description: Restrict to one channel (`web_push` is accepted as an alias of `push`).
+          enum: [push, web_push, email, sms, in_app, whatsapp, null]
+        channels: { type: array, items: { $ref: "#/components/schemas/Channel" } }
+        template: { type: string, description: Template key from the service's catalog. }
+        data:
+          type: object
+          description: Template parameters only (ids, enum values, timestamps; strings ≤ 200 chars). Unknown keys are rejected.
+          additionalProperties: true
+        entity_type: { oneOf: [{ $ref: "#/components/schemas/EntityType" }, { type: "null" }] }
+        entity_id: { type: [string, "null"] }
+    SendResult:
+      type: object
+      additionalProperties: false
+      required: [notification_id, deliveries]
+      properties:
+        notification_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        deliveries:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [channel, status]
+            properties:
+              channel: { $ref: "#/components/schemas/Channel" }
+              status: { type: string, enum: [pending, sent, skipped, dead_letter] }
+              skip_reason: { type: [string, "null"] }
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, category, template, locale, title, body, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        category: { $ref: "#/components/schemas/Category" }
         template: { type: string }
-        data: { type: object, additionalProperties: true }
+        locale: { $ref: "#/components/schemas/Locale" }
+        title: { type: string }
+        body: { type: string }
+        entity_type: { type: [string, "null"] }
+        entity_id: { type: [string, "null"] }
+        read_at: { type: [string, "null"], format: date-time }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    QuietHours:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        end: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+    ChannelSwitches:
+      type: object
+      additionalProperties: false
+      properties:
+        in_app: { type: boolean }
+        email: { type: boolean }
+        sms: { type: boolean }
+        whatsapp: { type: boolean }
+        push: { type: boolean }
+    Preferences:
+      type: object
+      additionalProperties: false
+      required: [user_id, locale, timezone, marketing_opt_in, channels]
+      properties:
+        user_id: { type: string }
+        locale: { $ref: "#/components/schemas/Locale" }
+        timezone: { type: string, description: IANA time zone used for quiet hours. }
+        quiet_hours: { oneOf: [{ $ref: "#/components/schemas/QuietHours" }, { type: "null" }] }
+        marketing_opt_in: { type: boolean, description: Consent for marketing; false by default. }
+        channels:
+          type: object
+          description: Effective switches per category (defaults merged with the user's choices).
+          additionalProperties: { $ref: "#/components/schemas/ChannelSwitches" }
+        updated_at: { type: [string, "null"], format: date-time }
+    PreferencesUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        locale: { $ref: "#/components/schemas/Locale" }
+        timezone: { type: string }
+        quiet_hours: { oneOf: [{ $ref: "#/components/schemas/QuietHours" }, { type: "null" }] }
+        marketing_opt_in: { type: boolean }
+        channels:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/ChannelSwitches" }
+    DeviceTokenCreate:
+      type: object
+      additionalProperties: false
+      required: [platform, token]
+      properties:
+        platform: { type: string, enum: [ios, android, web] }
+        token: { type: string, minLength: 16, maxLength: 512 }
+    DeviceToken:
+      type: object
+      additionalProperties: false
+      required: [id, platform, token_suffix, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        platform: { type: string, enum: [ios, android, web] }
+        token_suffix: { type: string, description: Last characters only; tokens are never returned. }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    RecipientLink:
+      type: object
+      additionalProperties: false
+      required: [entity_type, entity_id, user_id]
+      properties:
+        tenant_id: { type: [string, "null"] }
+        entity_type: { $ref: "#/components/schemas/EntityType" }
+        entity_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        role: { type: [string, "null"], maxLength: 32 }

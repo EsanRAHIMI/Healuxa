@@ -1,3 +1,9 @@
+"""subscription.openapi.yaml routes. Every route is hidden (404) until MEMBERSHIPS_ENABLED=true.
+
+Plans are staff-managed; members create/cancel/change their own subscription. Payment happens in
+payment-service (subject_type=membership); this service only reacts to its payment.* events.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

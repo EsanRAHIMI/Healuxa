@@ -5,21 +5,10 @@ payments and invoices (ownership enforced in payment-service). Platform admins a
 role manage payments (capture/void/disputes), refund, and reconcile. Subscription plans are managed by
 admins only.
 
-down_revision: this branch (feat/payment-service) does not contain 0008_appointment_permissions
-(feat/appointment-service) or 0009_concierge_permissions (feat/concierge-notifications). The revision
-chains onto the highest of those present in this directory, so it is correct on this branch (0007) and
-after the merge (0009). At merge time, re-point it to the literal "0009_concierge_permissions" once
-0009 itself is chained onto 0008.
+Chains after 0009_concierge_permissions (0007 provider -> 0008 appointment -> 0009 concierge -> 0010).
 """
 
-from pathlib import Path
-
-_VERSIONS = Path(__file__).resolve().parent
-down_revision = next(
-    rev
-    for rev in ("0009_concierge_permissions", "0008_appointment_permissions", "0007_provider_permissions")
-    if (_VERSIONS / f"{rev}.py").exists()
-)
+down_revision = "0009_concierge_permissions"
 revision = "0010_payment_permissions"
 branch_labels = None
 depends_on = None

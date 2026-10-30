@@ -1,3 +1,7 @@
+"""Processor webhooks (public, signature-verified) and finance endpoints: disputes, payee access,
+settlement import/report, reconciliation and per-payment ledger. Registered before the payments router
+so static /payments/* paths win over /payments/{payment_id}."""
+
 from __future__ import annotations
 
 from datetime import datetime

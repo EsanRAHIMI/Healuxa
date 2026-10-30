@@ -35,6 +35,12 @@ class OutboxMessage:
     attempts: int
 
 
+def envelope_body(envelope: EventEnvelope) -> dict[str, Any]:
+    """Wire form of an envelope. Unset optional envelope fields are omitted, not null, as
+    envelope.schema.json requires; payload values are left untouched (payload nulls can be valid)."""
+    return {key: value for key, value in envelope.model_dump(mode="json").items() if value is not None}
+
+
 def outbox_fields(envelope: EventEnvelope) -> dict[str, Any]:
     """Column/field values for a new outbox entry; stores persist these verbatim."""
     now = datetime.now(UTC)
@@ -43,7 +49,7 @@ def outbox_fields(envelope: EventEnvelope) -> dict[str, Any]:
         "event_type": envelope.type,
         "subject": subject_for(envelope.type, envelope.version),
         "tenant_id": envelope.tenant_id,
-        "body": envelope.model_dump(mode="json"),
+        "body": envelope_body(envelope),
         "status": STATUS_PENDING,
         "attempts": 0,
         "available_at": now,

@@ -1,3 +1,9 @@
+"""HTTP surface for customers and payments staff: config, quotes, payments, capture/void, refunds.
+
+Thin layer: validates input (extra fields forbidden, so clients cannot smuggle amounts), applies RBAC via
+identity permissions, and delegates to domain/* which owns state, processor calls and events.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

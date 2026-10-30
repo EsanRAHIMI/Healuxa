@@ -16,6 +16,10 @@ Status words: **Implemented / Tested** apply to code; **Deployed** is your job; 
 | assessment-service | `services/assessment-service` | `services/assessment-service/Dockerfile` | 8003 | MongoDB (replica set / Atlas) | none (indexes ensured at start) |
 | transformation-engine | `services/transformation-engine` | `services/transformation-engine/Dockerfile` | 8000 | PostgreSQL `transformation` | `alembic upgrade head` |
 | provider-service | `services/provider-service` | `services/provider-service/Dockerfile` | 8005 | PostgreSQL `provider` | `alembic upgrade head` |
+| concierge-service | `services/concierge-service` | `services/concierge-service/Dockerfile` | 8021 | PostgreSQL `concierge` | `alembic upgrade head` |
+| notification-service | `services/notification-service` | `services/notification-service/Dockerfile` | 8022 | PostgreSQL `notification` | `alembic upgrade head` |
+| payment-service | `services/payment-service` | `services/payment-service/Dockerfile` | 8010 | PostgreSQL `payment` | `alembic upgrade head` |
+| subscription-service | `services/subscription-service` | `services/subscription-service/Dockerfile` | 8009 | PostgreSQL `subscription` | `alembic upgrade head` |
 
 Further components (appointment-service, web) are added to this table when their branches merge;
 check `docs/EXECUTION_LEDGER.md` for the current list before deploying.
@@ -109,3 +113,63 @@ development default; the error names the variables without printing values.
 - Forged-header check: `POST /v1/providers` with only `X-Healuxa-User`/`X-Healuxa-Perms` headers → 401.
 - `scripts/smoke/assessment_to_transformation_events.sh` against staging (needs psql access to the
   transformation DB) proves the event path end to end.
+
+## 8. concierge-service and notification-service (added with feat/concierge-notifications)
+
+Both follow sections 2–7 (same image facts, secret guard, pre-deploy `alembic upgrade head`,
+`/ready` probe). Deploy them after identity-service; identity migration
+`0009_concierge_permissions` grants `concierge:request` + `notifications:read/write` to `user` and
+`concierge:coordinate` + `concierge:supervise` to `admin`.
+
+**Public routes** (Traefik, paths per the contracts):
+- `/v1/concierge/*` → concierge-service (8021).
+- `/v1/notifications`, `/v1/notifications/unread-count`, `/v1/notifications/{id}/read`,
+  `/v1/notifications/read-all`, `/v1/notifications/preferences/*`, `/v1/notification-devices*`
+  → notification-service (8022).
+- **Internal only — never route publicly:** `/v1/notifications/send` and
+  `/v1/notifications/recipient-links*` (service tokens, `service` permission), plus `/metrics`.
+
+**Environment variables** (names only):
+- concierge-service: `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `FIRST_RESPONSE_SLA_MINUTES`
+  (default 240) and the common variables in section 5. `NATS_ENABLED=true` starts its outbox relay.
+- notification-service: `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `DEFAULT_LOCALE`,
+  `DEFAULT_TIMEZONE`, `DELIVERY_WORKER_ENABLED`, `DELIVERY_POLL_SECONDS`, `DELIVERY_BATCH_SIZE`,
+  `DELIVERY_MAX_ATTEMPTS`, `DELIVERY_BACKOFF_BASE_SECONDS`, `DELIVERY_BACKOFF_MAX_SECONDS`,
+  `EMAIL_DRIVER`, `SMS_DRIVER`, `WHATSAPP_DRIVER`, `PUSH_DRIVER` (`log` | `disabled`; `smtp` for
+  email), `ALLOW_REAL_DELIVERY` (keep `false` until a contact directory and provider accounts exist;
+  real drivers refuse to start without it), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_STARTTLS`. `NATS_ENABLED=true` starts its durable consumers
+  (concierge.*, catalog.provider_status_changed, catalog.affiliation_changed, appointment.*).
+  Run a single replica of the delivery worker per environment, or several — deliveries are leased
+  with `SKIP LOCKED`.
+
+## 9. payment-service and subscription-service (added with feat/payment-service) — SANDBOX ONLY
+
+Same image facts, secret guard, pre-deploy `alembic upgrade head` and `/ready` probe as above. Identity
+migration `0010_payment_permissions` (after 0009) grants customers `payments:create|read`,
+`invoices:read`, `subscriptions:create|read|write`; `admin` additionally `payments:manage`,
+`payments:refund`, `finance:reconcile`, `subscriptions:manage`; and adds a `finance` role.
+
+**Public routes:** `/v1/payments*`, `/v1/payment-quotes*`, `/v1/invoices*` → payment-service (8010);
+`/v1/subscriptions*`, `/v1/plans*` → subscription-service (8009). `POST /v1/payments/webhooks/stripe` must be
+public (Stripe calls it; signature-verified on the raw body — do not let the proxy rewrite the body).
+Never route `/metrics` publicly.
+
+**payment-service env (names only):** `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `PAYMENT_GATEWAY`
+(`stripe` on servers; `fake` is refused outside development/test), `STRIPE_SECRET_KEY` (secret; `sk_test_`
+only), `STRIPE_PUBLISHABLE_KEY` (`pk_test_`), `STRIPE_WEBHOOK_SECRET` (secret, `whsec_`), `STRIPE_API_BASE`,
+`STRIPE_API_VERSION`, `STRIPE_TIMEOUT_SECONDS`, `WEBHOOK_TOLERANCE_SECONDS`, `PAYMENTS_LIVE_MODE` (keep
+`false`; live needs this **and** an `sk_live_` key **and** `APP_ENV=production`, else start-up is refused),
+`CURRENCY`, tax/pricing (pending accountant review): `PLATFORM_FEE_BPS`, `PLATFORM_FEE_FIXED_MINOR`,
+`PLATFORM_FEE_LABEL`, `VAT_NAME`, `VAT_RATES_BPS` (JSON), `TAX_CONFIG_REVIEWED`, `QUOTE_TTL_SECONDS`,
+`APPOINTMENT_CAPTURE_METHOD`, `REFUND_FULL_WINDOW_HOURS`, `REFUND_PARTIAL_PERCENT`, invoices:
+`INVOICE_NUMBER_PREFIX`, `SELLER_LEGAL_NAME`, `SELLER_TRN`, `SELLER_ADDRESS`; integrations:
+`PROVIDER_SERVICE_URL`, `MEMBERSHIP_PAYMENTS_ENABLED`. `NATS_ENABLED=true` starts the outbox relay and the
+appointment.* / subscription.* consumers.
+
+**subscription-service env:** `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `MEMBERSHIPS_ENABLED` (keep `false`
+until commercial approval — the API answers 404), `CURRENCY`. Consumes `payment.succeeded|failed|billing_agreement_updated`.
+
+Stripe dashboard (sandbox): webhook endpoint `https://api.<domain>/v1/payments/webhooks/stripe` with events
+`payment_intent.*`, `refund.*`, `charge.refund.updated`, `charge.dispute.*`, `invoice.paid`,
+`invoice.payment_failed`, `customer.subscription.*`.
