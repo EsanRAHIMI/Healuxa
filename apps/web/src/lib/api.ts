@@ -1,5 +1,11 @@
 import "server-only";
 
+/**
+ * Backend access for the web tier (BFF). The browser never calls services directly: Server
+ * Components and Server Actions use these clients, one base URL per service (env.ts), forwarding the
+ * user's access token from the httpOnly cookie. Public catalog reads are anonymous and cached.
+ */
+
 import { createHealuxaClient, type HealuxaClient } from "@healuxa/api-client";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
@@ -13,6 +19,11 @@ function baseUrls() {
     provider: env.providerApiUrl,
     profile: env.profileApiUrl,
     assessment: env.assessmentApiUrl,
+    appointment: env.appointmentApiUrl,
+    concierge: env.conciergeApiUrl,
+    notification: env.notificationApiUrl,
+    payment: env.paymentApiUrl,
+    subscription: env.subscriptionApiUrl,
   };
 }
 

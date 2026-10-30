@@ -33,6 +33,7 @@ export default async function ProviderPortalLayout({ children, params }: { child
             { href: `${base}/affiliations`, label: t("pp.affiliations") },
             { href: `${base}/services`, label: t("pp.services") },
             { href: `${base}/availability`, label: t("pp.availability") },
+            { href: `${base}/bookings`, label: t("bookings.calendar") },
           ]}
         />
       ) : null}

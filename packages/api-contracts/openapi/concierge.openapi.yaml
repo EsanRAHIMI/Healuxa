@@ -1,0 +1,522 @@
+openapi: 3.1.0
+info:
+  title: Healuxa Concierge Service API
+  version: 1.0.0
+  description: >
+    Concierge case management (Stage E). A customer submits a non-clinical concierge request
+    (medical travel logistics, specialist search, second-opinion coordination, logistics). A
+    coordinator triages, claims and works the case, proposes provider options (references to
+    provider-service ids only), and arranges it. Supervisors handle escalations.
+
+    Data minimisation: there are no diagnosis or clinical fields. `needs_note` is optional,
+    free text and explicitly non-clinical; clients must tell customers not to enter health
+    information. Message bodies and notes are stored here and never put in events.
+
+    Case states: submitted → triaged → assigned → in_progress → awaiting_customer → arranged →
+    completed, plus cancelled and escalated. Illegal transitions return 409. Every transition
+    is recorded in the case audit trail (who, when, from, to, reason).
+
+    Access: customers see only their own cases; coordinators (`concierge:coordinate`) and
+    supervisors (`concierge:supervise`) see cases in their tenant only. Anything else returns
+    404 (no existence leaks). Internal notes and the audit trail are never visible to customers.
+    Secure messaging is limited to the case's customer and its assigned coordinator.
+servers:
+  - url: https://api.healuxa.com/v1
+    description: Production edge (Traefik)
+  - url: http://concierge-service:8021/v1
+    description: Internal mesh
+security:
+  - bearerAuth: []
+tags:
+  - name: cases
+  - name: queue
+  - name: notes
+  - name: options
+  - name: messages
+paths:
+  /concierge/cases:
+    post:
+      operationId: createConciergeCase
+      summary: Submit a concierge request (creates a case in `submitted`)
+      tags: [cases]
+      x-required-permission: concierge:request
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaseCreate" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+    get:
+      operationId: listMyConciergeCases
+      summary: List the caller's own concierge cases (newest first)
+      tags: [cases]
+      x-required-permission: concierge:request
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/CaseStatus" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CasePage" }
+  /concierge/queue:
+    get:
+      operationId: listConciergeQueue
+      summary: Coordinator work queue for the caller's tenant (oldest first)
+      tags: [queue]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/CaseStatus" } }
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/CaseCategory" } }
+        - name: assignee
+          in: query
+          description: "`me`, `unassigned`, or `any` (default)."
+          schema: { type: string, enum: [me, unassigned, any], default: any }
+        - { name: breached, in: query, description: Only cases whose first-response SLA is breached (or not)., schema: { type: boolean } }
+        - { name: open_only, in: query, description: Exclude completed and cancelled cases (default true)., schema: { type: boolean, default: true } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CasePage" }
+  /concierge/cases/{id}:
+    get:
+      operationId: getConciergeCase
+      summary: Get a case (customer owner, or coordinator/supervisor of the tenant)
+      tags: [cases]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /concierge/cases/{id}/transitions:
+    post:
+      operationId: transitionConciergeCase
+      summary: Move a case to another state (validated against the state machine and the caller's role)
+      tags: [cases]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/assignment:
+    post:
+      operationId: assignConciergeCase
+      summary: Claim a case (coordinator) or assign it to a coordinator (supervisor)
+      tags: [queue]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AssignRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/escalation:
+    post:
+      operationId: escalateConciergeCase
+      summary: Escalate a case to a supervisor (customer owner or assigned coordinator)
+      tags: [cases]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EscalateRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/audit:
+    get:
+      operationId: listConciergeCaseAudit
+      summary: Audit trail of a case (staff only; oldest first)
+      tags: [cases]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /concierge/cases/{id}/notes:
+    get:
+      operationId: listConciergeCaseNotes
+      summary: Internal notes (staff only, never visible to customers)
+      tags: [notes]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Note" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    post:
+      operationId: addConciergeCaseNote
+      summary: Add an internal note (staff only)
+      tags: [notes]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NoteCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Note" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /concierge/cases/{id}/options:
+    get:
+      operationId: listConciergeCaseOptions
+      summary: Provider options proposed for a case (customer owner or staff)
+      tags: [options]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ProviderOption" } }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    post:
+      operationId: proposeConciergeCaseOption
+      summary: Propose a provider option (assigned coordinator or supervisor; references only)
+      tags: [options]
+      x-required-permission: concierge:coordinate
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderOptionCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderOption" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/options/{option_id}/select:
+    post:
+      operationId: selectConciergeCaseOption
+      summary: Customer selects one of the proposed options
+      tags: [options]
+      x-required-permission: concierge:request
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+        - { name: option_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderOption" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/messages:
+    get:
+      operationId: listConciergeCaseMessages
+      summary: Secure messages of a case (customer owner or assigned coordinator only; oldest first)
+      tags: [messages]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Message" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    post:
+      operationId: postConciergeCaseMessage
+      summary: Post a secure message (customer owner or assigned coordinator only)
+      tags: [messages]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessageCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /concierge/cases/{id}/messages/read:
+    post:
+      operationId: markConciergeCaseMessagesRead
+      summary: Mark the counterparty's messages read (read receipts)
+      tags: [messages]
+      parameters:
+        - $ref: "#/components/parameters/CaseId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReadRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [marked]
+                properties:
+                  marked: { type: integer, minimum: 0 }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
+  parameters:
+    CaseId:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+  schemas:
+    CaseStatus:
+      type: string
+      enum: [submitted, triaged, assigned, in_progress, awaiting_customer, arranged, completed, cancelled, escalated]
+    CaseCategory:
+      type: string
+      enum: [medical_travel, specialist_search, second_opinion_coordination, logistics, other]
+    Language:
+      type: string
+      pattern: "^[a-z]{2,3}(-[A-Za-z]{2,4})?$"
+    CaseCreate:
+      type: object
+      additionalProperties: false
+      required: [category]
+      properties:
+        category: { $ref: "#/components/schemas/CaseCategory" }
+        preferred_start_date: { type: [string, "null"], format: date }
+        preferred_end_date: { type: [string, "null"], format: date }
+        languages: { type: array, maxItems: 5, items: { $ref: "#/components/schemas/Language" } }
+        destination_city: { type: [string, "null"], maxLength: 120 }
+        needs_note:
+          type: [string, "null"]
+          maxLength: 2000
+          description: >
+            Optional, NON-CLINICAL logistics needs (e.g. wheelchair access, interpreter, travel
+            companions). Do not enter symptoms, diagnoses or medical history.
+    Case:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, category, status, languages, first_response_due_at, sla_breached, created_at, updated_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        customer_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        category: { $ref: "#/components/schemas/CaseCategory" }
+        status: { $ref: "#/components/schemas/CaseStatus" }
+        preferred_start_date: { type: [string, "null"], format: date }
+        preferred_end_date: { type: [string, "null"], format: date }
+        languages: { type: array, items: { $ref: "#/components/schemas/Language" } }
+        destination_city: { type: [string, "null"] }
+        needs_note: { type: [string, "null"], description: Non-clinical free text. }
+        coordinator_id: { type: [string, "null"] }
+        selected_option_id: { type: [string, "null"] }
+        escalated_from: { type: [string, "null"], description: State the case was in when escalated. }
+        first_response_due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        first_responded_at: { type: [string, "null"], format: date-time }
+        sla_breached: { type: boolean, description: First response missed (or is overdue now). }
+        closed_at: { type: [string, "null"], format: date-time }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        updated_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    CasePage:
+      type: object
+      required: [data, page]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Case" } }
+        page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+    TransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [to_status]
+      properties:
+        to_status: { $ref: "#/components/schemas/CaseStatus" }
+        reason: { type: [string, "null"], maxLength: 500 }
+    AssignRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        coordinator_id:
+          type: [string, "null"]
+          description: Omit to claim for yourself. Assigning someone else requires `concierge:supervise`.
+    EscalateRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    AuditEntry:
+      type: object
+      additionalProperties: false
+      required: [id, action, actor_id, actor_role, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        action: { type: string, enum: [submitted, status_changed, assigned, option_proposed, option_selected] }
+        from_status: { type: [string, "null"] }
+        to_status: { type: [string, "null"] }
+        actor_id: { type: string }
+        actor_role: { type: string, enum: [customer, coordinator, supervisor] }
+        reason: { type: [string, "null"] }
+        subject_id: { type: [string, "null"], description: Assignee or option id for the action. }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    NoteCreate:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+    Note:
+      type: object
+      additionalProperties: false
+      required: [id, case_id, author_id, body, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        case_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        author_id: { type: string }
+        body: { type: string }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    ProviderOptionCreate:
+      type: object
+      additionalProperties: false
+      required: [provider_id]
+      properties:
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { type: [string, "null"] }
+        branch_id: { type: [string, "null"] }
+        service_id: { type: [string, "null"] }
+        label: { type: [string, "null"], maxLength: 200, description: Short non-clinical label shown to the customer. }
+    ProviderOption:
+      type: object
+      additionalProperties: false
+      required: [id, case_id, provider_id, status, proposed_by, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        case_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { type: [string, "null"] }
+        branch_id: { type: [string, "null"] }
+        service_id: { type: [string, "null"] }
+        label: { type: [string, "null"] }
+        status: { type: string, enum: [proposed, selected, not_selected] }
+        proposed_by: { type: string }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    MessageCreate:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+    Message:
+      type: object
+      additionalProperties: false
+      required: [id, case_id, sender_id, sender_role, body, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        case_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        sender_id: { type: string }
+        sender_role: { type: string, enum: [customer, coordinator] }
+        body: { type: string }
+        read_at: { type: [string, "null"], format: date-time, description: When the counterparty read it. }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    ReadRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        up_to_message_id:
+          type: [string, "null"]
+          description: Mark counterparty messages up to and including this one; omit for all.

@@ -1,11 +1,21 @@
 openapi: 3.1.0
 info:
   title: Healuxa Payment Service API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    Payments Open Host Service — money ledger source of truth. Owns payments, invoices,
-    commissions, dunning. Emits payment.* and commission.computed. Wraps gateways behind an ACL.
+    Payments Open Host Service — money ledger source of truth. Owns payment quotes, payments
+    (authorisation, capture, void), refunds, disputes, a double-entry ledger, settlement imports,
+    reconciliation and tax invoices / credit notes. Emits payment.*, commission.computed.
+    Wraps processors (Stripe; Tap Payments reserved) behind the PaymentGateway ACL.
     See Healuxa_DDD_Boundaries.md §3.13 and Healuxa_TechSpec.md §21.2.
+
+
+    Trust rules: amounts always come from a server-side quote (never from the client). A client-side
+    "payment succeeded" screen is never proof of payment: state changes only on signature-verified
+    processor webhooks or server-side retrieval from the processor. No card data (PAN/CVC) ever
+    reaches Healuxa — the client confirms with the processor's hosted fields using `client_secret`.
+    All amounts are integer minor units (fils for AED). Tax (UAE VAT, default 5%, configurable per
+    line category) is pending accountant review.
 servers:
   - url: https://api.healuxa.com/v1
     description: Production edge (Traefik)
@@ -15,15 +25,96 @@ security:
   - bearerAuth: []
 tags:
   - name: payments
+  - name: refunds
+  - name: finance
+  - name: invoices
 paths:
+  /payments/config:
+    get:
+      operationId: getPaymentConfig
+      summary: Public client configuration (publishable key, fee disclosure, tax status)
+      tags: [payments]
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentConfig" }
+  /payment-quotes:
+    post:
+      operationId: createPaymentQuote
+      summary: Price a subject server-side (appointment, concierge case, membership) with a transparent breakdown
+      description: >
+        appointment — priced from the provider-service offering of the caller's own appointment.
+        membership — priced from the caller's own subscription (subscription.created read model).
+        concierge_case — staff-prepared lines (requires payments:manage) for the named customer.
+      tags: [payments]
+      x-required-permission: payments:create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateQuote" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /payment-quotes/{quote_id}:
+    get:
+      operationId: getPaymentQuote
+      summary: Get a quote (owner or payments staff)
+      tags: [payments]
+      x-required-permission: payments:read
+      parameters:
+        - { name: quote_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
   /payments:
+    get:
+      operationId: listPayments
+      summary: List the caller's payments (payments staff may filter by user)
+      tags: [payments]
+      x-required-permission: payments:read
+      parameters:
+        - { name: user_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: subject_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/PaymentStatus" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Payment" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
     post:
       operationId: createPayment
-      summary: Initiate a payment (emits payment.succeeded/failed)
+      summary: Create a payment intent for a quote (emits payment.authorized/succeeded/failed later, from webhooks)
+      description: >
+        The Idempotency-Key header is required. The amount is the quote total. Returns the processor
+        `client_secret` for hosted-field confirmation; the payment stays `pending` until a verified
+        webhook (or server-side retrieval) moves it.
       tags: [payments]
       x-required-permission: payments:create
       parameters:
-        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/RequiredIdempotencyKey"
       requestBody:
         required: true
         content:
@@ -37,16 +128,19 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Payment" }
+        "400": { $ref: "./_shared/components.yaml#/components/responses/BadRequest" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
   /payments/{id}:
     get:
       operationId: getPayment
-      summary: Get a payment
+      summary: Get a payment (owner or payments staff)
       tags: [payments]
       x-required-permission: payments:read
       parameters:
-        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "#/components/parameters/PaymentId"
       responses:
         "200":
           description: OK
@@ -54,27 +148,288 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Payment" }
         "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /payments/{id}/refresh:
+    post:
+      operationId: refreshPayment
+      summary: Re-read the payment from the processor (server-side retrieval) and apply its state
+      tags: [payments]
+      x-required-permission: payments:read
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
+  /payments/{id}/capture:
+    post:
+      operationId: capturePayment
+      summary: Capture an authorised (manual-capture) payment in full
+      tags: [payments]
+      x-required-permission: payments:manage
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
+  /payments/{id}/cancel:
+    post:
+      operationId: cancelPayment
+      summary: Void an uncaptured payment (releases an authorisation)
+      tags: [payments]
+      x-required-permission: payments:manage
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: { type: string, enum: [requested_by_customer, provider_declined, duplicate, fraudulent, abandoned] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
+  /payments/{id}/refunds:
+    get:
+      operationId: listRefunds
+      summary: Refunds of a payment (owner or payments staff)
+      tags: [refunds]
+      x-required-permission: payments:read
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Refund" } }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    post:
+      operationId: createRefund
+      summary: Full or partial refund with a reason (never more than captured minus refunded)
+      description: >
+        Omit `amount_minor` for a full refund of the remaining balance, or set `apply_policy` to refund
+        what the cancellation policy allows. Concurrent refunds are serialised by a row lock and a
+        database CHECK constraint. Emits payment.refunded and a credit note once the processor confirms.
+      tags: [refunds]
+      x-required-permission: payments:refund
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+        - $ref: "#/components/parameters/RequiredIdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateRefund" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Refund" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
+  /payments/{id}/refund-policy:
+    get:
+      operationId: evaluateRefundPolicy
+      summary: Evaluate the cancellation refund policy for a payment (hook used by booking cancellation)
+      tags: [refunds]
+      x-required-permission: payments:read
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+        - { name: cancelled_at, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefundPolicyDecision" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /payments/{id}/ledger:
+    get:
+      operationId: getPaymentLedger
+      summary: Double-entry ledger lines of a payment (finance staff)
+      tags: [finance]
+      x-required-permission: finance:reconcile
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, balanced]
+                properties:
+                  balanced: { type: boolean }
+                  data: { type: array, items: { $ref: "#/components/schemas/LedgerLine" } }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /payments/disputes:
+    get:
+      operationId: listDisputes
+      summary: Disputes (chargebacks) recorded from processor webhooks
+      tags: [finance]
+      x-required-permission: payments:manage
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Dispute" } }
+  /payments/payees/members:
+    post:
+      operationId: addPayeeMember
+      summary: Grant a user access to a provider's or facility's settlement report (ids from provider-service)
+      tags: [finance]
+      x-required-permission: payments:manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PayeeMember" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PayeeMember" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /payments/settlements/report:
+    get:
+      operationId: getSettlementReport
+      summary: Revenue lines of one payee (provider/facility members, or finance staff)
+      tags: [finance]
+      x-required-permission: payments:read
+      parameters:
+        - { name: payee_type, in: query, required: true, schema: { type: string, enum: [provider, facility] } }
+        - { name: payee_id, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: from, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SettlementReport" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /payments/settlements/import:
+    post:
+      operationId: importSettlements
+      summary: Import processor balance transactions and payouts for a period (idempotent)
+      tags: [finance]
+      x-required-permission: finance:reconcile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [from, to]
+              properties:
+                from: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+                to: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imported, skipped, payouts]
+                properties:
+                  imported: { type: integer }
+                  skipped: { type: integer }
+                  payouts: { type: integer }
+        "503": { $ref: "#/components/responses/ProcessorUnavailable" }
+  /payments/reconciliation:
+    get:
+      operationId: getReconciliationReport
+      summary: Reconcile ledger and payments against imported processor transactions; flags mismatches
+      tags: [finance]
+      x-required-permission: finance:reconcile
+      parameters:
+        - { name: from, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReconciliationReport" }
   /payments/webhooks/{gateway}:
     post:
       operationId: paymentWebhook
-      summary: Gateway webhook (signature-verified; ACL boundary)
+      summary: Processor webhook (raw-body signature verification, idempotent by processor event id; ACL boundary)
       tags: [payments]
       security: []
       parameters:
         - { name: gateway, in: path, required: true, schema: { type: string, enum: [tap_payments, stripe] } }
+        - { name: Stripe-Signature, in: header, required: false, schema: { type: string } }
       requestBody:
         required: true
         content:
           application/json:
             schema: { type: object, additionalProperties: true }
       responses:
-        "204": { description: No Content }
+        "204": { description: "No Content — processed, duplicate, or ignored" }
         "400": { $ref: "./_shared/components.yaml#/components/responses/BadRequest" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /invoices:
+    get:
+      operationId: listInvoices
+      summary: The caller's tax invoices and credit notes (payments staff may filter by user)
+      tags: [invoices]
+      x-required-permission: invoices:read
+      parameters:
+        - { name: user_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: payment_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Invoice" } }
   /invoices/{id}:
     get:
       operationId: getInvoice
-      summary: Get an invoice (signed CloudFront PDF link)
-      tags: [payments]
+      summary: Get an invoice or credit note (JSON document; pdf_url reserved for the S3/CloudFront PDF)
+      tags: [invoices]
       x-required-permission: invoices:read
       parameters:
         - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
@@ -83,12 +438,22 @@ paths:
           description: OK
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-                  pdf_url: { type: string, format: uri }
-                  total: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /invoices/{id}/document:
+    get:
+      operationId: getInvoiceDocument
+      summary: Printable HTML rendering of an invoice or credit note
+      tags: [invoices]
+      x-required-permission: invoices:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            text/html:
+              schema: { type: string }
         "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
 components:
   securitySchemes:
@@ -96,22 +461,279 @@ components:
       $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
     serviceAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  parameters:
+    PaymentId:
+      { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    RequiredIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >
+        Required for money-moving requests. Same key + same body replays the original result; same key +
+        different body returns 409 idempotency_conflict.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+  responses:
+    ProcessorUnavailable:
+      description: The payment processor could not be reached; retry with the same Idempotency-Key.
+      content:
+        application/json:
+          schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
   schemas:
-    CreatePayment:
+    SubjectType:
+      type: string
+      enum: [appointment, concierge_case, membership]
+    PaymentStatus:
+      type: string
+      enum: [pending, processing, authorized, succeeded, failed, canceled, partially_refunded, refunded]
+    CaptureMethod:
+      type: string
+      enum: [automatic, manual]
+    PaymentConfig:
+      type: object
+      required: [gateway, currency, live_mode, platform_fee, tax]
+      properties:
+        gateway: { type: string, enum: [stripe, fake] }
+        publishable_key: { type: [string, "null"] }
+        currency: { type: string }
+        live_mode: { type: boolean }
+        platform_fee:
+          type: object
+          required: [rate_bps, fixed_minor, label]
+          properties:
+            rate_bps: { type: integer }
+            fixed_minor: { type: integer }
+            label: { type: string }
+        tax:
+          type: object
+          required: [name, rates_bps, status]
+          properties:
+            name: { type: string }
+            rates_bps: { type: object, additionalProperties: { type: integer } }
+            status: { type: string, enum: [pending_accountant_review, reviewed] }
+        memberships_enabled: { type: boolean }
+    QuoteLineInput:
       type: object
       additionalProperties: false
-      required: [user_id, amount, purpose]
+      required: [code, description, category, net_minor]
       properties:
-        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        subscription_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
-        purpose: { type: string, enum: [subscription, marketplace_order, add_on, top_up] }
-        gateway: { type: string, enum: [tap_payments, stripe] }
-    Payment:
+        code: { type: string, enum: [professional_fee, facility_fee, platform_fee, concierge_fee, third_party_fee] }
+        description: { type: string, minLength: 2, maxLength: 200 }
+        category: { type: string, description: "Tax category (keys of the configured VAT rate table)." }
+        net_minor: { type: integer, minimum: 0, maximum: 100000000 }
+        payee_type: { type: string, enum: [provider, facility, healuxa] }
+        payee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+    CreateQuote:
       type: object
+      additionalProperties: false
+      required: [subject_type, subject_id]
+      properties:
+        subject_type: { $ref: "#/components/schemas/SubjectType" }
+        subject_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id:
+          $ref: "./_shared/components.yaml#/components/schemas/Id"
+          description: concierge_case only — the customer the staff-prepared quote is for.
+        lines:
+          type: array
+          maxItems: 20
+          description: concierge_case only (staff). Ignored/forbidden for other subjects.
+          items: { $ref: "#/components/schemas/QuoteLineInput" }
+    QuoteLine:
+      type: object
+      required: [code, description, category, net_minor, vat_rate_bps, vat_minor, gross_minor, payee_type]
+      properties:
+        code: { type: string }
+        description: { type: string }
+        category: { type: string }
+        net_minor: { type: integer }
+        vat_rate_bps: { type: integer }
+        vat_minor: { type: integer }
+        gross_minor: { type: integer }
+        payee_type: { type: string, enum: [provider, facility, healuxa] }
+        payee_id: { type: [string, "null"] }
+    Quote:
+      type: object
+      required: [id, user_id, subject_type, subject_id, currency, lines, subtotal, tax, total, status, expires_at]
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        subject_type: { $ref: "#/components/schemas/SubjectType" }
+        subject_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { type: [string, "null"] }
+        facility_id: { type: [string, "null"] }
+        service_id: { type: [string, "null"] }
+        currency: { type: string }
+        lines: { type: array, items: { $ref: "#/components/schemas/QuoteLine" } }
+        subtotal: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        tax: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        total: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        tax_status: { type: string, enum: [pending_accountant_review, reviewed] }
+        status: { type: string, enum: [open, used, expired] }
+        expires_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    CreatePayment:
+      type: object
+      additionalProperties: false
+      required: [quote_id]
+      properties:
+        quote_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        capture_method:
+          $ref: "#/components/schemas/CaptureMethod"
+          description: Defaults per subject (appointment → manual, confirm-then-charge). Memberships are always automatic.
+    Payment:
+      type: object
+      required: [id, user_id, amount, status, gateway, capture_method, subject_type, subject_id]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        quote_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        subject_type: { $ref: "#/components/schemas/SubjectType" }
+        subject_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
-        status: { type: string, enum: [pending, succeeded, failed, refunded] }
+        amount_authorized_minor: { type: integer }
+        amount_captured_minor: { type: integer }
+        amount_refunded_minor: { type: integer }
+        status: { $ref: "#/components/schemas/PaymentStatus" }
+        capture_method: { $ref: "#/components/schemas/CaptureMethod" }
         gateway: { type: string, enum: [tap_payments, stripe] }
+        client_secret:
+          type: [string, "null"]
+          description: Only returned to the paying customer on create/refresh while confirmation is still possible.
+        failure_code: { type: [string, "null"] }
+        lines: { type: array, items: { $ref: "#/components/schemas/QuoteLine" } }
+        invoice_id: { type: [string, "null"] }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        authorized_at: { type: [string, "null"], format: date-time }
+        captured_at: { type: [string, "null"], format: date-time }
+        canceled_at: { type: [string, "null"], format: date-time }
+    CreateRefund:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        amount_minor: { type: integer, minimum: 1 }
+        apply_policy: { type: boolean, default: false }
+        cancelled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        reason: { type: string, enum: [requested_by_customer, appointment_cancelled, provider_declined, duplicate, fraudulent, service_issue, goodwill] }
+        note: { type: string, maxLength: 500 }
+    Refund:
+      type: object
+      required: [id, payment_id, amount, reason, status]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        payment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        reason: { type: string }
+        note: { type: [string, "null"] }
+        status: { type: string, enum: [pending, succeeded, failed, canceled] }
+        credit_note_id: { type: [string, "null"] }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    RefundPolicyDecision:
+      type: object
+      required: [payment_id, refundable_minor, rule]
+      properties:
+        payment_id: { type: string }
+        refundable_minor: { type: integer }
+        refund_percent: { type: integer }
+        rule: { type: string, enum: [full_before_window, partial_inside_window, none_after_start, not_captured, nothing_left, no_schedule] }
+        window_hours: { type: integer }
+        scheduled_at: { type: [string, "null"], format: date-time }
+    Dispute:
+      type: object
+      required: [id, payment_id, amount, status]
+      properties:
+        id: { type: string }
+        payment_id: { type: string }
+        amount: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        reason: { type: [string, "null"] }
+        status: { type: string }
+        evidence_due_by: { type: [string, "null"], format: date-time }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        updated_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    LedgerLine:
+      type: object
+      required: [journal_id, kind, account, debit_minor, credit_minor, currency]
+      properties:
+        journal_id: { type: string }
+        kind: { type: string, enum: [capture, refund, processor_fee, payout, dispute, dispute_reversal] }
+        account: { type: string, enum: [processor_clearing, provider_revenue, facility_revenue, healuxa_revenue, vat_payable, processor_fees, disputes, bank, suspense] }
+        line_code: { type: [string, "null"] }
+        payee_type: { type: [string, "null"] }
+        payee_id: { type: [string, "null"] }
+        debit_minor: { type: integer }
+        credit_minor: { type: integer }
+        currency: { type: string }
+        occurred_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    PayeeMember:
+      type: object
+      additionalProperties: false
+      required: [payee_type, payee_id, user_id]
+      properties:
+        payee_type: { type: string, enum: [provider, facility] }
+        payee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+    SettlementReport:
+      type: object
+      required: [payee_type, payee_id, currency, gross_minor, refunded_minor, net_minor, lines]
+      properties:
+        payee_type: { type: string }
+        payee_id: { type: string }
+        currency: { type: string }
+        gross_minor: { type: integer }
+        refunded_minor: { type: integer }
+        net_minor: { type: integer }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              payment_id: { type: string }
+              kind: { type: string }
+              line_code: { type: [string, "null"] }
+              amount_minor: { type: integer, description: "Positive = earned, negative = reversed by refund." }
+              occurred_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    ReconciliationReport:
+      type: object
+      required: [from, to, matched, mismatches, totals]
+      properties:
+        from: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        to: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        matched: { type: integer }
+        totals: { type: object, additionalProperties: { type: integer } }
+        mismatches:
+          type: array
+          items:
+            type: object
+            required: [kind]
+            properties:
+              kind:
+                type: string
+                enum: [missing_processor_transaction, unknown_processor_transaction, amount_mismatch, currency_mismatch, refund_mismatch, ledger_unbalanced, ledger_capture_mismatch, payout_mismatch]
+              payment_id: { type: [string, "null"] }
+              processor_ref: { type: [string, "null"] }
+              expected_minor: { type: [integer, "null"] }
+              actual_minor: { type: [integer, "null"] }
+    Invoice:
+      type: object
+      required: [id, number, kind, total]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        number: { type: string, description: "Gap-free per tenant and series (INV / CN)." }
+        kind: { type: string, enum: [invoice, credit_note] }
+        payment_id: { type: string }
+        refund_id: { type: [string, "null"] }
+        original_invoice_id: { type: [string, "null"] }
+        user_id: { type: string }
+        issued_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        currency: { type: string }
+        seller:
+          type: object
+          properties:
+            legal_name: { type: string }
+            trn: { type: string }
+            address: { type: string }
+        lines: { type: array, items: { $ref: "#/components/schemas/QuoteLine" } }
+        subtotal: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        tax: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        total: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+        pdf_url: { type: [string, "null"], format: uri }
+        document_url: { type: string }

@@ -2,7 +2,7 @@ import type { Branch, Facility, Provider, ServiceOffering } from "@healuxa/api-c
 import { formatList, languageName, type Locale } from "@healuxa/i18n";
 import Link from "next/link";
 
-import { Badge, Card } from "@/components/ui/primitives";
+import { Badge, Card, buttonClass } from "@/components/ui/primitives";
 import { getT } from "@/lib/i18n";
 
 import { CheckIcon } from "./badges";
@@ -113,6 +113,11 @@ export function OfferingCard({
       <div className="mt-auto rounded-md bg-surface-muted p-3">
         <FeeBreakdown offering={offering} locale={locale} />
       </div>
+      {offering.status === "active" ? (
+        <Link href={`/${locale}/book/${offering.id}`} className={buttonClass("primary", "sm", "self-start")} data-testid="book-offering">
+          {t("booking.book")}
+        </Link>
+      ) : null}
     </Card>
   );
 }

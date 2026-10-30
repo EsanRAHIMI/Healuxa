@@ -1,10 +1,14 @@
 openapi: 3.1.0
 info:
   title: Healuxa Subscription Service API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    Subscription Open Host Service. Owns plans, credits, wallet, renewals. Emits subscription.*.
-    Applies pricing/packaging suggested by Commercial Intelligence (consumes commercial.price_suggestion).
+    Subscription Open Host Service. Owns plans, memberships (subscriptions), entitlements and
+    credits. Emits subscription.*. Money never moves here: the first and renewal charges are
+    processor subscriptions owned by payment-service (PaymentGateway ACL), which reports back via
+    payment.succeeded / payment.failed / payment.billing_agreement_updated. Applies pricing/packaging
+    suggested by Commercial Intelligence (consumes commercial.price_suggestion — not wired yet).
+    The whole API is disabled (404) until MEMBERSHIPS_ENABLED=true after commercial approval.
     See Healuxa_DDD_Boundaries.md §3.12 and Healuxa_TechSpec.md §21.1.
 servers:
   - url: https://api.healuxa.com/v1
@@ -15,15 +19,34 @@ security:
   - bearerAuth: []
 tags:
   - name: subscriptions
+  - name: plans
 paths:
   /subscriptions:
+    get:
+      operationId: listSubscriptions
+      summary: The caller's subscriptions
+      tags: [subscriptions]
+      x-required-permission: subscriptions:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Subscription" } }
     post:
       operationId: createSubscription
-      summary: Create a subscription (emits subscription.created)
+      summary: Subscribe to a plan (emits subscription.created; status incomplete until the first charge succeeds)
+      description: >
+        Idempotency-Key is required. Next step for the client: POST /v1/payments/quotes with
+        subject_type=membership and subject_id=<subscription id>, then POST /v1/payments.
       tags: [subscriptions]
       x-required-permission: subscriptions:create
       parameters:
-        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/RequiredIdempotencyKey"
       requestBody:
         required: true
         content:
@@ -37,11 +60,25 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Subscription" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /subscriptions/me/entitlements:
+    get:
+      operationId: getMyEntitlements
+      summary: Entitlements and credits granted by the caller's active membership
+      tags: [subscriptions]
+      x-required-permission: subscriptions:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Entitlements" }
   /subscriptions/{id}:
     get:
       operationId: getSubscription
-      summary: Get a subscription
+      summary: Get a subscription (owner or subscriptions staff)
       tags: [subscriptions]
       x-required-permission: subscriptions:read
       parameters:
@@ -56,7 +93,7 @@ paths:
   /subscriptions/{id}/change-plan:
     post:
       operationId: changePlan
-      summary: Upgrade/downgrade plan (emits subscription.upgraded/downgraded)
+      summary: Upgrade/downgrade plan (emits subscription.upgraded/downgraded; payment-service re-prices the processor subscription)
       tags: [subscriptions]
       x-required-permission: subscriptions:write
       parameters:
@@ -79,47 +116,173 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Subscription" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /subscriptions/{id}/cancel:
+    post:
+      operationId: cancelSubscription
+      summary: Cancel at the end of the current period (emits subscription.cancellation_scheduled)
+      tags: [subscriptions]
+      x-required-permission: subscriptions:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
   /plans:
     get:
       operationId: listPlans
-      summary: List subscription plans
-      tags: [subscriptions]
+      summary: List active subscription plans (public)
+      tags: [plans]
+      security: []
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/Plan" } }
+    post:
+      operationId: createPlan
+      summary: Create a plan (staff)
+      tags: [plans]
+      x-required-permission: subscriptions:manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /plans/{plan_id}:
+    patch:
+      operationId: updatePlan
+      summary: Update price, entitlements or status of a plan (staff; existing subscriptions keep their price)
+      tags: [plans]
+      x-required-permission: subscriptions:manage
+      parameters:
+        - { name: plan_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanPatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
     serviceAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  parameters:
+    RequiredIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
   schemas:
+    BillingCycle:
+      type: string
+      enum: [monthly, quarterly, annual]
+    Entitlement:
+      type: object
+      additionalProperties: false
+      required: [key]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{1,63}$" }
+        quantity: { type: [integer, "null"], minimum: 0, description: "null = unlimited" }
     CreateSubscription:
       type: object
       additionalProperties: false
-      required: [user_id, plan_id, billing_cycle]
+      required: [plan_id]
       properties:
-        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id:
+          $ref: "./_shared/components.yaml#/components/schemas/Id"
+          description: Optional; must equal the caller.
         plan_id: { type: string }
-        billing_cycle: { type: string, enum: [monthly, quarterly, annual] }
+        billing_cycle: { $ref: "#/components/schemas/BillingCycle" }
         offer_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
     Subscription:
       type: object
+      required: [id, user_id, plan_id, status, price, billing_cycle]
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         plan_id: { type: string }
-        status: { type: string, enum: [active, past_due, paused, cancelled, expired] }
+        status: { type: string, enum: [incomplete, active, past_due, paused, cancelled, expired] }
         price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
-        credits_remaining: { type: integer }
+        billing_cycle: { $ref: "#/components/schemas/BillingCycle" }
+        credits_remaining: { type: [integer, "null"] }
+        cancel_at_period_end: { type: boolean }
+        current_period_end: { type: [string, "null"], format: date-time }
+        version: { type: integer }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
     Plan:
       type: object
+      required: [id, name, price, billing_cycle, status]
       properties:
         id: { type: string }
         name: { type: string }
         price: { $ref: "./_shared/components.yaml#/components/schemas/Money" }
-        credits: { type: integer }
+        billing_cycle: { $ref: "#/components/schemas/BillingCycle" }
+        credits: { type: [integer, "null"], description: "null = unlimited" }
+        entitlements: { type: array, items: { $ref: "#/components/schemas/Entitlement" } }
+        status: { type: string, enum: [active, retired] }
+    PlanInput:
+      type: object
+      additionalProperties: false
+      required: [id, name, price_minor, billing_cycle]
+      properties:
+        id: { type: string, pattern: "^[a-z][a-z0-9_-]{1,63}$" }
+        name: { type: string, minLength: 2, maxLength: 120 }
+        price_minor: { type: integer, minimum: 100, description: "Net price per cycle (VAT added by payment-service quote)." }
+        currency: { type: string, pattern: "^[A-Z]{3}$", default: AED }
+        billing_cycle: { $ref: "#/components/schemas/BillingCycle" }
+        credits: { type: [integer, "null"], minimum: 0 }
+        entitlements: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/Entitlement" } }
+    PlanPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        price_minor: { type: integer, minimum: 100 }
+        credits: { type: [integer, "null"], minimum: 0 }
+        entitlements: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/Entitlement" } }
+        status: { type: string, enum: [active, retired] }
+    Entitlements:
+      type: object
+      required: [user_id, entitlements]
+      properties:
+        user_id: { type: string }
+        subscription_id: { type: [string, "null"] }
+        plan_id: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        credits: { type: [integer, "null"] }
+        valid_until: { type: [string, "null"], format: date-time }
+        entitlements: { type: array, items: { $ref: "#/components/schemas/Entitlement" } }

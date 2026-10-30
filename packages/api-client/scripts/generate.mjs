@@ -11,8 +11,8 @@ const contracts = resolve(here, "../../api-contracts/openapi");
 const outDir = resolve(here, "../src/generated");
 const check = process.argv.includes("--check");
 
-// Services the platform clients talk to today. appointment is generated for forward compatibility only.
-const SERVICES = ["identity", "provider", "profile", "assessment", "appointment"];
+// Services the platform clients talk to.
+const SERVICES = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription"];
 
 const header = (name) =>
   `/**\n * GENERATED from packages/api-contracts/openapi/${name}.openapi.yaml by openapi-typescript.\n * Do not edit by hand: run \`npm run generate -w @healuxa/api-client\`.\n */\n\n`;

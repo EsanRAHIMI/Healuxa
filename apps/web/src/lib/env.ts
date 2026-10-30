@@ -33,6 +33,21 @@ export const env = {
   get assessmentApiUrl() {
     return read("ASSESSMENT_API_URL", "http://127.0.0.1:8003/v1");
   },
+  get appointmentApiUrl() {
+    return read("APPOINTMENT_API_URL", "http://127.0.0.1:8007/v1");
+  },
+  get conciergeApiUrl() {
+    return read("CONCIERGE_API_URL", "http://127.0.0.1:8021/v1");
+  },
+  get notificationApiUrl() {
+    return read("NOTIFICATION_API_URL", "http://127.0.0.1:8022/v1");
+  },
+  get paymentApiUrl() {
+    return read("PAYMENT_API_URL", "http://127.0.0.1:8010/v1");
+  },
+  get subscriptionApiUrl() {
+    return read("SUBSCRIPTION_API_URL", "http://127.0.0.1:8009/v1");
+  },
   /** JWKS of identity-service, used to verify access tokens locally (no service secret in the web tier). */
   get identityJwksUrl() {
     return read("IDENTITY_JWKS_URL", `${this.identityApiUrl.replace(/\/v1$/, "")}/.well-known/jwks.json`);

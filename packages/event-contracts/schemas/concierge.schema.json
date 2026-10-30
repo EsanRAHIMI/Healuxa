@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.healuxa.com/events/concierge.schema.json",
+  "title": "Concierge events",
+  "description": "Events owned by concierge-service. Ids and metadata only: never message bodies, internal notes, free-text needs, reasons, or any health information.",
+  "$defs": {
+    "CaseStatus": {
+      "type": "string",
+      "enum": ["submitted", "triaged", "assigned", "in_progress", "awaiting_customer", "arranged", "completed", "cancelled", "escalated"]
+    },
+    "ConciergeCaseSubmitted": {
+      "title": "ConciergeCaseSubmitted",
+      "description": "payload of concierge.case_submitted (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "customer_id", "category", "status", "first_response_due_at", "submitted_at"],
+      "properties": {
+        "case_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "customer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "category": { "type": "string", "enum": ["medical_travel", "specialist_search", "second_opinion_coordination", "logistics", "other"] },
+        "status": { "const": "submitted" },
+        "first_response_due_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+        "submitted_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ConciergeCaseStatusChanged": {
+      "title": "ConciergeCaseStatusChanged",
+      "description": "payload of concierge.case_status_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "customer_id", "previous_status", "status", "changed_by_role", "changed_at"],
+      "properties": {
+        "case_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "customer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "coordinator_id": { "type": ["string", "null"] },
+        "previous_status": { "$ref": "concierge.schema.json#/$defs/CaseStatus" },
+        "status": { "$ref": "concierge.schema.json#/$defs/CaseStatus" },
+        "changed_by_role": { "type": "string", "enum": ["customer", "coordinator", "supervisor"] },
+        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "ConciergeMessagePosted": {
+      "title": "ConciergeMessagePosted",
+      "description": "payload of concierge.message_posted (v1). Never contains the message text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "message_id", "customer_id", "sender_id", "sender_role", "posted_at"],
+      "properties": {
+        "case_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "message_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "customer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "coordinator_id": { "type": ["string", "null"] },
+        "sender_id": { "$ref": "common.schema.json#/$defs/Ulid" },
+        "sender_role": { "type": "string", "enum": ["customer", "coordinator"] },
+        "posted_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

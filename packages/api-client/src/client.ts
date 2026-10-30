@@ -1,18 +1,38 @@
 import createClient, { type Client } from "openapi-fetch";
 
 import { HealuxaApiError, networkError, toApiError } from "./errors";
+import type { paths as AppointmentPaths } from "./generated/appointment";
 import type { paths as AssessmentPaths } from "./generated/assessment";
+import type { paths as ConciergePaths } from "./generated/concierge";
 import type { paths as IdentityPaths } from "./generated/identity";
+import type { paths as NotificationPaths } from "./generated/notification";
+import type { paths as PaymentPaths } from "./generated/payment";
 import type { paths as ProfilePaths } from "./generated/profile";
 import type { paths as ProviderPaths } from "./generated/provider";
+import type { paths as SubscriptionPaths } from "./generated/subscription";
 
-export type ServiceName = "identity" | "provider" | "profile" | "assessment";
+/** One entry per backend service; each gets its own base URL (they share path prefixes like /services). */
+export type ServiceName =
+  | "identity"
+  | "provider"
+  | "profile"
+  | "assessment"
+  | "appointment"
+  | "concierge"
+  | "notification"
+  | "payment"
+  | "subscription";
 
 export interface ServicePaths {
   identity: IdentityPaths;
   provider: ProviderPaths;
   profile: ProfilePaths;
   assessment: AssessmentPaths;
+  appointment: AppointmentPaths;
+  concierge: ConciergePaths;
+  notification: NotificationPaths;
+  payment: PaymentPaths;
+  subscription: SubscriptionPaths;
 }
 
 export type ServiceClient<S extends ServiceName> = Client<ServicePaths[S], "application/json">;
@@ -115,20 +135,10 @@ export function createHealuxaClient(options: HealuxaClientOptions): HealuxaClien
     return client;
   };
 
-  return {
-    get identity() {
-      return make("identity");
-    },
-    get provider() {
-      return make("provider");
-    },
-    get profile() {
-      return make("profile");
-    },
-    get assessment() {
-      return make("assessment");
-    },
-  };
+  const names: ServiceName[] = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription"];
+  const out = {} as Record<ServiceName, unknown>;
+  for (const name of names) Object.defineProperty(out, name, { enumerable: true, get: () => make(name) });
+  return out as HealuxaClient;
 }
 
 interface FetchResult<T> {

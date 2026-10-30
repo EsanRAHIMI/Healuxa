@@ -92,3 +92,33 @@ def test_envelope_inherits_active_trace_as_correlation() -> None:
     fields = outbox_fields(envelope)
     assert fields["subject"] == "healuxa.assessment.completed.v1"
     assert fields["body"]["event_id"] == envelope.event_id
+
+
+def test_envelope_body_matches_published_schema() -> None:
+    """The wire envelope must validate against packages/event-contracts/schemas/envelope.schema.json."""
+    import json
+    from pathlib import Path
+
+    jsonschema = __import__("pytest").importorskip("jsonschema")
+    from referencing import Registry, Resource
+
+    schemas = Path(__file__).resolve().parents[2] / "event-contracts" / "schemas"
+    registry = Registry().with_resources(
+        (path.name, Resource.from_contents(json.loads(path.read_text()))) for path in schemas.glob("*.schema.json")
+    )
+    envelope = build_envelope(
+        event_type="catalog.provider_status_changed",
+        version=1,
+        schema_ref="ref",
+        tenant_id="healuxa-dubai",
+        producer="provider-service",
+        payload={"provider_id": "01J0000000000000000000000A", "previous_status": None},
+        allowed_producers={"provider-service"},
+    )
+    body = outbox_fields(envelope)["body"]
+    assert "causation_id" not in body and "actor" not in body
+    assert body["payload"]["previous_status"] is None  # payload nulls are preserved
+    validator = jsonschema.Draft202012Validator(
+        json.loads((schemas / "envelope.schema.json").read_text()), registry=registry
+    )
+    validator.validate(body)
