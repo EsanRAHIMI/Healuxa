@@ -42,7 +42,6 @@ export function CredentialsForm({
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen testID={`${prefix}-screen`}>
-        <AppText variant="title">{mode === 'signIn' ? t('auth.signInTitle') : t('auth.registerTitle')}</AppText>
         <TextField
           label={t('auth.identifier')}
           value={identifier}
