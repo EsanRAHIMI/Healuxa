@@ -12,14 +12,45 @@
       "description": "payload of subscription.created (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["subscription_id", "user_id", "plan_id", "price", "billing_cycle", "started_at"],
+      "required": [
+        "subscription_id",
+        "user_id",
+        "plan_id",
+        "price",
+        "billing_cycle",
+        "started_at"
+      ],
       "properties": {
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "plan_id": { "type": "string" },
-        "price": { "$ref": "common.schema.json#/$defs/Money" },
-        "billing_cycle": { "type": "string", "enum": ["monthly", "quarterly", "annual"] },
-        "started_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "price": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "billing_cycle": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual"
+          ]
+        },
+        "started_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "incomplete",
+            "active"
+          ]
+        }
       }
     },
     "SubscriptionRenewed": {
@@ -27,14 +58,33 @@
       "description": "payload of subscription.renewed (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["subscription_id", "user_id", "plan_id", "price", "renewed_at", "period_end"],
+      "required": [
+        "subscription_id",
+        "user_id",
+        "plan_id",
+        "price",
+        "renewed_at",
+        "period_end"
+      ],
       "properties": {
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "plan_id": { "type": "string" },
-        "price": { "$ref": "common.schema.json#/$defs/Money" },
-        "renewed_at": { "$ref": "common.schema.json#/$defs/Timestamp" },
-        "period_end": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "price": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "renewed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "period_end": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "SubscriptionUpgraded": {
@@ -42,15 +92,46 @@
       "description": "payload of subscription.upgraded (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["subscription_id", "user_id", "from_plan_id", "to_plan_id", "changed_at"],
+      "required": [
+        "subscription_id",
+        "user_id",
+        "from_plan_id",
+        "to_plan_id",
+        "changed_at"
+      ],
       "properties": {
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "from_plan_id": { "type": "string" },
-        "to_plan_id": { "type": "string" },
-        "mrr_delta": { "$ref": "common.schema.json#/$defs/Money" },
-        "triggered_by_offer_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "from_plan_id": {
+          "type": "string"
+        },
+        "to_plan_id": {
+          "type": "string"
+        },
+        "mrr_delta": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "triggered_by_offer_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "price": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "billing_cycle": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual"
+          ]
+        }
       }
     },
     "SubscriptionDowngraded": {
@@ -58,14 +139,43 @@
       "description": "payload of subscription.downgraded (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["subscription_id", "user_id", "from_plan_id", "to_plan_id", "changed_at"],
+      "required": [
+        "subscription_id",
+        "user_id",
+        "from_plan_id",
+        "to_plan_id",
+        "changed_at"
+      ],
       "properties": {
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "from_plan_id": { "type": "string" },
-        "to_plan_id": { "type": "string" },
-        "mrr_delta": { "$ref": "common.schema.json#/$defs/Money" },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "from_plan_id": {
+          "type": "string"
+        },
+        "to_plan_id": {
+          "type": "string"
+        },
+        "mrr_delta": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "price": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "billing_cycle": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "quarterly",
+            "annual"
+          ]
+        }
       }
     },
     "SubscriptionChurned": {
@@ -73,14 +183,120 @@
       "description": "payload of subscription.churned (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["subscription_id", "user_id", "plan_id", "churned_at", "reason"],
+      "required": [
+        "subscription_id",
+        "user_id",
+        "plan_id",
+        "churned_at",
+        "reason"
+      ],
       "properties": {
-        "subscription_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "plan_id": { "type": "string" },
-        "reason": { "type": "string", "enum": ["voluntary", "payment_failure", "downgrade_to_none", "expired"] },
-        "lost_mrr": { "$ref": "common.schema.json#/$defs/Money" },
-        "churned_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "voluntary",
+            "payment_failure",
+            "downgrade_to_none",
+            "expired"
+          ]
+        },
+        "lost_mrr": {
+          "$ref": "common.schema.json#/$defs/Money"
+        },
+        "churned_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "SubscriptionCancellationScheduled": {
+      "title": "SubscriptionCancellationScheduled",
+      "description": "payload of subscription.cancellation_scheduled (v1) — membership ends at period end; payment-service stops renewal at the processor.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_id",
+        "user_id",
+        "plan_id",
+        "requested_at"
+      ],
+      "properties": {
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "cancel_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        },
+        "requested_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "SubscriptionStatusChanged": {
+      "title": "SubscriptionStatusChanged",
+      "description": "payload of subscription.status_changed (v1)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subscription_id",
+        "user_id",
+        "plan_id",
+        "from_status",
+        "to_status",
+        "changed_at"
+      ],
+      "properties": {
+        "subscription_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "from_status": {
+          "type": "string"
+        },
+        "to_status": {
+          "type": "string",
+          "enum": [
+            "incomplete",
+            "active",
+            "past_due",
+            "paused",
+            "cancelled",
+            "expired"
+          ]
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     }
   }
