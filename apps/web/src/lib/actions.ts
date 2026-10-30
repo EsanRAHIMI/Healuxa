@@ -1,6 +1,6 @@
 import "server-only";
 
-import { HealuxaApiError, isApiError } from "@healuxa/api-client";
+import { HealuxaApiError, UnauthorizedError, isApiError } from "@healuxa/api-client";
 import { isLocale, type Locale } from "@healuxa/i18n";
 import { unstable_rethrow } from "next/navigation";
 
@@ -53,6 +53,14 @@ export async function act(
     unstable_rethrow(error);
     return errorState(error, locale, overrides?.(locale));
   }
+}
+
+/** Session inside a Server Action; throws a typed 401 (mapped to "please sign in again"). */
+export async function actionSession() {
+  const { getSession } = await import("@/lib/auth/session");
+  const session = await getSession();
+  if (!session) throw new UnauthorizedError({ title: "Unauthorized", status: 401, code: "unauthorized" });
+  return session;
 }
 
 export function invalid(locale: Locale, fieldErrors: Record<string, string>): FormState {
