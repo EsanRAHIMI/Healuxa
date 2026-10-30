@@ -31,6 +31,7 @@ tags:
   - name: affiliations
   - name: services
   - name: availability
+  - name: internal
 paths:
   /providers:
     get:
@@ -647,6 +648,49 @@ paths:
         "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /internal/scheduling/services/{service_id}:
+    get:
+      operationId: getSchedulingContext
+      summary: Raw scheduling facts for one offering (service-to-service, consumed by appointment-service)
+      description: >
+        Offering duration/buffer and status, provider/facility/branch status, branch time zone,
+        whether the affiliation is active, branch opening hours, the provider's availability rules at
+        the offering's branch, and availability exceptions overlapping [from, to). `bookable` mirrors
+        the public catalog rule. Mesh-internal; requires a service token (`service` permission).
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - { name: service_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: tenant_id, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 64 } }
+        - { name: from, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, required: true, description: "At most 62 days after from.", schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulingContext" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /internal/scheduling/actors/{user_id}:
+    get:
+      operationId: getSchedulingActor
+      summary: Providers a user owns and their facility staff roles (service-to-service authorization input)
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - { name: user_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: tenant_id, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 64 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchedulingActor" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
 components:
   securitySchemes:
     bearerAuth:
@@ -665,6 +709,109 @@ components:
       required: true
       schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
   schemas:
+    SchedulingContext:
+      type: object
+      additionalProperties: false
+      required: [offering, provider, facility, branch, affiliation_active, bookable, operating_hours, availability_rules, exceptions]
+      properties:
+        offering:
+          type: object
+          additionalProperties: false
+          required: [id, provider_id, facility_id, branch_id, name, category, duration_minutes, buffer_minutes, mode, status, price_type, professional_fee_minor, facility_fee_minor, currency]
+          properties:
+            id: { type: string }
+            provider_id: { type: string }
+            facility_id: { type: string }
+            branch_id: { type: string }
+            name: { type: string }
+            category: { type: string }
+            duration_minutes: { type: integer }
+            buffer_minutes: { type: integer }
+            mode: { type: string }
+            status: { type: string }
+            price_type: { type: string }
+            professional_fee_minor: { type: [integer, "null"] }
+            facility_fee_minor: { type: [integer, "null"] }
+            currency: { type: string }
+        provider:
+          type: object
+          additionalProperties: false
+          required: [id, user_id, status, verification_status]
+          properties:
+            id: { type: string }
+            user_id: { type: string }
+            status: { type: string }
+            verification_status: { type: string }
+        facility:
+          type: object
+          additionalProperties: false
+          required: [id, status, verification_status]
+          properties:
+            id: { type: string }
+            status: { type: string }
+            verification_status: { type: string }
+        branch:
+          type: object
+          additionalProperties: false
+          required: [id, facility_id, timezone, status]
+          properties:
+            id: { type: string }
+            facility_id: { type: string }
+            timezone: { type: string, description: "IANA time zone" }
+            status: { type: string }
+        affiliation_active: { type: boolean }
+        bookable: { type: boolean }
+        operating_hours:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [weekday, start_minute, end_minute]
+            properties:
+              weekday: { type: integer, minimum: 0, maximum: 6, description: "0 = Monday (ISO)" }
+              start_minute: { type: integer, minimum: 0, maximum: 1440, description: "Branch-local minutes since midnight" }
+              end_minute: { type: integer, minimum: 0, maximum: 1440 }
+        availability_rules:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, weekday, start_minute, end_minute, effective_from, effective_until]
+            properties:
+              id: { type: string }
+              weekday: { type: integer, minimum: 0, maximum: 6 }
+              start_minute: { type: integer }
+              end_minute: { type: integer }
+              effective_from: { type: string, format: date }
+              effective_until: { type: [string, "null"], format: date }
+        exceptions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, branch_id, starts_at, ends_at, reason]
+            properties:
+              id: { type: string }
+              branch_id: { type: [string, "null"] }
+              starts_at: { type: string, format: date-time }
+              ends_at: { type: string, format: date-time }
+              reason: { type: string }
+    SchedulingActor:
+      type: object
+      additionalProperties: false
+      required: [user_id, provider_ids, facility_roles]
+      properties:
+        user_id: { type: string }
+        provider_ids: { type: array, items: { type: string } }
+        facility_roles:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [facility_id, role]
+            properties:
+              facility_id: { type: string }
+              role: { type: string, enum: [facility_admin, scheduler, billing] }
     ProviderType:
       type: string
       enum: [doctor, clinic, therapist, trainer, nutritionist, pharmacy, brand, home_visit]
