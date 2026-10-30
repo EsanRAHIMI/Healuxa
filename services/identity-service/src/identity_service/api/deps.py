@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hmac
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
@@ -69,26 +70,30 @@ async def require_service_auth(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> str:
-    client_id = settings.service_auth_client_id
-    client_secret = settings.service_auth_client_secret
+    """Authenticates a mesh client (Basic auth or X-Service-Client-Id/-Secret) and returns its id.
 
+    Credentials must be presented explicitly — there is deliberately no fallback to the configured
+    defaults, otherwise an unauthenticated caller could introspect tokens or mint service tokens.
+    """
+    client_id = client_secret = ""
     auth = request.headers.get("Authorization", "")
     if auth.lower().startswith("basic "):
         try:
-            decoded = base64.b64decode(auth.split(" ", 1)[1]).decode()
-            client_id, _, client_secret = decoded.partition(":")
-        except Exception:
-            pass
+            client_id, _, client_secret = base64.b64decode(auth.split(" ", 1)[1]).decode().partition(":")
+        except (ValueError, UnicodeDecodeError):
+            client_id = client_secret = ""
     else:
-        client_id = request.headers.get("X-Service-Client-Id", client_id)
-        client_secret = request.headers.get("X-Service-Client-Secret", client_secret)
+        client_id = request.headers.get("X-Service-Client-Id", "")
+        client_secret = request.headers.get("X-Service-Client-Secret", "")
 
-    if client_id == settings.service_auth_client_id and client_secret == settings.service_auth_client_secret:
-        return client_id
-
-    client = await db.get(ServiceClient, client_id)
-    if client and verify_client_secret(client_secret, client.client_secret_hash):
-        return client_id
+    if client_id and client_secret:
+        if client_id == settings.service_auth_client_id and settings.service_auth_client_secret and hmac.compare_digest(
+            client_secret.encode(), settings.service_auth_client_secret.encode()
+        ):
+            return client_id
+        client = await db.get(ServiceClient, client_id)
+        if client and verify_client_secret(client_secret, client.client_secret_hash):
+            return client_id
 
     raise HTTPException(
         status_code=401,
