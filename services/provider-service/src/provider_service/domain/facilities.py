@@ -104,6 +104,17 @@ async def _stage_facility_event(db: AsyncSession, facility: Facility, principal:
     )
 
 
+async def _stage_staff_event(db: AsyncSession, facility: Facility, principal: Principal, *, user_id: str, role: str | None, change: str) -> None:
+    """Membership change signal: keeps notification recipients for this facility current."""
+    await event_publisher.publish(
+        db=db,
+        event_type="catalog.facility_staff_changed",
+        tenant_id=facility.tenant_id,
+        payload={"facility_id": facility.id, "user_id": user_id, "role": role, "change": change, "changed_at": utcnow().isoformat()},
+        actor=actor_of(principal),
+    )
+
+
 class FacilityService:
     async def create(
         self, db: AsyncSession, principal: Principal, body: schemas.FacilityInput, *, idempotency_key: str | None
@@ -141,6 +152,7 @@ class FacilityService:
             raise conflict("A facility with this license is already registered") from exc
         db.add(FacilityStaff(facility_id=facility.id, user_id=principal.user_id, role="facility_admin"))
         await _stage_facility_event(db, facility, principal)
+        await _stage_staff_event(db, facility, principal, user_id=principal.user_id, role="facility_admin", change="added")
         await db.commit()
         await db.refresh(facility)
         return facility_schema(facility, private=True), True
@@ -298,6 +310,8 @@ class FacilityService:
         member = FacilityStaff(facility_id=facility.id, user_id=body.user_id, role=body.role)
         db.add(member)
         try:
+            await db.flush()
+            await _stage_staff_event(db, facility, principal, user_id=body.user_id, role=body.role, change="added")
             await db.commit()
         except IntegrityError as exc:
             await db.rollback()
@@ -320,6 +334,7 @@ class FacilityService:
             if (admins or 0) <= 1:
                 raise conflict("A facility must keep at least one facility_admin")
         await db.delete(member)
+        await _stage_staff_event(db, facility, principal, user_id=user_id, role=member.role, change="removed")
         await db.commit()
 
 

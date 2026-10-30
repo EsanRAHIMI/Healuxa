@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+import os
+
+os.environ.setdefault("HEALUXA_EDGE_SECRET", "test-edge-secret")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://healuxa:dev@127.0.0.1:5432/subscription_test")
+os.environ["MEMBERSHIPS_ENABLED"] = "true"
+os.environ["NATS_ENABLED"] = "false"
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+
+from subscription_service.infra.db import SessionLocal
+from subscription_service.main import app, lifespan
+
+
+@pytest.fixture(autouse=True)
+async def _reset_tables() -> None:
+    async with SessionLocal() as db:
+        await db.execute(text("TRUNCATE TABLE outbox_events, consumed_events, subscriptions, plans RESTART IDENTITY CASCADE"))
+        await db.commit()
+
+
+@pytest.fixture
+async def client():
+    async with lifespan(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
+            yield async_client

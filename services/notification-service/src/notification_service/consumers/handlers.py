@@ -14,7 +14,8 @@ from typing import Any
 
 from healuxa_py_common.events.consumer import DurableConsumer
 from healuxa_py_common.events.jetstream import JetStreamConnection, subject_for
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,8 +81,20 @@ async def _concierge_message(db: AsyncSession, tenant: str, p: dict[str, Any]) -
     return [Planned(recipient, "concierge.message_posted", {}, "concierge_case", case_id)]
 
 
+async def _link(db: AsyncSession, tenant: str, entity_type: str, entity_id: str, user_id: str, role: str | None) -> None:
+    """Idempotent upsert of a recipient link (events may be redelivered)."""
+    await db.execute(
+        pg_insert(RecipientLink)
+        .values(tenant_id=tenant, entity_type=entity_type, entity_id=entity_id, user_id=user_id, role=role)
+        .on_conflict_do_update(index_elements=["tenant_id", "entity_type", "entity_id", "user_id"], set_={"role": role})
+    )
+
+
 async def _provider_status(db: AsyncSession, tenant: str, p: dict[str, Any]) -> list[Planned]:
     provider_id, status = _require(p, "provider_id", "status")
+    if p.get("owner_user_id"):
+        # provider-service names the owner on every status event; keep the link current from it.
+        await _link(db, tenant, "provider", provider_id, p["owner_user_id"], "owner")
     users = await _linked_users(db, tenant, "provider", provider_id)
     return [Planned(u, "catalog.provider_status_changed", {"status": status}, "provider", provider_id) for u in users]
 
@@ -93,6 +106,23 @@ async def _affiliation(db: AsyncSession, tenant: str, p: dict[str, Any]) -> list
         Planned(u, "catalog.affiliation_changed", {"status": status}, "provider", provider_id)
         for u in dict.fromkeys(users)
     ]
+
+
+async def _facility_staff(db: AsyncSession, tenant: str, p: dict[str, Any]) -> list[Planned]:
+    """Maintains facility recipients; produces no notification of its own."""
+    facility_id, user_id, change = _require(p, "facility_id", "user_id", "change")
+    if change == "added":
+        await _link(db, tenant, "facility", facility_id, user_id, p.get("role"))
+    else:
+        await db.execute(
+            delete(RecipientLink).where(
+                RecipientLink.tenant_id == tenant,
+                RecipientLink.entity_type == "facility",
+                RecipientLink.entity_id == facility_id,
+                RecipientLink.user_id == user_id,
+            )
+        )
+    return []
 
 
 def _appointment(template: str) -> Callable[[AsyncSession, str, dict[str, Any]], Awaitable[list[Planned]]]:
@@ -110,12 +140,16 @@ AWAITING_REGISTRY_MERGE = frozenset(
     {"appointment.cancelled", "appointment.rescheduled", "appointment.expired", "appointment.reminder_due"}
 )
 
+# Events that only maintain recipient links.
+MEMBERSHIP_EVENTS = frozenset({"catalog.facility_staff_changed"})
+
 # Only events present in packages/event-contracts/src/registry.ts with notification-service listed.
 PLANNERS: dict[str, Callable[[AsyncSession, str, dict[str, Any]], Awaitable[list[Planned]]]] = {
     "concierge.case_status_changed": _concierge_status,
     "concierge.message_posted": _concierge_message,
     "catalog.provider_status_changed": _provider_status,
     "catalog.affiliation_changed": _affiliation,
+    "catalog.facility_staff_changed": _facility_staff,
     "appointment.requested": _appointment("appointment.requested"),
     "appointment.created": _appointment("appointment.created"),
     "appointment.accepted": _appointment("appointment.accepted"),
@@ -161,7 +195,12 @@ async def process_event(envelope: dict[str, Any], *, db: AsyncSession) -> str:
         except ValueError as exc:  # TemplateError: e.g. an enum value this catalog cannot render
             raise PoisonEvent(str(exc)) from exc
         created += int(result.created)
-    outcome = "ignored" if planner is None else ("notified" if plans else "no_recipient")
+    if planner is None:
+        outcome = "ignored"
+    elif event_type in MEMBERSHIP_EVENTS:
+        outcome = "applied"
+    else:
+        outcome = "notified" if plans else "no_recipient"
     db.add(ProcessedEvent(event_id=event_id, event_type=event_type, outcome=outcome, notifications=created))
     try:
         await db.commit()

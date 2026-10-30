@@ -9,14 +9,61 @@
       "description": "payload of catalog.provider_status_changed (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider_id", "status", "verification_status", "changed_at"],
+      "required": [
+        "provider_id",
+        "status",
+        "verification_status",
+        "changed_at"
+      ],
       "properties": {
-        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "previous_status": { "type": ["string", "null"], "enum": ["pending", "active", "suspended", "offboarded", null] },
-        "status": { "type": "string", "enum": ["pending", "active", "suspended", "offboarded"] },
-        "verification_status": { "type": "string", "enum": ["unverified", "under_review", "verified", "rejected"] },
-        "reason": { "type": ["string", "null"], "maxLength": 1000 },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "previous_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "pending",
+            "active",
+            "suspended",
+            "offboarded",
+            null
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "active",
+            "suspended",
+            "offboarded"
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "under_review",
+            "verified",
+            "rejected"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "owner_user_id": {
+          "type": "string",
+          "description": "Account that owns the provider profile; lets consumers route notifications without calling provider-service."
+        }
       }
     },
     "CatalogFacilityStatusChanged": {
@@ -24,12 +71,37 @@
       "description": "payload of catalog.facility_status_changed (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["facility_id", "status", "verification_status", "changed_at"],
+      "required": [
+        "facility_id",
+        "status",
+        "verification_status",
+        "changed_at"
+      ],
       "properties": {
-        "facility_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "status": { "type": "string", "enum": ["pending", "active", "suspended", "offboarded"] },
-        "verification_status": { "type": "string", "enum": ["unverified", "under_review", "verified", "rejected"] },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "facility_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "active",
+            "suspended",
+            "offboarded"
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "under_review",
+            "verified",
+            "rejected"
+          ]
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "CatalogAffiliationChanged": {
@@ -37,14 +109,39 @@
       "description": "payload of catalog.affiliation_changed (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["affiliation_id", "provider_id", "facility_id", "branch_id", "status", "changed_at"],
+      "required": [
+        "affiliation_id",
+        "provider_id",
+        "facility_id",
+        "branch_id",
+        "status",
+        "changed_at"
+      ],
       "properties": {
-        "affiliation_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "facility_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "branch_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "status": { "type": "string", "enum": ["pending", "active", "declined", "ended"] },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "affiliation_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "facility_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "branch_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "active",
+            "declined",
+            "ended"
+          ]
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "CatalogAvailabilityChanged": {
@@ -52,12 +149,75 @@
       "description": "payload of catalog.availability_changed (v1). Signals appointment-service to re-derive slots for the provider.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider_id", "change", "changed_at"],
+      "required": [
+        "provider_id",
+        "change",
+        "changed_at"
+      ],
       "properties": {
-        "provider_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "branch_id": { "type": ["string", "null"] },
-        "change": { "type": "string", "enum": ["rule_added", "rule_removed", "exception_added", "operating_hours_replaced"] },
-        "changed_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "provider_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "branch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "change": {
+          "type": "string",
+          "enum": [
+            "rule_added",
+            "rule_removed",
+            "exception_added",
+            "operating_hours_replaced"
+          ]
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "CatalogFacilityStaffChanged": {
+      "title": "CatalogFacilityStaffChanged",
+      "description": "payload of catalog.facility_staff_changed (v1). Facility membership changes, so consumers can keep recipient lists current.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "facility_id",
+        "user_id",
+        "change",
+        "changed_at"
+      ],
+      "properties": {
+        "facility_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "facility_admin",
+            "scheduler",
+            "billing",
+            null
+          ]
+        },
+        "change": {
+          "type": "string",
+          "enum": [
+            "added",
+            "removed"
+          ]
+        },
+        "changed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     }
   }

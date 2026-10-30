@@ -190,3 +190,21 @@ Branch `feat/appointment-service` (from `main` 93c6723; not merged). Stage C sta
   service's events; fix in `outbox_fields` (`exclude_none`) or allow null in the schema.
 - Not done: payment-service integration (only the hook), notification delivery, booking UIs, a cached
   read model of catalog data, waitlists, multi-resource bookings (rooms/equipment).
+
+
+## Payments (feat/payment-service)
+
+Implemented / Tested (sandbox only; nothing deployed, no live keys):
+
+- payment-service (8010): server-side quotes (professional + facility + disclosed platform fee + per-line VAT,
+  AED minor units), idempotent payment intents, manual capture (confirm-then-charge), void, full/partial
+  refunds with a cancellation-policy hook, disputes, Stripe webhooks (raw-body HMAC, tolerance, event-id
+  dedupe, monotonic state machine), double-entry ledger, settlement import, reconciliation report,
+  gap-free invoices/credit notes (JSON + HTML), provider/facility settlement reports. Stripe adapter (httpx,
+  pinned API version) + deterministic fake processor behind the `PaymentGateway` port. 118 tests.
+- subscription-service (8009): plans, memberships, cancel at period end, plan change, entitlements;
+  billing state from payment-service events; disabled by `MEMBERSHIPS_ENABLED=false`. No automated tests
+  yet (migration round-trip + `alembic check` + import in CI) — next task.
+- Contracts: payment.openapi / subscription.openapi 3.4; payment.* / subscription.* events; payment-service
+  consumes appointment.* (incl. cancelled/expired/rescheduled) and subscription.created/upgraded/downgraded/
+  cancellation_scheduled. Identity `0010_payment_permissions` (after 0009) + `finance` role.
