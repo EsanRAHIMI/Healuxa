@@ -1,0 +1,92 @@
+name: Images
+
+# Builds every production image on GitHub's runners (the dev Mac never runs containers), checks it
+# runs as non-root, runs its migrations from inside the image, and probes /health and /ready.
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+    paths:
+      - "services/**"
+      - "packages/py-common/**"
+      - ".dockerignore"
+      - ".github/workflows/images.yml"
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: images-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  service-image:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { service: identity-service, port: 8001, db: identity, migrations: true }
+          - { service: transformation-engine, port: 8000, db: transformation, migrations: true }
+          - { service: provider-service, port: 8005, db: provider, migrations: true }
+          - { service: appointment-service, port: 8007, db: appointment, migrations: true }
+          - { service: concierge-service, port: 8021, db: concierge, migrations: true }
+          - { service: notification-service, port: 8022, db: notification, migrations: true }
+          - { service: profile-service, port: 8002, db: "", migrations: false }
+          - { service: assessment-service, port: 8003, db: "", migrations: false }
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -f services/${{ matrix.service }}/Dockerfile -t healuxa/${{ matrix.service }}:ci .
+      - name: Image runs as non-root
+        run: |
+          uid=$(docker run --rm --entrypoint id healuxa/${{ matrix.service }}:ci -u)
+          echo "uid=$uid"; test "$uid" != "0"
+      - name: Prepare runtime environment
+        run: |
+          {
+            echo "DATABASE_URL=postgresql+asyncpg://healuxa:dev@127.0.0.1:5432/${{ matrix.db }}"
+            echo "REDIS_URL=redis://127.0.0.1:6379/0"
+            echo "PASSWORD_PEPPER=ci-image-pepper"
+            echo "MFA_ENCRYPTION_KEY=ci-image-mfa-key-32-bytes-long!!"
+            echo "SERVICE_AUTH_CLIENT_ID=healuxa-internal"
+            echo "SERVICE_AUTH_CLIENT_SECRET=ci-image-secret"
+            echo "TENANT_DEFAULT=healuxa-dubai"
+            echo "IDENTITY_INTROSPECT_URL=http://127.0.0.1:8001/v1/auth/introspect"
+          } > runtime.env
+          if [ -n "${{ matrix.db }}" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+            PGPASSWORD=dev psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${{ matrix.db }};"
+          fi
+      - name: Run migrations from the image
+        if: matrix.migrations
+        run: docker run --rm --network host --env-file runtime.env --entrypoint alembic healuxa/${{ matrix.service }}:ci upgrade head
+      - name: Start container and probe health
+        run: |
+          docker run -d --name svc --network host --env-file runtime.env healuxa/${{ matrix.service }}:ci
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:${{ matrix.port }}/health"; then echo; break; fi
+            sleep 1
+          done
+          curl -fsS "http://127.0.0.1:${{ matrix.port }}/health"
+          echo; echo "ready: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:${{ matrix.port }}/ready)"
+          if [ "${{ matrix.migrations }}" = "true" ]; then
+            curl -fsS "http://127.0.0.1:${{ matrix.port }}/ready"
+          fi
+          sleep 20
+          status=$(docker inspect --format '{{.State.Health.Status}}' svc)
+          echo "docker healthcheck: $status"; test "$status" = "healthy"
+      - name: Container logs
+        if: always()
+        run: docker logs svc 2>&1 | tail -50 || true

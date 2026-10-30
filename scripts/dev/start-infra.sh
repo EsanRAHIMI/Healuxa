@@ -31,9 +31,10 @@ for db in $(grep -oE 'CREATE DATABASE [a-z_]+' "$root/infrastructure/postgres/in
 done
 echo "postgres  postgresql+asyncpg://healuxa:dev@127.0.0.1:5432/<db>"
 
-# Redis
+# Redis — ephemeral by design (caches, rate limits, session deny-lists): no snapshots, so a lost
+# data directory (e.g. an unplugged external drive) can never put it into read-only MISCONF state.
 if ! listening 6379; then
-  redis-server --port 6379 --bind 127.0.0.1 --dir "$local_dir" --daemonize yes \
+  redis-server --port 6379 --bind 127.0.0.1 --dir "$local_dir" --daemonize yes --save "" --appendonly no \
     --logfile "$local_dir/redis.log" --pidfile "$local_dir/redis.pid" >/dev/null
 fi
 echo "redis     redis://127.0.0.1:6379/0"

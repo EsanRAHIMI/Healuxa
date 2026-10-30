@@ -1,10 +1,25 @@
 openapi: 3.1.0
 info:
   title: Healuxa Appointment Service API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    Scheduling Open Host Service. Owns the Appointment aggregate and emits appointment.* events.
-    See Healuxa_DDD_Boundaries.md §3.8 and Healuxa_TechSpec.md §10.7.
+    Scheduling Open Host Service (booking engine). Owns the Appointment aggregate and emits
+    appointment.* events. See Healuxa_DDD_Boundaries.md §3.8, Healuxa_TechSpec.md §10.7 and
+    docs/ARCHITECTURE.md "Booking".
+
+
+    Lifecycle: a customer places a short **hold** on a derived slot (`held`), submits it as a
+    booking **request** (`requested`), and the provider (owner) or a facility `facility_admin` /
+    `scheduler` **accepts** (`confirmed`) or **declines** (`declined`). Confirmed appointments are
+    `checked_in`, then `completed` or marked `no_show`. Holds expire (`expired`) after the hold TTL;
+    requests nobody answered expire at their start time. `cancelled` and `rescheduled` are terminal;
+    a reschedule closes the original and creates a linked new appointment.
+
+
+    Exclusivity is enforced by the database: no two holding/active appointments of one provider may
+    overlap (visit + buffer), and one customer cannot hold overlapping appointments.
+    Availability comes from provider-service; if it is unreachable the service answers 503 and never
+    invents slots.
 servers:
   - url: https://api.healuxa.com/v1
     description: Production edge (Traefik)
@@ -13,23 +28,59 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: slots
   - name: appointments
 paths:
+  /services/{service_id}/slots:
+    get:
+      operationId: listAvailableSlots
+      summary: Bookable slots of a service offering (derived from provider-service availability)
+      description: >
+        Slots are derived from the offering's duration and buffer, the provider's weekly availability
+        rules (effective dates), the branch's opening hours, availability exceptions, and existing
+        holds/appointments. Returned in UTC together with the branch IANA time zone and local time.
+        `from` and `to` are branch-local calendar dates (inclusive, at most 31 days).
+      tags: [slots]
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - { name: service_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlotList" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /appointments:
     get:
       operationId: listAppointments
-      summary: List appointments
+      summary: List appointments (own as customer, or a provider/branch/facility calendar)
+      description: >
+        Without a scope filter, returns the caller's own appointments. With `provider_id` the caller
+        must own that provider (or be a facility_admin/scheduler where it practises); with `branch_id`
+        or `facility_id` the caller must be a facility_admin/scheduler of that facility. Holders of
+        `appointments:manage` may list any appointment of their tenant. Sorted by `scheduled_at`.
       tags: [appointments]
       x-required-permission: appointments:read
       parameters:
         - { name: user_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
         - { name: provider_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: branch_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: facility_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
         - { name: status, in: query, schema: { $ref: "#/components/schemas/AppointmentStatus" } }
         - { name: from, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
         - { name: to, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
         - $ref: "./_shared/components.yaml#/components/parameters/Limit"
         - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
-        - $ref: "./_shared/components.yaml#/components/parameters/Sort"
+        - name: sort
+          in: query
+          required: false
+          description: "`scheduled_at` (default) or `-scheduled_at`."
+          schema: { type: string, enum: [scheduled_at, -scheduled_at] }
       responses:
         "200":
           description: OK
@@ -41,9 +92,16 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: "#/components/schemas/Appointment" } }
                   page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
     post:
       operationId: createAppointment
-      summary: Create an appointment (emits appointment.created)
+      summary: Place a reservation hold on a slot (status `held`)
+      description: >
+        Creates a short hold (default 10 minutes, `hold_expires_at`) on a slot returned by
+        listAvailableSlots. The hold becomes a booking request with transition `submit`.
+        An `Idempotency-Key` replay returns the original appointment; the same key with a different
+        body is rejected with `idempotency_conflict`.
       tags: [appointments]
       x-required-permission: appointments:create
       parameters:
@@ -62,8 +120,10 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Appointment" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /appointments/{id}:
     get:
       operationId: getAppointment
@@ -75,6 +135,8 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            ETag: { $ref: "./_shared/components.yaml#/components/headers/ETag" }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Appointment" }
@@ -82,7 +144,19 @@ paths:
   /appointments/{id}/status:
     post:
       operationId: transitionAppointment
-      summary: Transition status (accept/decline/complete/no_show) — emits appointment.* events
+      summary: Transition status (submit/accept/decline/cancel/check_in/complete/no_show) — emits appointment.* events
+      description: >
+        Allowed transitions and actors:
+        `submit` held→requested (customer);
+        `accept` requested→confirmed and `decline` requested→declined (provider owner, facility
+        facility_admin/scheduler, or `appointments:manage`);
+        `cancel` held|requested|confirmed→cancelled (customer — confirmed only until the cancellation
+        cut-off — or provider/facility/manager before the start);
+        `check_in` confirmed→checked_in (provider/facility, from the check-in window before start);
+        `complete` confirmed|checked_in→completed (provider/facility, after the start);
+        `no_show` confirmed→no_show (provider/facility for `party: customer` after the grace period;
+        `party: provider` only with `appointments:manage`).
+        Every transition is recorded in the audit trail.
       tags: [appointments]
       x-required-permission: appointments:write
       parameters:
@@ -93,46 +167,230 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [transition]
-              properties:
-                transition: { type: string, enum: [accept, decline, complete, no_show, reschedule] }
-                reason: { type: string }
+            schema: { $ref: "#/components/schemas/TransitionRequest" }
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag: { $ref: "./_shared/components.yaml#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Appointment" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /appointments/{id}/reschedule:
+    post:
+      operationId: rescheduleAppointment
+      summary: Move a requested/confirmed appointment to another slot (closes it as `rescheduled`, creates a linked appointment)
+      description: >
+        Atomically marks the original `rescheduled` and creates a new appointment at `scheduled_at`
+        (`rescheduled_from_id` links them). A customer reschedule needs fresh provider confirmation
+        (new status `requested`) and must happen before the cancellation cut-off; a provider/facility
+        reschedule of a confirmed appointment stays `confirmed`.
+      tags: [appointments]
+      x-required-permission: appointments:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+        - $ref: "./_shared/components.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RescheduleRequest" }
+      responses:
+        "201":
+          description: The new appointment
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+            ETag: { $ref: "./_shared/components.yaml#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Appointment" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /appointments/{id}/transitions:
+    get:
+      operationId: listAppointmentTransitions
+      summary: Audit trail of status transitions (who, when, from, to, reason)
+      tags: [appointments]
+      x-required-permission: appointments:read
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
       responses:
         "200":
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Appointment" }
-        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/StatusTransition" } }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
-    serviceAuth:
-      $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  responses:
+    DependencyUnavailable:
+      description: provider-service (availability source) is unreachable — no slots are invented.
+      content:
+        application/json:
+          schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
   schemas:
     AppointmentStatus:
       type: string
-      enum: [requested, created, accepted, declined, completed, no_show, cancelled]
+      enum: [held, requested, confirmed, checked_in, completed, cancelled, declined, no_show, expired, rescheduled]
+    PaymentStatus:
+      type: string
+      description: Payment hook for Stage D. `not_required` unless payment gating is enabled.
+      enum: [not_required, pending, authorized, captured, refunded]
+    Party:
+      type: string
+      enum: [customer, provider, facility, platform, system]
+    Slot:
+      type: object
+      additionalProperties: false
+      required: [scheduled_at, ends_at, local_start, local_end]
+      properties:
+        scheduled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        ends_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        local_start: { type: string, description: "Branch-local start, ISO 8601 with UTC offset." }
+        local_end: { type: string, description: "Branch-local end, ISO 8601 with UTC offset." }
+    SlotList:
+      type: object
+      additionalProperties: false
+      required: [service_id, provider_id, branch_id, timezone, duration_minutes, buffer_minutes, from, to, slots]
+      properties:
+        service_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        timezone: { type: string, description: "Branch IANA time zone, e.g. Asia/Dubai." }
+        duration_minutes: { type: integer }
+        buffer_minutes: { type: integer }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        slots: { type: array, items: { $ref: "#/components/schemas/Slot" } }
     CreateAppointment:
       type: object
       additionalProperties: false
-      required: [user_id, provider_id, service_id, scheduled_at]
+      required: [service_id, scheduled_at]
       properties:
-        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         service_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        scheduled_at:
+          $ref: "./_shared/components.yaml#/components/schemas/Timestamp"
+          description: Slot start (must equal a slot returned by listAvailableSlots).
         milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        channel: { type: string, enum: [app, web, whatsapp, concierge] }
+        user_id:
+          $ref: "./_shared/components.yaml#/components/schemas/Id"
+          description: Book on behalf of a customer — only with `appointments:manage`. Defaults to the caller.
+    TransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [transition]
+      properties:
+        transition: { type: string, enum: [submit, accept, decline, cancel, check_in, complete, no_show] }
+        reason_code:
+          type: string
+          description: >
+            decline: no_capacity|out_of_scope|schedule_conflict|other.
+            cancel: customer_request|provider_unavailable|facility_closed|other.
+          enum: [no_capacity, out_of_scope, schedule_conflict, customer_request, provider_unavailable, facility_closed, other]
+        reason: { type: string, maxLength: 500, description: "Free-text note kept in the audit trail only (never in events)." }
+        party: { type: string, enum: [customer, provider], description: "no_show only: who did not show (default customer)." }
+    RescheduleRequest:
+      type: object
+      additionalProperties: false
+      required: [scheduled_at]
+      properties:
         scheduled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        reason: { type: string, maxLength: 500 }
+    Reminder:
+      type: object
+      additionalProperties: false
+      required: [id, offset_minutes, due_at, status]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        offset_minutes: { type: integer, description: "Minutes before scheduled_at." }
+        due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        status: { type: string, enum: [scheduled, dispatched, skipped, cancelled] }
+    StatusTransition:
+      type: object
+      additionalProperties: false
+      required: [id, appointment_id, to_status, actor_type, occurred_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        appointment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        from_status:
+          oneOf:
+            - { $ref: "#/components/schemas/AppointmentStatus" }
+            - { type: "null" }
+        to_status: { $ref: "#/components/schemas/AppointmentStatus" }
+        actor_type: { $ref: "#/components/schemas/Party" }
+        actor_id: { type: [string, "null"] }
+        reason_code: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        occurred_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
     Appointment:
       type: object
+      additionalProperties: false
+      required:
+        - id
+        - user_id
+        - provider_id
+        - facility_id
+        - branch_id
+        - service_id
+        - status
+        - scheduled_at
+        - ends_at
+        - timezone
+        - duration_minutes
+        - buffer_minutes
+        - payment_status
+        - version
+        - created_at
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         provider_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        facility_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        branch_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         service_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        milestone_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        milestone_id: { type: [string, "null"] }
         status: { $ref: "#/components/schemas/AppointmentStatus" }
         scheduled_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        ends_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        local_start: { type: string, description: "Branch-local start with UTC offset." }
+        timezone: { type: string }
+        duration_minutes: { type: integer }
+        buffer_minutes: { type: integer }
+        service_name: { type: [string, "null"] }
+        price:
+          oneOf:
+            - { $ref: "./_shared/components.yaml#/components/schemas/Money" }
+            - { type: "null" }
+        payment_status: { $ref: "#/components/schemas/PaymentStatus" }
+        channel: { type: [string, "null"] }
+        hold_expires_at: { type: [string, "null"], format: date-time }
+        requested_at: { type: [string, "null"], format: date-time }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        checked_in_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        cancelled_at: { type: [string, "null"], format: date-time }
+        cancelled_by: { oneOf: [{ $ref: "#/components/schemas/Party" }, { type: "null" }] }
+        decline_reason: { type: [string, "null"] }
+        no_show_party: { type: [string, "null"] }
+        rescheduled_from_id: { type: [string, "null"] }
+        rescheduled_to_id: { type: [string, "null"] }
+        reminders: { type: array, items: { $ref: "#/components/schemas/Reminder" } }
+        version: { type: integer }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
