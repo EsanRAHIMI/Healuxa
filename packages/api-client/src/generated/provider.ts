@@ -268,6 +268,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/facilities/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Facilities where the caller holds a staff role (private view) */
+        get: operations["listMyFacilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/facilities/{facility_id}": {
         parameters: {
             query?: never;
@@ -1581,6 +1598,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Facility"];
+                };
+            };
+        };
+    };
+    listMyFacilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Facility"][];
+                    };
                 };
             };
         };

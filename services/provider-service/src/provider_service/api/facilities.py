@@ -55,6 +55,12 @@ async def create_facility(
     return facility
 
 
+@router.get("/v1/facilities/mine")
+async def list_my_facilities(db: Db, principal: Onboarder) -> dict:
+    # Declared before /{facility_id} so "mine" is never parsed as an id.
+    return {"data": await facility_service.mine(db, principal)}
+
+
 @router.get("/v1/facilities/{facility_id}")
 async def get_facility(db: Db, principal: MaybePrincipal, facility_id: str) -> schemas.Facility:
     return await facility_service.get(db, principal, _tenant(principal), facility_id)

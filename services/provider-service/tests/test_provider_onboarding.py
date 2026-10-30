@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from httpx import AsyncClient
 from ulid import ULID
@@ -57,7 +57,7 @@ async def test_expired_credential_cannot_be_verified(client: AsyncClient) -> Non
                 "kind": "professional_license",
                 "issuing_authority": "DHA",
                 "number": "OLD-1",
-                "valid_until": str(date.today() - timedelta(days=1)),
+                "valid_until": str(datetime.now(UTC).date() - timedelta(days=1)),
             },
             headers=user(owner),
         ),
