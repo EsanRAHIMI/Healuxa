@@ -1,7 +1,7 @@
 "use server";
 
 import { idempotencyHeader, unwrap, type FacilityType, type StaffRole, type TimeWindow } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { act, actionSession, invalid } from "@/lib/actions";
@@ -78,7 +78,7 @@ export async function openFacilityAction(_prev: FormState, fd: FormData): Promis
 export async function forgetFacilityAction(_prev: FormState, fd: FormData): Promise<FormState> {
   return act(fd, async (locale) => {
     await forgetFacility(str(fd, "facility_id"));
-    revalidatePath(`/${locale}/facility`);
+    refresh();
   });
 }
 
@@ -96,7 +96,7 @@ export async function updateFacilityAction(_prev: FormState, fd: FormData): Prom
         body: { name: str(fd, "name"), description: descriptionFrom(fd), website, phone: str(fd, "phone") },
       }),
     );
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return t("fp.saved");
   });
 }
@@ -133,7 +133,7 @@ export async function createBranchAction(_prev: FormState, fd: FormData): Promis
         },
       }),
     );
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return t("fp.branchCreated");
   });
 }
@@ -163,7 +163,7 @@ export async function replaceHoursAction(_prev: FormState, fd: FormData): Promis
     if (Object.keys(errors).length) return invalid(locale, errors);
     const api = await userApi();
     await unwrap(api.provider.PUT("/branches/{branch_id}/operating-hours", { params: { path: { branch_id: str(fd, "branch_id") } }, body: { windows } }));
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return t("fp.hoursSaved");
   }, (locale) => ({ unprocessable: getT(locale)("fp.hoursInvalid") }));
 }
@@ -180,7 +180,7 @@ export async function addStaffAction(_prev: FormState, fd: FormData): Promise<Fo
     if (Object.keys(errors).length) return invalid(locale, errors);
     const api = await userApi();
     await unwrap(api.provider.POST("/facilities/{facility_id}/staff", { params: { path: { facility_id: str(fd, "facility_id") } }, body: { user_id: userId, role } }));
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return t("fp.staffAdded");
   }, (locale) => ({ conflict: getT(locale)("fp.staffExists") }));
 }
@@ -192,7 +192,7 @@ export async function removeStaffAction(_prev: FormState, fd: FormData): Promise
     await unwrap(
       api.provider.DELETE("/facilities/{facility_id}/staff/{user_id}", { params: { path: { facility_id: str(fd, "facility_id"), user_id: str(fd, "user_id") } } }),
     );
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return getT(locale)("fp.staffRemoved");
   }, (locale) => ({ conflict: getT(locale)("fp.lastAdmin") }));
 }
@@ -209,7 +209,7 @@ export async function inviteProviderAction(_prev: FormState, fd: FormData): Prom
     if (Object.keys(errors).length) return invalid(locale, errors);
     const api = await userApi();
     await unwrap(api.provider.POST("/affiliations", { body: { provider_id: providerId, branch_id: branchId } }));
-    revalidatePath(`/${locale}/facility`, "layout");
+    refresh();
     return t("fp.invited");
   }, (locale) => ({ conflict: getT(locale)("pp.affiliationExists"), not_found: getT(locale)("fp.providerNotFound") }));
 }

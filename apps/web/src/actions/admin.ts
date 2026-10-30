@@ -5,7 +5,7 @@
  * payments:refund…); the UI only additionally requires a written note for every decision.
  */
 import { idempotencyHeader, unwrap, type ProviderStatus } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 
 import { act, actionSession, invalid } from "@/lib/actions";
 import { userApi } from "@/lib/api";
@@ -31,7 +31,7 @@ export async function reviewCredentialAction(_prev: FormState, fd: FormData): Pr
         body: { decision, note: n },
       }),
     );
-    revalidatePath(`/${locale}/admin`, "layout");
+    refresh();
     return getT(locale)(decision === "verify" ? "admin.credentialVerified" : "admin.credentialRejected");
   }, (locale) => ({ conflict: getT(locale)("admin.alreadyReviewed") }));
 }
@@ -45,7 +45,7 @@ export async function reviewFacilityAction(_prev: FormState, fd: FormData): Prom
     if (typeof n !== "string") return n;
     const api = await userApi();
     await unwrap(api.provider.POST("/facilities/{facility_id}/review", { params: { path: { facility_id: str(fd, "facility_id") } }, body: { decision, note: n } }));
-    revalidatePath(`/${locale}/admin`, "layout");
+    refresh();
     return getT(locale)(decision === "verify" ? "admin.facilityVerified" : "admin.facilityRejected");
   }, (locale) => ({ conflict: getT(locale)("admin.alreadyReviewed") }));
 }
@@ -59,7 +59,7 @@ export async function changeProviderStatusAction(_prev: FormState, fd: FormData)
     if (reason.length < 3) return invalid(locale, { reason: getT(locale)("admin.errNote") });
     const api = await userApi();
     await unwrap(api.provider.POST("/providers/{id}/status", { params: { path: { id: str(fd, "provider_id") } }, body: { status, reason: reason.slice(0, 1000) } }));
-    revalidatePath(`/${locale}/admin`, "layout");
+    refresh();
     return getT(locale)("admin.statusChanged");
   });
 }
@@ -83,7 +83,7 @@ export async function refundAction(_prev: FormState, fd: FormData): Promise<Form
         body: { reason: reason as "goodwill", note: n.slice(0, 500), ...(amount !== undefined ? { amount_minor: amount } : {}), apply_policy: fd.get("apply_policy") === "on" },
       }),
     );
-    revalidatePath(`/${locale}/admin/payments`, "layout");
+    refresh();
     return t("admin.refundRequested");
   });
 }
@@ -97,7 +97,7 @@ export async function capturePaymentAction(_prev: FormState, fd: FormData): Prom
     if (op === "capture") await unwrap(api.payment.POST("/payments/{id}/capture", { params: { path: { id } } }));
     else if (op === "cancel") await unwrap(api.payment.POST("/payments/{id}/cancel", { params: { path: { id } } }));
     else return invalid(locale, { op: "invalid" });
-    revalidatePath(`/${locale}/admin/payments`, "layout");
+    refresh();
     return getT(locale)("admin.paymentUpdated");
   });
 }

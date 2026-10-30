@@ -6,7 +6,7 @@
  * (`confirmed`) -> check_in/complete. Amounts are always quoted server-side by payment-service.
  */
 import { idempotencyHeader, unwrap, unwrapResponse, type AppointmentTransitionRequest } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { act, actionSession, invalid } from "@/lib/actions";
@@ -68,7 +68,7 @@ export async function transitionAppointmentAction(_prev: FormState, fd: FormData
         body,
       }),
     );
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return t(`booking.done_${transition}`);
   }, (locale) => ({ conflict: getT(locale)("booking.stale") }));
 }
@@ -118,7 +118,7 @@ export async function refreshPaymentAction(_prev: FormState, fd: FormData): Prom
     await actionSession();
     const api = await userApi();
     await unwrapResponse(api.payment.POST("/payments/{id}/refresh", { params: { path: { id: str(fd, "payment_id") } } }));
-    revalidatePath(`/${locale}/account/payments`, "layout");
+    refresh();
     return getT(locale)("payments.refreshed");
   });
 }

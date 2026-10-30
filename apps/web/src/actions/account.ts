@@ -2,7 +2,7 @@
 
 import { NotFoundError, UnauthorizedError, unwrap, unwrapResponse, type Profile } from "@healuxa/api-client";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { act, invalid } from "@/lib/actions";
@@ -53,7 +53,7 @@ export async function saveConsentAction(_prev: FormState, fd: FormData): Promise
         body,
       }),
     );
-    revalidatePath(`/${locale}/account/profile`);
+    refresh();
     return getT(locale)("account.consentSaved");
   }, (locale) => ({ conflict: getT(locale)("account.consentConflict") }));
 }
@@ -71,7 +71,7 @@ export async function revokeSessionAction(_prev: FormState, fd: FormData): Promi
       signedOutLocale = locale;
       return;
     }
-    revalidatePath(`/${locale}/account/sessions`);
+    refresh();
     return getT(locale)("account.sessionRevoked");
   });
   if (state.ok && signedOutLocale) redirect(`/${signedOutLocale}/login`);

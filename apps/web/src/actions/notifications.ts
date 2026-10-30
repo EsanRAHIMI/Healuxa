@@ -2,7 +2,7 @@
 
 /** notification-service: inbox read state and per-category channel preferences. */
 import { unwrap, type NotificationPreferencesUpdate } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 
 import { act, actionSession, invalid } from "@/lib/actions";
 import { userApi } from "@/lib/api";
@@ -18,7 +18,7 @@ export async function markReadAction(_prev: FormState, fd: FormData): Promise<Fo
     const id = str(fd, "notification_id");
     if (id) await unwrap(api.notification.POST("/notifications/{id}/read", { params: { path: { id } } }));
     else await unwrap(api.notification.POST("/notifications/read-all"));
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return { ok: true, at: Date.now() };
   });
 }
@@ -45,7 +45,7 @@ export async function savePreferencesAction(_prev: FormState, fd: FormData): Pro
     };
     const api = await userApi();
     await unwrap(api.notification.PUT("/notifications/preferences/{userId}", { params: { path: { userId: session.userId } }, body }));
-    revalidatePath(`/${locale}/account/notifications`, "layout");
+    refresh();
     return t("notifications.saved");
   });
 }

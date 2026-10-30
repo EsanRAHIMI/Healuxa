@@ -1,7 +1,7 @@
 "use server";
 
 import { idempotencyHeader, unwrap, type CredentialKind, type ProviderType, type ServiceOfferingPatch } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { act, actionSession, invalid } from "@/lib/actions";
@@ -56,6 +56,7 @@ export async function applyProviderAction(_prev: FormState, fd: FormData): Promi
         },
       }),
     );
+    refresh();
     target = `/${locale}/provider/credentials?applied=1`;
   }, (locale) => ({ conflict: getT(locale)("pp.alreadyApplied") }));
   if (state.ok && target) redirect(target);
@@ -81,7 +82,7 @@ export async function updateProviderAction(_prev: FormState, fd: FormData): Prom
         },
       }),
     );
-    revalidatePath(`/${locale}/provider`, "layout");
+    refresh();
     return t("pp.profileSaved");
   }, (locale) => ({ conflict: getT(locale)("pp.editConflict") }));
 }
@@ -115,7 +116,7 @@ export async function submitCredentialAction(_prev: FormState, fd: FormData): Pr
         },
       }),
     );
-    revalidatePath(`/${locale}/provider`, "layout");
+    refresh();
     return t("pp.credentialSubmitted");
   }, (locale) => ({ conflict: getT(locale)("pp.credentialDuplicate") }));
 }
@@ -128,7 +129,7 @@ export async function requestAffiliationAction(_prev: FormState, fd: FormData): 
     if (!branchId) return invalid(locale, { branch_id: t("pp.errBranch") });
     const api = await userApi();
     await unwrap(api.provider.POST("/affiliations", { body: { provider_id: str(fd, "provider_id"), branch_id: branchId } }));
-    revalidatePath(`/${locale}/provider/affiliations`);
+    refresh();
     return t("pp.affiliationRequested");
   }, (locale) => ({ conflict: getT(locale)("pp.affiliationExists") }));
 }
@@ -141,7 +142,7 @@ export async function decideAffiliationAction(_prev: FormState, fd: FormData): P
     if (decision !== "approve" && decision !== "decline" && decision !== "end") return invalid(locale, { decision: "invalid" });
     const api = await userApi();
     await unwrap(api.provider.POST("/affiliations/{affiliation_id}/decision", { params: { path: { affiliation_id: str(fd, "affiliation_id") } }, body: { decision } }));
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return getT(locale)({ approve: "pp.affiliationApproved", decline: "pp.affiliationDeclined", end: "pp.affiliationEnded" }[decision]);
   });
 }
@@ -201,7 +202,7 @@ export async function createOfferingAction(_prev: FormState, fd: FormData): Prom
         },
       }),
     );
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return t("pp.offeringCreated");
   });
 }
@@ -225,7 +226,7 @@ export async function updateOfferingAction(_prev: FormState, fd: FormData): Prom
     };
     const api = await userApi();
     await unwrap(api.provider.PATCH("/services/{service_id}", { params: { path: { service_id: str(fd, "service_id") } }, body }));
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return t("pp.offeringSaved");
   });
 }
@@ -258,7 +259,7 @@ export async function createRuleAction(_prev: FormState, fd: FormData): Promise<
         }),
       );
     }
-    revalidatePath(`/${locale}/provider/availability`);
+    refresh();
     return t("pp.ruleCreated", { count: weekdays.length });
   }, (locale) => ({ conflict: getT(locale)("pp.ruleOverlap"), unprocessable: getT(locale)("pp.ruleOutsideHours") }));
 }
@@ -268,7 +269,7 @@ export async function deleteRuleAction(_prev: FormState, fd: FormData): Promise<
     await actionSession();
     const api = await userApi();
     await unwrap(api.provider.DELETE("/availability-rules/{rule_id}", { params: { path: { rule_id: str(fd, "rule_id") } } }));
-    revalidatePath(`/${locale}/provider/availability`);
+    refresh();
     return getT(locale)("pp.ruleDeleted");
   });
 }
@@ -300,7 +301,7 @@ export async function createExceptionAction(_prev: FormState, fd: FormData): Pro
         body: { starts_at: startsAt, ends_at: endsAt, reason: reason as "leave", ...(branchId ? { branch_id: branchId } : {}) },
       }),
     );
-    revalidatePath(`/${locale}/provider/availability`);
+    refresh();
     return t("pp.exceptionCreated");
   });
 }

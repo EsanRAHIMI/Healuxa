@@ -6,7 +6,7 @@
  * Data minimisation: no clinical fields anywhere; `needs_note` is logistics-only.
  */
 import { unwrap, type ConciergeCaseCategory, type ConciergeCaseStatus } from "@healuxa/api-client";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { act, actionSession, invalid } from "@/lib/actions";
@@ -57,7 +57,7 @@ export async function postMessageAction(_prev: FormState, fd: FormData): Promise
     if (!body) return invalid(locale, { body: getT(locale)("concierge.errMessage") });
     const api = await userApi();
     await unwrap(api.concierge.POST("/concierge/cases/{id}/messages", { params: { path: { id: str(fd, "case_id") } }, body: { body: body.slice(0, 4000) } }));
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return { ok: true, at: Date.now() };
   });
 }
@@ -67,7 +67,7 @@ export async function selectOptionAction(_prev: FormState, fd: FormData): Promis
     await actionSession();
     const api = await userApi();
     await unwrap(api.concierge.POST("/concierge/cases/{id}/options/{option_id}/select", { params: { path: { id: str(fd, "case_id"), option_id: str(fd, "option_id") } } }));
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return getT(locale)("concierge.optionSelected");
   });
 }
@@ -81,7 +81,7 @@ export async function transitionCaseAction(_prev: FormState, fd: FormData): Prom
     await unwrap(
       api.concierge.POST("/concierge/cases/{id}/transitions", { params: { path: { id: str(fd, "case_id") } }, body: { to_status: to, reason: optStr(fd, "reason")?.slice(0, 500) ?? null } }),
     );
-    revalidatePath(`/${locale}`, "layout");
+    refresh();
     return getT(locale)("concierge.statusChanged");
   }, (locale) => ({ conflict: getT(locale)("concierge.illegalTransition") }));
 }
@@ -92,7 +92,7 @@ export async function assignCaseAction(_prev: FormState, fd: FormData): Promise<
     const api = await userApi();
     const coordinator = optStr(fd, "coordinator_id");
     await unwrap(api.concierge.POST("/concierge/cases/{id}/assignment", { params: { path: { id: str(fd, "case_id") } }, body: coordinator ? { coordinator_id: coordinator } : {} }));
-    revalidatePath(`/${locale}/admin/concierge`, "layout");
+    refresh();
     return getT(locale)("concierge.assigned");
   });
 }
@@ -104,7 +104,7 @@ export async function escalateCaseAction(_prev: FormState, fd: FormData): Promis
     if (reason.length < 3) return invalid(locale, { reason: getT(locale)("admin.errNote") });
     const api = await userApi();
     await unwrap(api.concierge.POST("/concierge/cases/{id}/escalation", { params: { path: { id: str(fd, "case_id") } }, body: { reason: reason.slice(0, 500) } }));
-    revalidatePath(`/${locale}/admin/concierge`, "layout");
+    refresh();
     return getT(locale)("concierge.escalated");
   });
 }
@@ -116,7 +116,7 @@ export async function addNoteAction(_prev: FormState, fd: FormData): Promise<For
     if (!body) return invalid(locale, { body: getT(locale)("concierge.errMessage") });
     const api = await userApi();
     await unwrap(api.concierge.POST("/concierge/cases/{id}/notes", { params: { path: { id: str(fd, "case_id") } }, body: { body: body.slice(0, 4000) } }));
-    revalidatePath(`/${locale}/admin/concierge`, "layout");
+    refresh();
     return getT(locale)("concierge.noteAdded");
   });
 }
@@ -139,7 +139,7 @@ export async function proposeOptionAction(_prev: FormState, fd: FormData): Promi
         },
       }),
     );
-    revalidatePath(`/${locale}/admin/concierge`, "layout");
+    refresh();
     return getT(locale)("concierge.optionProposed");
   });
 }
