@@ -19,12 +19,11 @@ jobs:
         with:
           node-version: "22"
       - name: Install workspace dependencies
-        # npm ci installs the lockfile tree exactly; `npm install` re-resolution on Linux dropped the
-        # nested yaml@1 copies that redocly's swagger2openapi/oas-* dependencies require.
+        # npm ci: install exactly the lockfile tree (the root `yaml` devDependency serves redoc,
+        # which requires it without declaring it).
         run: npm ci
       - name: Validate API and event contracts
-        run: |
-          npm run contracts:validate > contracts.log 2>&1 || { grep -iE "error|require|at |module" contracts.log | head -25 | sed 's/^/::error::/'; exit 1; }
+        run: npm run contracts:validate
       - name: event-contracts unit tests
         working-directory: packages/event-contracts
         run: npm test
