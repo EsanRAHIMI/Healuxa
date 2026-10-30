@@ -49,11 +49,3 @@ export function feeBreakdown(o: Pick<ServiceOffering, 'price_type' | 'price' | '
   else if (total && parts.length && sum !== total.amount_minor) consistent = false;
   return { priceType: o.price_type, total, professional, facility, consistent };
 }
-
-export function formatDuration(minutes: number, language: string): string {
-  try {
-    return new Intl.NumberFormat(LOCALE_TAG[language] ?? language, { style: 'unit', unit: 'minute', unitDisplay: 'short' }).format(minutes);
-  } catch {
-    return `${minutes} min`;
-  }
-}

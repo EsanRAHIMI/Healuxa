@@ -16,7 +16,6 @@ import { ScrollView, View } from 'react-native';
 import { ApiError } from '@/api/errors';
 import type { Appointment, Slot } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
-import { formatDuration } from '@/format/money';
 import { formatDayHeading, formatTime, isoDateInZone, localDate } from '@/format/time';
 import { errorKey, usePublic, useRemote } from '@/hooks/useRemote';
 import { type MessageKey, useI18n } from '@/i18n';
@@ -154,7 +153,7 @@ export default function Book() {
       {offering ? (
         <Card>
           <AppText variant="label">{offering.name}</AppText>
-          <AppText variant="caption" muted>{formatDuration(offering.duration_minutes, language)}</AppText>
+          <AppText variant="caption" muted>{t('common.minutes', { n: offering.duration_minutes })}</AppText>
           <FeeBreakdownView offering={offering} />
         </Card>
       ) : null}

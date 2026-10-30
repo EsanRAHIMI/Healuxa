@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 
 import type { ServiceOffering } from '../api/types';
-import { formatDuration } from '../format/money';
 import { useI18n } from '../i18n';
 import { localized } from '../i18n/labels';
 import { FeeBreakdownView } from './FeeBreakdownView';
@@ -18,7 +17,7 @@ export function OfferingCard({ offering, showProviderLink }: { offering: Service
           {offering.name}
         </AppText>
         <AppText variant="caption" muted>
-          {formatDuration(offering.duration_minutes, language)}
+          {t('common.minutes', { n: offering.duration_minutes })}
         </AppText>
       </Row>
       <AppText variant="caption" muted>
