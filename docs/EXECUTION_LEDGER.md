@@ -228,7 +228,7 @@ shipped an RN release candidate at that date, so 57 is the latest stable that qu
 | Config | One `EXPO_PUBLIC_API_BASE_URL` (nginx gateway, default `https://api.healuxa.ae`), per-service overrides for local; non-local builds refuse http | `app.config.ts`, CI step |
 | Tests | 52 Jest tests (auth flow, secure storage, RTL, fees, errors, cache) pass; Detox smoke written | `src/__tests__`, `e2e/smoke.e2e.js` |
 | CI | `mobile` job in ci.yml (lint/typecheck/Jest + https check) and `mobile-builds.yml` (Android bundleRelease on ubuntu, iOS simulator on macos-26) — green on 05646a1 | runs 41089266995, 41089266445 |
-| Local builds | iOS sim Debug ✔, iOS sim Release ✔ (90 MB .app), iOS Release generic device `CODE_SIGNING_ALLOWED=NO` and Android `assembleDebug`/`bundleRelease`: see report | `apps/mobile/artifacts/*.log` (not committed) |
+| Local builds (Xcode 27.1, JDK 17) | All succeed: iOS sim Debug (256 MB .app), iOS sim Release (90 MB), iOS Release generic device `CODE_SIGNING_ALLOWED=NO` (50 MB .app), Android `assembleDebug` (230 MB APK, all ABIs), `bundleRelease` (72 MB AAB, debug-signed — no upload key) | logs in `apps/mobile/artifacts/` (git-ignored) |
 | Store readiness | Drafts: metadata, App Privacy, privacy manifest via config, Data Safety, permissions, review notes, deep-link files, `eas.json` | `apps/mobile/store/` |
 
 Blockers / pending (exact):
@@ -238,10 +238,9 @@ Blockers / pending (exact):
   `active:false` for service tokens (it looks up `session_id = "svc-<client>"` in the sessions
   table and finds nothing), so provider-service answers 401 and appointment-service 503. The app
   shows "availability cannot be checked" and never invents slots. Fix belongs in identity-service.
-- Detox run and data screenshots: the local Postgres lost the `healuxa` role during this session
-  (`FATAL: role "healuxa" does not exist`), so the backends could not be restarted; only static
-  screens were captured (`store/screenshots/ios/`). Run `scripts/e2e-backends.sh`, `e2e/seed.mjs`,
-  then `npx detox test -c ios.sim.release`.
+- Detox smoke (`e2e/smoke.e2e.js`) is written but was not run (local infra restarts during the
+  session); screenshots of real screens against the local backends are in `store/screenshots/ios/`.
+  Run `scripts/e2e-backends.sh`, `node e2e/seed.mjs`, then `npx detox build|test -c ios.sim.release`.
 - Shared packages from feat/web-platform (`@healuxa/api-client`, design-tokens, i18n) are not yet on
   main and the generated client lacks appointment v3.4 / concierge / notification; the app keeps its
   local adapter (`src/api/client.ts`, one place to swap) — debt.
