@@ -19,7 +19,8 @@ export function newCsrfToken(): string {
 /**
  * Strict, nonce-based CSP: scripts only from this origin with the per-request nonce
  * ('strict-dynamic' lets Next's nonce'd loader pull its chunks). The browser never talks to backend
- * services directly (connect-src 'self'): all API calls go through Server Components/Actions.
+ * services directly: all Healuxa API calls go through Server Components/Actions; the only third-party
+ * origins are Stripe's hosted payment fields (loaded by the nonce'd bundle, allowed via strict-dynamic).
  */
 export function buildCsp(nonce: string, { dev = false, https = false }: { dev?: boolean; https?: boolean } = {}): string {
   const directives: Record<string, string[]> = {
@@ -27,16 +28,17 @@ export function buildCsp(nonce: string, { dev = false, https = false }: { dev?: 
     "script-src": ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(dev ? ["'unsafe-eval'"] : [])],
     // Inline style attributes/elements (React style props, Radix scroll-lock) are allowed; no remote CSS.
     "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
+    // Stripe hosted payment fields (card data never touches Healuxa): frames, API and assets.
+    "img-src": ["'self'", "data:", "blob:", "https://*.stripe.com"],
     "font-src": ["'self'"],
-    "connect-src": ["'self'", ...(dev ? ["ws:", "wss:"] : [])],
+    "connect-src": ["'self'", "https://api.stripe.com", "https://m.stripe.network", ...(dev ? ["ws:", "wss:"] : [])],
     "manifest-src": ["'self'"],
     "worker-src": ["'self'"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"],
     "form-action": ["'self'"],
     "frame-ancestors": ["'none'"],
-    "frame-src": ["'none'"],
+    "frame-src": ["https://js.stripe.com", "https://hooks.stripe.com"],
   };
   const parts = Object.entries(directives).map(([k, v]) => `${k} ${v.join(" ")}`);
   if (https) parts.push("upgrade-insecure-requests");
