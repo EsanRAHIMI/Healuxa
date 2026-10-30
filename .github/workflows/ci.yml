@@ -21,7 +21,9 @@ jobs:
       - name: Install workspace dependencies
         run: npm install
       - name: Validate API and event contracts
-        run: npm run contracts:validate
+        run: |
+          # Surface the failing lines as annotations (readable without log access).
+          npm run contracts:validate > contracts.log 2>&1 || { grep -iE "error|fail|✗|Error" contracts.log | head -30 | sed 's/^/::error::/'; exit 1; }
       - name: event-contracts unit tests
         working-directory: packages/event-contracts
         run: npm test
