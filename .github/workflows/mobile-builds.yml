@@ -1,0 +1,87 @@
+name: Mobile builds
+
+# Native builds of apps/mobile. ios/ and android/ are generated with `expo prebuild` (CNG) on every
+# run; they are never committed. No signing secrets live in the repository: the Android release is
+# signed with an upload key only when HEALUXA_UPLOAD_* secrets are configured, otherwise it is
+# debug-signed and only proves compilation.
+
+on:
+  push:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/mobile-builds.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      APP_ENV: production
+      HAS_KEY: ${{ secrets.HEALUXA_UPLOAD_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Generate native Android project
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Decode upload keystore (only when configured)
+        if: ${{ env.HAS_KEY == 'true' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.HEALUXA_UPLOAD_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks" && echo "HEALUXA_UPLOAD_STORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+      - name: bundleRelease
+        working-directory: apps/mobile/android
+        env:
+          HEALUXA_UPLOAD_STORE_PASSWORD: ${{ secrets.HEALUXA_UPLOAD_STORE_PASSWORD }}
+          HEALUXA_UPLOAD_KEY_ALIAS: ${{ secrets.HEALUXA_UPLOAD_KEY_ALIAS }}
+          HEALUXA_UPLOAD_KEY_PASSWORD: ${{ secrets.HEALUXA_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon
+      - uses: actions/upload-artifact@v5
+        with:
+          name: healuxa-android-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 7
+
+  ios-simulator:
+    # React Native 0.86 / Expo SDK 57 need a current Xcode (built locally with Xcode 27.1).
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      APP_ENV: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Generate native iOS project and install pods
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios --clean
+      - name: xcodebuild (Debug, iOS Simulator)
+        working-directory: apps/mobile/ios
+        run: |
+          xcodebuild -version
+          if ! xcodebuild -workspace Healuxa.xcworkspace -scheme Healuxa -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal" xcodebuild.log | head -n 40; tail -n 80 xcodebuild.log; exit 1
+          fi
+          tail -n 5 xcodebuild.log

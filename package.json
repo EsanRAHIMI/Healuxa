@@ -10,7 +10,8 @@
     "packages/api-client",
     "packages/design-tokens",
     "packages/i18n",
-    "apps/web"
+    "apps/web",
+    "apps/mobile"
   ],
   "scripts": {
     "contracts:validate": "npm run validate -w @healuxa/event-contracts && npm run validate -w @healuxa/api-contracts",
@@ -33,5 +34,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   }
 }

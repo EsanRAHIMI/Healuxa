@@ -80,6 +80,30 @@ jobs:
           npm run build -w @healuxa/ts-common
           npm test -w @healuxa/ts-common
 
+  mobile:
+    # Expo / React Native app (apps/mobile): lint, strict typecheck, Jest. Native builds run in
+    # .github/workflows/mobile-builds.yml.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint -w @healuxa/mobile
+      - name: Typecheck
+        run: npm run typecheck -w @healuxa/mobile
+      - name: Jest
+        run: npm test -w @healuxa/mobile
+      - name: Production config refuses cleartext base URLs
+        working-directory: apps/mobile
+        run: |
+          APP_ENV=production npx expo config --type public --json > /tmp/prod.json
+          node -e 'const c=require("/tmp/prod.json");for(const k of ["identityBaseUrl","providerBaseUrl","appointmentBaseUrl","conciergeBaseUrl","notificationBaseUrl"]){if(!c.extra[k].startsWith("https://"))throw new Error(k+" is not https")};console.log("ok")'
+          if APP_ENV=production EXPO_PUBLIC_API_BASE_URL=http://insecure.example npx expo config --type public >/dev/null 2>&1; then echo "expected failure"; exit 1; fi
+
   identity-service:
     runs-on: ubuntu-latest
     services:

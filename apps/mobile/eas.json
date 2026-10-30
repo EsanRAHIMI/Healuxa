@@ -1,0 +1,50 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "node": "22.22.2",
+      "env": { "APP_BUNDLE_ID": "ae.healuxa.app" }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": false,
+      "distribution": "internal",
+      "env": { "APP_ENV": "development" },
+      "ios": { "simulator": true }
+    },
+    "staging": {
+      "extends": "base",
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.staging.healuxa.ae"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.healuxa.ae"
+      },
+      "android": { "buildType": "app-bundle" }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "OWNER_TO_FILL_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "OWNER_TO_FILL_APPLE_TEAM_ID"
+      },
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
+}
