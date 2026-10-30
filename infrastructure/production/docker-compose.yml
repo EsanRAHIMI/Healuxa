@@ -277,6 +277,22 @@ services:
     depends_on:
       nats: { condition: service_healthy }
 
+  # Single public API entry point (attach the api.<domain> Dokploy domain to port 8080).
+  gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    networks: [healuxa]
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    expose: ["8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      identity-service: { condition: service_healthy }
+
 networks:
   healuxa:
     name: healuxa

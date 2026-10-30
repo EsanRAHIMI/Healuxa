@@ -7,6 +7,12 @@ contract between the codebase and the deployment. Nothing here has been deployed
 Status words: **Implemented / Tested** apply to code; **Deployed** is your job; nothing is
 **Externally approved** or **Published**.
 
+> **Quick path (Compose):** `infrastructure/production/docker-compose.yml` runs the whole backend,
+> including an nginx **gateway** (`infrastructure/production/gateway/nginx.conf`) that is the single public API
+> entry point: attach `api.<domain>` → `gateway:8080` in Dokploy. The gateway routes `/v1/*` to the owning
+> service, strips `X-Healuxa-*` headers, blocks internal endpoints and `/metrics`, and rate-limits.
+> Fill `infrastructure/production/env/*.env` from the `.env.example` files first.
+
 ## 1. What to deploy
 
 | Component | Path | Dockerfile (build context = repo root) | Port | Store | Migrations |
