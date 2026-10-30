@@ -229,6 +229,105 @@ jobs:
           pytest -q -rs
           python -c "from provider_service.main import app; print('app ok', app.title)"
 
+  payment-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create payment_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE payment_test;"
+      - name: Install packages and payment-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/payment-service[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/payment_test
+          TENANT_DEFAULT: healuxa-dubai
+          IDENTITY_INTROSPECT_URL: http://127.0.0.1:1/v1/auth/introspect
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+          PAYMENT_GATEWAY: fake
+          APP_ENV: test
+        working-directory: services/payment-service
+        run: |
+          alembic upgrade head
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          # Models and migrations must not drift.
+          alembic check
+          pytest -q -rs
+          python -c "from payment_service.main import app; print('app ok', app.title)"
+
+  subscription-service:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create subscription_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE subscription_test;"
+      - name: Install packages and subscription-service
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/subscription-service[dev]"
+      - name: Migrate and test
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/subscription_test
+          TENANT_DEFAULT: healuxa-dubai
+          IDENTITY_INTROSPECT_URL: http://127.0.0.1:1/v1/auth/introspect
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/subscription-service
+        run: |
+          alembic upgrade head
+          # Migration reversibility: full downgrade and re-upgrade must succeed.
+          alembic downgrade base
+          alembic upgrade head
+          # Models and migrations must not drift.
+          alembic check
+          python -c "from subscription_service.main import app; print('app ok', app.title)"
+
   appointment-service:
     runs-on: ubuntu-latest
     services:

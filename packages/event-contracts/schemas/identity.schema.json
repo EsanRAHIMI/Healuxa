@@ -9,11 +9,20 @@
       "description": "payload of auth.user_registered (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["user_id", "registered_at"],
+      "required": [
+        "user_id",
+        "registered_at"
+      ],
       "properties": {
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "channel": { "$ref": "common.schema.json#/$defs/Channel" },
-        "registered_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "channel": {
+          "$ref": "common.schema.json#/$defs/Channel"
+        },
+        "registered_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "AuthSessionRevoked": {
@@ -21,13 +30,38 @@
       "description": "payload of auth.session_revoked (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["user_id", "scope", "revoked_at"],
+      "required": [
+        "user_id",
+        "scope",
+        "revoked_at"
+      ],
       "properties": {
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "session_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "scope": { "type": "string", "enum": ["single", "all"] },
-        "reason": { "type": "string", "enum": ["logout", "logout_all", "token_reuse", "admin", "security"] },
-        "revoked_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "session_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "single",
+            "all"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "logout",
+            "logout_all",
+            "token_reuse",
+            "admin",
+            "security"
+          ]
+        },
+        "revoked_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     },
     "AuthSecurityEvent": {
@@ -35,13 +69,58 @@
       "description": "payload of auth.security_event (v1) — consumed by Monitoring.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "severity", "detected_at"],
+      "required": [
+        "kind",
+        "severity",
+        "detected_at"
+      ],
       "properties": {
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "kind": { "type": "string", "enum": ["brute_force", "impossible_travel", "new_device", "token_reuse", "mfa_failure", "lockout"] },
-        "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
-        "ip": { "type": "string" },
-        "detected_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "brute_force",
+            "impossible_travel",
+            "new_device",
+            "token_reuse",
+            "mfa_failure",
+            "lockout"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "critical"
+          ]
+        },
+        "ip": {
+          "type": "string"
+        },
+        "detected_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "AuthUserDeleted": {
+      "title": "AuthUserDeleted",
+      "description": "payload of auth.user_deleted (v1). Consumers must erase or anonymise personal data they hold for this user.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_id",
+        "deleted_at"
+      ],
+      "properties": {
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "deleted_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     }
   }

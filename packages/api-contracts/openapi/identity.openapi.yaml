@@ -89,6 +89,27 @@ paths:
       responses:
         "204": { description: No Content }
         "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+  /auth/delete-account:
+    post:
+      operationId: authDeleteAccount
+      summary: Permanently delete the caller's account (password re-confirmation)
+      description: >
+        Anonymises the identifier, removes the credential and roles, revokes all sessions and emits
+        auth.user_deleted so every service erases or anonymises its data for this user.
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password]
+              properties: { password: { type: string, minLength: 1, maxLength: 256 } }
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
   /auth/introspect:
     post:
       operationId: authIntrospect

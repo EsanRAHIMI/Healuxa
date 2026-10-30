@@ -12,3 +12,7 @@ CREATE DATABASE concierge;
 CREATE DATABASE concierge_test;
 CREATE DATABASE notification;
 CREATE DATABASE notification_test;
+CREATE DATABASE payment;
+CREATE DATABASE payment_test;
+CREATE DATABASE subscription;
+CREATE DATABASE subscription_test;

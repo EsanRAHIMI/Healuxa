@@ -5,14 +5,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from healuxa_py_common.errors import ApiError, error_response
+from healuxa_py_common.events.outbox_mongo import OUTBOX_COLLECTION, MongoOutboxStore
+from healuxa_py_common.events.runtime import EventRuntime
 from healuxa_py_common.observability.metrics import metrics_payload
 from healuxa_py_common.observability.tracing import TraceMiddleware, configure_logging, get_trace_id
 
 from profile_service.api.profiles import router as profiles_router
 from profile_service.config import settings
-from healuxa_py_common.events.outbox_mongo import OUTBOX_COLLECTION, MongoOutboxStore
-from healuxa_py_common.events.runtime import EventRuntime
-
+from profile_service.consumers.user_deleted import build_consumer as build_user_deleted_consumer
 from profile_service.infra.mongo import close_client, ensure_indexes, get_database, ping_database
 
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
         if settings.nats_enabled:
             runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
             runtime.add_outbox(MongoOutboxStore(get_database()[OUTBOX_COLLECTION]))
+            runtime.add_consumer(build_user_deleted_consumer(runtime.connection))
             await runtime.start()
     try:
         yield

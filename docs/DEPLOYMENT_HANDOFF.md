@@ -7,6 +7,12 @@ contract between the codebase and the deployment. Nothing here has been deployed
 Status words: **Implemented / Tested** apply to code; **Deployed** is your job; nothing is
 **Externally approved** or **Published**.
 
+> **Quick path (Compose):** `infrastructure/production/docker-compose.yml` runs the whole backend,
+> including an nginx **gateway** (`infrastructure/production/gateway/nginx.conf`) that is the single public API
+> entry point: attach `api.<domain>` → `gateway:8080` in Dokploy. The gateway routes `/v1/*` to the owning
+> service, strips `X-Healuxa-*` headers, blocks internal endpoints and `/metrics`, and rate-limits.
+> Fill `infrastructure/production/env/*.env` from the `.env.example` files first.
+
 ## 1. What to deploy
 
 | Component | Path | Dockerfile (build context = repo root) | Port | Store | Migrations |
@@ -18,6 +24,8 @@ Status words: **Implemented / Tested** apply to code; **Deployed** is your job; 
 | provider-service | `services/provider-service` | `services/provider-service/Dockerfile` | 8005 | PostgreSQL `provider` | `alembic upgrade head` |
 | concierge-service | `services/concierge-service` | `services/concierge-service/Dockerfile` | 8021 | PostgreSQL `concierge` | `alembic upgrade head` |
 | notification-service | `services/notification-service` | `services/notification-service/Dockerfile` | 8022 | PostgreSQL `notification` | `alembic upgrade head` |
+| payment-service | `services/payment-service` | `services/payment-service/Dockerfile` | 8010 | PostgreSQL `payment` | `alembic upgrade head` |
+| subscription-service | `services/subscription-service` | `services/subscription-service/Dockerfile` | 8009 | PostgreSQL `subscription` | `alembic upgrade head` |
 
 Further components (appointment-service, web) are added to this table when their branches merge;
 check `docs/EXECUTION_LEDGER.md` for the current list before deploying.
@@ -141,3 +149,33 @@ Both follow sections 2–7 (same image facts, secret guard, pre-deploy `alembic 
   Run a single replica of the delivery worker per environment, or several — deliveries are leased
   with `SKIP LOCKED`.
 
+## 9. payment-service and subscription-service (added with feat/payment-service) — SANDBOX ONLY
+
+Same image facts, secret guard, pre-deploy `alembic upgrade head` and `/ready` probe as above. Identity
+migration `0010_payment_permissions` (after 0009) grants customers `payments:create|read`,
+`invoices:read`, `subscriptions:create|read|write`; `admin` additionally `payments:manage`,
+`payments:refund`, `finance:reconcile`, `subscriptions:manage`; and adds a `finance` role.
+
+**Public routes:** `/v1/payments*`, `/v1/payment-quotes*`, `/v1/invoices*` → payment-service (8010);
+`/v1/subscriptions*`, `/v1/plans*` → subscription-service (8009). `POST /v1/payments/webhooks/stripe` must be
+public (Stripe calls it; signature-verified on the raw body — do not let the proxy rewrite the body).
+Never route `/metrics` publicly.
+
+**payment-service env (names only):** `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `PAYMENT_GATEWAY`
+(`stripe` on servers; `fake` is refused outside development/test), `STRIPE_SECRET_KEY` (secret; `sk_test_`
+only), `STRIPE_PUBLISHABLE_KEY` (`pk_test_`), `STRIPE_WEBHOOK_SECRET` (secret, `whsec_`), `STRIPE_API_BASE`,
+`STRIPE_API_VERSION`, `STRIPE_TIMEOUT_SECONDS`, `WEBHOOK_TOLERANCE_SECONDS`, `PAYMENTS_LIVE_MODE` (keep
+`false`; live needs this **and** an `sk_live_` key **and** `APP_ENV=production`, else start-up is refused),
+`CURRENCY`, tax/pricing (pending accountant review): `PLATFORM_FEE_BPS`, `PLATFORM_FEE_FIXED_MINOR`,
+`PLATFORM_FEE_LABEL`, `VAT_NAME`, `VAT_RATES_BPS` (JSON), `TAX_CONFIG_REVIEWED`, `QUOTE_TTL_SECONDS`,
+`APPOINTMENT_CAPTURE_METHOD`, `REFUND_FULL_WINDOW_HOURS`, `REFUND_PARTIAL_PERCENT`, invoices:
+`INVOICE_NUMBER_PREFIX`, `SELLER_LEGAL_NAME`, `SELLER_TRN`, `SELLER_ADDRESS`; integrations:
+`PROVIDER_SERVICE_URL`, `MEMBERSHIP_PAYMENTS_ENABLED`. `NATS_ENABLED=true` starts the outbox relay and the
+appointment.* / subscription.* consumers.
+
+**subscription-service env:** `DATABASE_URL`, `IDENTITY_INTROSPECT_URL`, `MEMBERSHIPS_ENABLED` (keep `false`
+until commercial approval — the API answers 404), `CURRENCY`. Consumes `payment.succeeded|failed|billing_agreement_updated`.
+
+Stripe dashboard (sandbox): webhook endpoint `https://api.<domain>/v1/payments/webhooks/stripe` with events
+`payment_intent.*`, `refund.*`, `charge.refund.updated`, `charge.dispute.*`, `invoice.paid`,
+`invoice.payment_failed`, `customer.subscription.*`.

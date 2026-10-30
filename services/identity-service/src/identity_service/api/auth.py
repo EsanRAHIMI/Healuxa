@@ -18,6 +18,7 @@ from identity_service.api.deps import (
 from identity_service.domain.auth_service import auth_service
 from identity_service.domain.idempotency import validate_idempotency_key
 from identity_service.domain.schemas import (
+    DeleteAccountRequest,
     IntrospectRequest,
     IntrospectionResponse,
     LoginRequest,
@@ -109,3 +110,15 @@ async def issue_service_token(
 
     client_id = client_id or settings.service_auth_client_id
     return await auth_service.issue_service_token(db, client_id, client_secret or settings.service_auth_client_secret)
+
+
+@router.post("/delete-account", status_code=status.HTTP_204_NO_CONTENT)
+async def auth_delete_account(
+    body: DeleteAccountRequest,
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis_client),
+    principal=Depends(get_current_principal),
+) -> Response:
+    """Permanently deletes the caller's account (re-authenticated with the password)."""
+    await auth_service.delete_account(db, redis, user_id=principal.user_id, password=body.password)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
