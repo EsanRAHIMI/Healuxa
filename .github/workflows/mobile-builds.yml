@@ -57,7 +57,8 @@ jobs:
           retention-days: 7
 
   ios-simulator:
-    runs-on: macos-15
+    # React Native 0.86 / Expo SDK 57 need a current Xcode (built locally with Xcode 27.1).
+    runs-on: macos-26
     timeout-minutes: 90
     env:
       APP_ENV: production
@@ -66,6 +67,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - name: Install workspace dependencies
         run: npm install
       - name: Generate native iOS project and install pods
@@ -74,7 +78,10 @@ jobs:
       - name: xcodebuild (Debug, iOS Simulator)
         working-directory: apps/mobile/ios
         run: |
-          set -o pipefail
-          xcodebuild -workspace Healuxa.xcworkspace -scheme Healuxa -configuration Debug \
+          xcodebuild -version
+          if ! xcodebuild -workspace Healuxa.xcworkspace -scheme Healuxa -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build | tail -n 50
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build > xcodebuild.log 2>&1; then
+            grep -E "error:|fatal" xcodebuild.log | head -n 40; tail -n 80 xcodebuild.log; exit 1
+          fi
+          tail -n 5 xcodebuild.log
