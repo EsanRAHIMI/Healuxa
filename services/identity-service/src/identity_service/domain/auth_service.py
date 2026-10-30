@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from healuxa_py_common.errors import ApiError
 from healuxa_py_common.events.envelope import EventActor
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -378,6 +378,43 @@ class AuthService:
         result = await db.execute(select(JwksKey))
         keys = list(result.scalars())
         return jwt_service.decode_access_token(token, keys)
+
+    async def delete_account(self, db: AsyncSession, redis, *, user_id: str, password: str) -> None:
+        """Self-service account deletion (App Store / Play requirement, GDPR erasure).
+
+        Re-authenticates with the password, then in one transaction: anonymises the identifier
+        (frees the e-mail for re-registration), drops credential and roles, revokes every session
+        and stages ``auth.user_deleted`` so other services erase or anonymise their own data.
+        Login history is kept for security audit but detached from the identifier.
+        """
+        user = await db.scalar(
+            select(User).options(selectinload(User.credential)).where(User.id == user_id).with_for_update()
+        )
+        if user is None or user.status == "deleted" or user.credential is None:
+            raise ApiError(status=404, code="not_found", title="Not found", detail="Account not found")
+        if not verify_password(password, user.credential.password_hash):
+            raise ApiError(status=401, code="unauthorized", title="Unauthorized", detail="Invalid credentials")
+        now = utcnow()
+        original_identifier = user.identifier
+        user.identifier = f"deleted:{user.id}"
+        user.status = "deleted"
+        user.locale = None
+        await db.delete(user.credential)
+        await db.execute(delete(UserRole).where(UserRole.user_id == user.id))
+        await db.execute(
+            LoginHistory.__table__.update()
+            .where(LoginHistory.identifier == original_identifier)
+            .values(identifier=f"deleted:{user.id}")
+        )
+        await event_publisher.publish(
+            db=db,
+            event_type="auth.user_deleted",
+            tenant_id=user.tenant_id,
+            payload={"user_id": user.id, "deleted_at": now.isoformat()},
+            actor=EventActor(type="user", id=user.id),
+        )
+        # Commits the whole deletion together with the session revocation.
+        await self._revoke_all_user_sessions(db, redis, user.id, reason="account_deleted")
 
     async def _revoke_all_user_sessions(self, db: AsyncSession, redis, user_id: str, *, reason: str) -> None:
         result = await db.execute(

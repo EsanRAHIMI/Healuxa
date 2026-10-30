@@ -67,3 +67,9 @@ class RoleResponse(BaseModel):
     name: str
     permissions: list[str]
     tenant_id: str | None = None
+
+
+class DeleteAccountRequest(BaseModel):
+    """Password re-confirmation for self-service account deletion."""
+
+    password: str = Field(min_length=1, max_length=256)

@@ -122,6 +122,7 @@ export const EVENTS = {
 
   "auth.user_registered": { type: "auth.user_registered", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthUserRegistered", consumers: ["profile-service", "crm-service", "monitoring-service"] },
   "auth.session_revoked": { type: "auth.session_revoked", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSessionRevoked", consumers: ["realtime-gateway", "monitoring-service"] },
+  "auth.user_deleted": { type: "auth.user_deleted", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthUserDeleted", consumers: ["profile-service", "assessment-service", "notification-service", "concierge-service", "appointment-service", "provider-service", "monitoring-service"] },
   "auth.security_event": { type: "auth.security_event", stream: "IDENTITY", owner: "identity-service", version: 1, schema: "schemas/identity.schema.json#/$defs/AuthSecurityEvent", consumers: ["monitoring-service"] },
 
   // ── Concierge (concierge-service) ──────────────────────────────────────────
