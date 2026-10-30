@@ -136,6 +136,8 @@ async def _stage_status_event(
         tenant_id=provider.tenant_id,
         payload={
             "provider_id": provider.id,
+            # Owner id lets notification-service route provider notifications without a lookup.
+            "owner_user_id": provider.user_id,
             "previous_status": previous,
             "status": provider.status,
             "verification_status": provider.verification_status,

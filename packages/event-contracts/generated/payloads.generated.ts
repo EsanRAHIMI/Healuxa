@@ -602,6 +602,10 @@ export interface CatalogProviderStatusChanged {
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
   changed_at: string;
+  /**
+   * Account that owns the provider profile; lets consumers route notifications without calling provider-service.
+   */
+  owner_user_id?: string;
 }
 
 /**
@@ -660,6 +664,24 @@ export interface CatalogAvailabilityChanged {
   provider_id: string;
   branch_id?: string | null;
   change: "rule_added" | "rule_removed" | "exception_added" | "operating_hours_replaced";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  changed_at: string;
+}
+
+/**
+ * payload of catalog.facility_staff_changed (v1). Facility membership changes, so consumers can keep recipient lists current.
+ */
+
+export interface CatalogFacilityStaffChanged {
+  /**
+   * ULID or UUID identifier.
+   */
+  facility_id: string;
+  user_id: string;
+  role?: "facility_admin" | "scheduler" | "billing" | null;
+  change: "added" | "removed";
   /**
    * RFC 3339 / ISO 8601 timestamp in UTC.
    */
