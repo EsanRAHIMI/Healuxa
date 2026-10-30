@@ -47,7 +47,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: BUNDLE_ID,
     buildNumber: '1',
     supportsTablet: false,
-    associatedDomains: [`applinks:${LINK_DOMAIN}`],
+    // applinks: universal links; webcredentials: password AutoFill for the sign-in form.
+    associatedDomains: [`applinks:${LINK_DOMAIN}`, `webcredentials:${LINK_DOMAIN}`],
     config: { usesNonExemptEncryption: false },
     infoPlist: {
       CFBundleAllowMixedLocalizations: true,

@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID.ae.healuxa.app"],
+        "components": [
+          { "/": "/providers/*", "comment": "Provider profile" },
+          { "/": "/facilities/*", "comment": "Facility page" },
+          { "/": "/services", "comment": "Services catalog" },
+          { "/": "/services/*", "comment": "Services catalog" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["APPLE_TEAM_ID.ae.healuxa.app"]
+  }
+}
