@@ -142,7 +142,7 @@ export async function decideAffiliationAction(_prev: FormState, fd: FormData): P
     const api = await userApi();
     await unwrap(api.provider.POST("/affiliations/{affiliation_id}/decision", { params: { path: { affiliation_id: str(fd, "affiliation_id") } }, body: { decision } }));
     revalidatePath(`/${locale}`, "layout");
-    return getT(locale)(`pp.affiliation_${decision}d`);
+    return getT(locale)({ approve: "pp.affiliationApproved", decline: "pp.affiliationDeclined", end: "pp.affiliationEnded" }[decision]);
   });
 }
 
