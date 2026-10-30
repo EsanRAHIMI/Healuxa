@@ -293,6 +293,20 @@ services:
     depends_on:
       identity-service: { condition: service_healthy }
 
+  # Next.js web platform (public site + customer/provider/facility/admin portals). All API calls are
+  # server-side, through the gateway on the private network. Attach the main domain → web:3000.
+  web:
+    <<: *service
+    build: { context: ../.., dockerfile: apps/web/Dockerfile }
+    image: healuxa/web:latest
+    env_file: [env/web.env]
+    environment:
+      API_BASE_URL: http://gateway:8080
+      PORT: "3000"
+    expose: ["3000"]
+    depends_on:
+      gateway: { condition: service_healthy }
+
 networks:
   healuxa:
     name: healuxa
