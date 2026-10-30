@@ -17,6 +17,7 @@ from sqlalchemy import text
 from appointment_service.api.appointments import router as appointments_router
 from appointment_service.clients.provider_directory import HttpProviderDirectory, ServiceTokenSource
 from appointment_service.config import settings
+from appointment_service.consumers.payments import build_consumers as build_payment_consumers
 from appointment_service.domain.sweeper import run_forever
 from appointment_service.infra.db import SessionLocal, engine
 from appointment_service.infra.models import OUTBOX
@@ -38,6 +39,8 @@ async def lifespan(app: FastAPI):
     if settings.nats_enabled:
         runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
         runtime.add_outbox(SqlOutboxStore(SessionLocal, OUTBOX))
+        for consumer in build_payment_consumers(runtime.connection):
+            runtime.add_consumer(consumer)
         await runtime.start()
     stop = asyncio.Event()
     sweeper: asyncio.Task[None] | None = None
