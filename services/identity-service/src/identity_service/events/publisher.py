@@ -12,6 +12,7 @@ IDENTITY_EVENTS = {
     "auth.user_registered": {"identity-service"},
     "auth.session_revoked": {"identity-service"},
     "auth.security_event": {"identity-service"},
+    "auth.user_deleted": {"identity-service"},
 }
 
 

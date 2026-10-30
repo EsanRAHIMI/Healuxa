@@ -966,6 +966,21 @@ export interface AuthSecurityEvent {
   detected_at: string;
 }
 
+/**
+ * payload of auth.user_deleted (v1). Consumers must erase or anonymise personal data they hold for this user.
+ */
+
+export interface AuthUserDeleted {
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  deleted_at: string;
+}
+
 export interface JourneyRef {
   /**
    * ULID or UUID identifier.
