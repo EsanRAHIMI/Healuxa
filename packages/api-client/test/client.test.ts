@@ -183,7 +183,7 @@ describe("createHealuxaClient", () => {
         json(422, { detail: [{ type: "string_too_short", loc: ["body", "display_name"], msg: "String should have at least 2 characters" }] }),
     });
     const error = await unwrap(
-      client.provider.POST("/providers", { body: { type: "doctor", display_name: "x", specialties: ["a"], languages: ["en"] } }),
+      client.provider.POST("/providers", { body: { accept_content_license: true, type: "doctor", display_name: "x", specialties: ["a"], languages: ["en"] } }),
     ).catch((e) => e);
     expect(error).toBeInstanceOf(ValidationError);
     expect(error.fieldMessage("display_name")).toBe("String should have at least 2 characters");
