@@ -50,6 +50,9 @@ def from_minutes(total: int) -> str:
 
 
 class ProviderInput(StrictModel):
+    # Required: the owner confirms they hold the rights to this information and licenses Healuxa to
+    # publish it (Content Rights). Recorded with version and timestamp.
+    accept_content_license: Literal[True]
     type: ProviderType
     display_name: str = Field(min_length=2, max_length=160)
     title: str | None = Field(default=None, max_length=160)
@@ -61,6 +64,7 @@ class ProviderInput(StrictModel):
 
 
 class ProviderPatch(StrictModel):
+    accept_content_license: Literal[True] | None = None
     display_name: str | None = Field(default=None, min_length=2, max_length=160)
     title: str | None = Field(default=None, max_length=160)
     bio: dict[str, str] | None = None
@@ -95,6 +99,8 @@ class Provider(BaseModel):
     verification_status: VerificationStatus
     verified_credentials: list[VerifiedCredentialSummary]
     user_id: str | None = None
+    content_license_version: str | None = None
+    content_license_accepted_at: datetime | None = None
     version: int
     created_at: datetime
     updated_at: datetime
@@ -149,6 +155,9 @@ class ReviewDecision(StrictModel):
 
 
 class FacilityInput(StrictModel):
+    # Required: the owner confirms they hold the rights to this information and licenses Healuxa to
+    # publish it (Content Rights). Recorded with version and timestamp.
+    accept_content_license: Literal[True]
     type: FacilityType
     name: str = Field(min_length=2, max_length=200)
     description: dict[str, str] | None = None
@@ -161,6 +170,7 @@ class FacilityInput(StrictModel):
 
 
 class FacilityPatch(StrictModel):
+    accept_content_license: Literal[True] | None = None
     name: str | None = Field(default=None, min_length=2, max_length=200)
     description: dict[str, str] | None = None
     website: str | None = Field(default=None, max_length=300)
@@ -180,6 +190,8 @@ class Facility(BaseModel):
     phone: str | None
     status: ProviderStatus
     verification_status: VerificationStatus
+    content_license_version: str | None = None
+    content_license_accepted_at: datetime | None = None
     created_at: datetime
 
 

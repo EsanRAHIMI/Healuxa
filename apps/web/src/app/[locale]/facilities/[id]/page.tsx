@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { StatusBadge, VerificationBadge } from "@/components/domain/badges";
 import { OfferingCard } from "@/components/domain/cards";
 import { JsonLd } from "@/components/domain/JsonLd";
+import { ReportContentLink } from "@/components/domain/ReportContentLink";
 import { OpeningHoursTable } from "@/components/domain/OpeningHours";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
 import { Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
@@ -129,6 +130,7 @@ export default async function FacilityPage({ params }: Props) {
           </ul>
         )}
       </Section>
+      <ReportContentLink locale={locale} url={url} kind="facility" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { applyProviderAction } from "@/actions/provider";
 import { StatusBadge, VerificationBadge } from "@/components/domain/badges";
 import { SubmitButton } from "@/components/forms/fields";
+import { ContentLicenseField } from "@/components/forms/ContentLicenseField";
 import { Form } from "@/components/forms/Form";
 import { ProviderProfileFields } from "@/components/portal/ProviderProfileFields";
 import { Alert, Card, DefinitionList, PageHeader } from "@/components/ui/primitives";
@@ -27,6 +28,7 @@ export default async function ProviderHome({ params }: { params: Promise<{ local
           <Card>
             <Form action={applyProviderAction} locale={locale} label={t("pp.applyTitle")} showSuccess={false} hidden={{ idempotency_key: newIdempotencyKey("prov") }} testId="apply-form">
               <ProviderProfileFields locale={locale} withType />
+              <ContentLicenseField locale={locale} />
               <div className="mt-6">
                 <SubmitButton pendingLabel={t("pp.submitting")}>{t("pp.submitApplication")}</SubmitButton>
               </div>

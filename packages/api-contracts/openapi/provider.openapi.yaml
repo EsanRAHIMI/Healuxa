@@ -919,6 +919,8 @@ components:
       type: object
       required: [id, type, display_name, specialties, languages, status, verification_status]
       properties:
+        content_license_version: { type: [string, "null"], readOnly: true, description: "Owner/staff view only." }
+        content_license_accepted_at: { type: [string, "null"], format: date-time, readOnly: true, description: "Owner/staff view only." }
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         type: { $ref: "#/components/schemas/ProviderType" }
         display_name: { type: string }
@@ -947,8 +949,14 @@ components:
     ProviderInput:
       type: object
       additionalProperties: false
-      required: [type, display_name, specialties, languages]
+      required: [accept_content_license, type, display_name, specialties, languages]
       properties:
+        accept_content_license:
+          type: boolean
+          const: true
+          description: >
+            Content Rights: the owner confirms they hold the rights to this information and grants Healuxa
+            a licence to publish it. Required; recorded with licence version and timestamp.
         type: { $ref: "#/components/schemas/ProviderType" }
         display_name: { type: string, minLength: 2, maxLength: 160 }
         title: { type: string, maxLength: 160 }
@@ -959,6 +967,10 @@ components:
       type: object
       additionalProperties: false
       properties:
+        accept_content_license:
+          type: boolean
+          const: true
+          description: (Re-)accept the current content publication licence.
         display_name: { type: string, minLength: 2, maxLength: 160 }
         title: { type: string, maxLength: 160 }
         bio: { $ref: "#/components/schemas/LocalizedText" }
@@ -1023,6 +1035,8 @@ components:
       type: object
       required: [id, type, name, status, verification_status]
       properties:
+        content_license_version: { type: [string, "null"], readOnly: true, description: "Owner/staff view only." }
+        content_license_accepted_at: { type: [string, "null"], format: date-time, readOnly: true, description: "Owner/staff view only." }
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         type: { $ref: "#/components/schemas/FacilityType" }
         name: { type: string }
@@ -1037,8 +1051,14 @@ components:
     FacilityInput:
       type: object
       additionalProperties: false
-      required: [type, name, license_authority, license_number]
+      required: [accept_content_license, type, name, license_authority, license_number]
       properties:
+        accept_content_license:
+          type: boolean
+          const: true
+          description: >
+            Content Rights: the owner confirms they hold the rights to this information and grants Healuxa
+            a licence to publish it. Required; recorded with licence version and timestamp.
         type: { $ref: "#/components/schemas/FacilityType" }
         name: { type: string, minLength: 2, maxLength: 200 }
         description: { $ref: "#/components/schemas/LocalizedText" }
@@ -1050,6 +1070,10 @@ components:
       type: object
       additionalProperties: false
       properties:
+        accept_content_license:
+          type: boolean
+          const: true
+          description: (Re-)accept the current content publication licence.
         name: { type: string, minLength: 2, maxLength: 200 }
         description: { $ref: "#/components/schemas/LocalizedText" }
         website: { type: string, maxLength: 300 }

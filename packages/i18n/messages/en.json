@@ -330,6 +330,43 @@
           "body": "You can delete cookies in your browser settings. Deleting essential cookies signs you out."
         }
       }
+    },
+    "content": {
+      "title": "Content rights",
+      "lead": "Where the practitioner and facility information on Healuxa comes from, and on what basis we publish it.",
+      "sections": {
+        "source": {
+          "title": "Who provides the content",
+          "body": "Every practitioner and facility profile — names, titles, biographies, specialties, languages, services, prices, addresses and opening hours — is submitted by that practitioner or facility (or a person they authorise) through Healuxa's practitioner and facility portals. Healuxa does not copy profiles from other websites or directories."
+        },
+        "licence": {
+          "title": "Licence to publish",
+          "body": "When submitting a profile, the practitioner or facility confirms that they own the information or have the right to share it, and grants Healuxa a non-exclusive, royalty-free licence to store, display and publish it on the Healuxa website and apps for as long as the profile is active. The licence version and the time of acceptance are recorded for each profile. A profile is not published until this licence has been accepted."
+        },
+        "verification": {
+          "title": "Verification",
+          "body": "Before a profile becomes public, Healuxa verifies the practitioner's professional licence with the issuing authority (for example DHA, DOH or MOHAP) and the facility's licence. Only a summary of verified credentials is shown publicly; licence numbers and documents are never published."
+        },
+        "ownership": {
+          "title": "Ownership",
+          "body": "Practitioners and facilities keep ownership of their content. Healuxa's own text, design, logos and software belong to Healuxa. Trademarks of clinics and hospitals belong to their owners and are shown only on profiles those owners submitted."
+        },
+        "removal": {
+          "title": "Corrections and removal",
+          "body": "Profile owners can edit or withdraw their information at any time in the portal. If you believe content on Healuxa infringes your rights or is inaccurate, report it using \"Report this content\" on the profile or contact us; we review reports promptly and remove infringing content."
+        },
+        "contact": {
+          "title": "Contact",
+          "body": "Content and rights requests: use the support e-mail shown in the app or on the contact page, and include the profile link and the reason for your request."
+        }
+      }
+    },
+    "contentLicense": {
+      "accept": "I confirm I own this information or have the right to share it, and I license Healuxa to publish it on its website and apps.",
+      "hint": "Read the content rights terms before submitting.",
+      "link": "Content rights terms",
+      "required": "You must accept the content licence to publish a profile.",
+      "report": "Report this content"
     }
   },
   "consent": {

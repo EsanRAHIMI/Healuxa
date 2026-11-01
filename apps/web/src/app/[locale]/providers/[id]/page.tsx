@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { CheckIcon } from "@/components/domain/badges";
 import { OfferingCard, specialtyLabel } from "@/components/domain/cards";
 import { JsonLd } from "@/components/domain/JsonLd";
+import { ReportContentLink } from "@/components/domain/ReportContentLink";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
 import { Badge, ButtonLink, Card, DefinitionList, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
 import { getPublicProvider, listPublicServices, offeringContext } from "@/lib/catalog";
@@ -144,6 +145,7 @@ export default async function ProviderProfilePage({ params }: Props) {
           </Card>
         </aside>
       </div>
+      <ReportContentLink locale={locale} url={url} kind="provider" />
     </div>
   );
 }

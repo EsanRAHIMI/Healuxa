@@ -54,6 +54,11 @@ class Provider(Base):
     success_score: Mapped[float | None] = mapped_column(Float)
     creation_key: Mapped[str | None] = mapped_column(String(128))
     version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # Content publication licence (App Store "Content Rights"): the profile owner grants Healuxa the
+    # right to publish this profile's information. Public visibility requires an accepted licence.
+    content_license_version: Mapped[str | None] = mapped_column(String(32))
+    content_license_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    content_license_accepted_by: Mapped[str | None] = mapped_column(String(36))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -107,6 +112,11 @@ class Facility(Base):
     review_note: Mapped[str | None] = mapped_column(Text)
     created_by: Mapped[str] = mapped_column(String(36), nullable=False)
     creation_key: Mapped[str | None] = mapped_column(String(128))
+    # Content publication licence (App Store "Content Rights"): the profile owner grants Healuxa the
+    # right to publish this profile's information. Public visibility requires an accepted licence.
+    content_license_version: Mapped[str | None] = mapped_column(String(32))
+    content_license_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    content_license_accepted_by: Mapped[str | None] = mapped_column(String(36))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

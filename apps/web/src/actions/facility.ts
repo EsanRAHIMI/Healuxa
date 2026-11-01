@@ -34,6 +34,7 @@ export async function registerFacilityAction(_prev: FormState, fd: FormData): Pr
     if (str(fd, "name").length < 2) errors.name = t("fp.errName");
     if (str(fd, "license_authority").length < 2) errors.license_authority = t("pp.errAuthority");
     if (str(fd, "license_number").length < 2) errors.license_number = t("pp.errNumber");
+    if (fd.get("accept_content_license") !== "on") errors.accept_content_license = t("legal.contentLicense.required");
     const website = optStr(fd, "website");
     if (website && !/^https:\/\/[^\s]+\.[^\s]+$/.test(website)) errors.website = t("fp.errWebsite");
     if (Object.keys(errors).length) return invalid(locale, errors);
@@ -42,6 +43,7 @@ export async function registerFacilityAction(_prev: FormState, fd: FormData): Pr
       api.provider.POST("/facilities", {
         params: { header: idempotencyHeader(str(fd, "idempotency_key") || undefined) },
         body: {
+          accept_content_license: true,
           type: type as FacilityType,
           name: str(fd, "name"),
           license_authority: str(fd, "license_authority"),

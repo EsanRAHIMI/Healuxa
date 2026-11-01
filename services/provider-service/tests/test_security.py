@@ -9,7 +9,7 @@ from helpers import create_provider, new_user, ok, practice, staff, user
 
 async def test_forged_identity_headers_are_rejected(client: AsyncClient) -> None:
     forged = {"X-Healuxa-User": new_user(), "X-Healuxa-Perms": "providers:onboard,providers:verify"}
-    response = await client.post("/v1/providers", json={"type": "doctor", "display_name": "Dr. X", "specialties": ["x"], "languages": ["en"]}, headers=forged)
+    response = await client.post("/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. X", "specialties": ["x"], "languages": ["en"]}, headers=forged)
     assert response.status_code == 401
 
 
@@ -17,7 +17,7 @@ async def test_missing_permission_is_forbidden(client: AsyncClient) -> None:
     from provider_service.api.deps import principal_headers
 
     no_perms = principal_headers(new_user(), permissions="")
-    response = await client.post("/v1/providers", json={"type": "doctor", "display_name": "Dr. X", "specialties": ["x"], "languages": ["en"]}, headers=no_perms)
+    response = await client.post("/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. X", "specialties": ["x"], "languages": ["en"]}, headers=no_perms)
     assert response.status_code == 403
 
 
