@@ -48,13 +48,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'Healuxa',
   slug: 'healuxa',
   owner: process.env.EXPO_OWNER,
-  version: '0.1.0',
+  version: '1.0.0',
   orientation: 'portrait',
   scheme: 'healuxa',
   userInterfaceStyle: 'automatic',
   icon: './assets/icon.png',
   ios: {
     bundleIdentifier: BUNDLE_ID,
+    appleTeamId: '4A6WSFKR2T',
     buildNumber: '1',
     supportsTablet: false,
     // applinks: universal links; webcredentials: password AutoFill for the sign-in form.
@@ -189,7 +190,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     notificationBaseUrl,
     linkDomain: LINK_DOMAIN,
     supportEmail: process.env.SUPPORT_EMAIL ?? 'privacy@healuxa.ae',
-    privacyPolicyUrl: process.env.PRIVACY_POLICY_URL ?? `https://${LINK_DOMAIN}/privacy`,
+    privacyPolicyUrl: process.env.PRIVACY_POLICY_URL ?? `https://${LINK_DOMAIN}/en/legal/privacy`,
     features: {
       push: process.env.FEATURE_PUSH !== '0',
     },
