@@ -41,12 +41,14 @@ export async function applyProviderAction(_prev: FormState, fd: FormData): Promi
     const type = str(fd, "type") as ProviderType;
     const errors = profileErrors(fd, t);
     if (!PROVIDER_TYPES.includes(type as (typeof PROVIDER_TYPES)[number])) errors.type = t("pp.errType");
+    if (fd.get("accept_content_license") !== "on") errors.accept_content_license = t("legal.contentLicense.required");
     if (Object.keys(errors).length) return invalid(locale, errors);
     const api = await userApi();
     await unwrap(
       api.provider.POST("/providers", {
         params: { header: idempotencyHeader(str(fd, "idempotency_key") || undefined) },
         body: {
+          accept_content_license: true,
           type,
           display_name: str(fd, "display_name"),
           ...(optStr(fd, "title") ? { title: str(fd, "title") } : {}),

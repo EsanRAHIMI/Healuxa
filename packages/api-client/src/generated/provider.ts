@@ -635,6 +635,13 @@ export interface components {
             [key: string]: string;
         };
         Provider: {
+            /** @description Owner/staff view only. */
+            readonly content_license_version?: string | null;
+            /**
+             * Format: date-time
+             * @description Owner/staff view only.
+             */
+            readonly content_license_accepted_at?: string | null;
             id: components["schemas"]["Id"];
             type: components["schemas"]["ProviderType"];
             display_name: string;
@@ -663,6 +670,11 @@ export interface components {
             updated_at?: components["schemas"]["Timestamp"];
         };
         ProviderInput: {
+            /**
+             * @description Content Rights: the owner confirms they hold the rights to this information and grants Healuxa a licence to publish it. Required; recorded with licence version and timestamp.
+             * @constant
+             */
+            accept_content_license: true;
             type: components["schemas"]["ProviderType"];
             display_name: string;
             title?: string;
@@ -671,6 +683,11 @@ export interface components {
             languages: string[];
         };
         ProviderPatch: {
+            /**
+             * @description (Re-)accept the current content publication licence.
+             * @constant
+             */
+            accept_content_license?: true;
             display_name?: string;
             title?: string;
             bio?: components["schemas"]["LocalizedText"];
@@ -727,6 +744,13 @@ export interface components {
         /** @enum {string} */
         FacilityType: "clinic" | "hospital" | "medical_center" | "day_surgery" | "diagnostic_center" | "pharmacy" | "wellness_center";
         Facility: {
+            /** @description Owner/staff view only. */
+            readonly content_license_version?: string | null;
+            /**
+             * Format: date-time
+             * @description Owner/staff view only.
+             */
+            readonly content_license_accepted_at?: string | null;
             id: components["schemas"]["Id"];
             type: components["schemas"]["FacilityType"];
             name: string;
@@ -743,6 +767,11 @@ export interface components {
             created_at?: components["schemas"]["Timestamp"];
         };
         FacilityInput: {
+            /**
+             * @description Content Rights: the owner confirms they hold the rights to this information and grants Healuxa a licence to publish it. Required; recorded with licence version and timestamp.
+             * @constant
+             */
+            accept_content_license: true;
             type: components["schemas"]["FacilityType"];
             name: string;
             description?: components["schemas"]["LocalizedText"];
@@ -752,6 +781,11 @@ export interface components {
             phone?: string;
         };
         FacilityPatch: {
+            /**
+             * @description (Re-)accept the current content publication licence.
+             * @constant
+             */
+            accept_content_license?: true;
             name?: string;
             description?: components["schemas"]["LocalizedText"];
             website?: string;

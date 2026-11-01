@@ -260,6 +260,22 @@ export const en = {
   'prefs.saved': 'Preferences saved.',
   'notifications.registered': 'This device will receive push notifications.',
   'notifications.tokenUnavailable': 'This device could not provide a push token, so nothing was registered.',
+
+  // Content Rights (App Store): provenance and licence of practitioner/facility content.
+  'rights.title': 'Content rights',
+  'rights.lead': 'Where practitioner and facility information comes from, and on what basis Healuxa publishes it.',
+  'rights.source.title': 'Who provides the content',
+  'rights.source.body': 'Every practitioner and facility profile — names, titles, biographies, specialties, languages, services, prices, addresses and opening hours — is submitted by that practitioner or facility (or someone they authorise) through Healuxa\'s portals. Healuxa does not copy profiles from other websites or directories.',
+  'rights.licence.title': 'Licence to publish',
+  'rights.licence.body': 'When submitting a profile, the practitioner or facility confirms they own the information or have the right to share it, and grants Healuxa a non-exclusive, royalty-free licence to publish it on Healuxa\'s website and apps while the profile is active. The accepted licence version and time are recorded, and no profile is published without it.',
+  'rights.verification.title': 'Verification',
+  'rights.verification.body': 'Before a profile is public, Healuxa verifies the practitioner\'s professional licence with the issuing authority (such as DHA, DOH or MOHAP) and the facility\'s licence. Only a summary of verified credentials is shown; licence numbers and documents are never published.',
+  'rights.ownership.title': 'Ownership',
+  'rights.ownership.body': 'Practitioners and facilities keep ownership of their content. Clinic and hospital names and logos belong to their owners and appear only on profiles those owners submitted. Healuxa\'s own text, design and software belong to Healuxa.',
+  'rights.removal.title': 'Corrections and removal',
+  'rights.removal.body': 'Profile owners can edit or withdraw their information at any time. If content infringes your rights or is inaccurate, tap "Report this content" on the profile or email us; we review reports promptly and remove infringing content.',
+  'rights.report': 'Report this content',
+  'rights.contact': 'Email content & rights requests',
 } as const;
 
 export type MessageKey = keyof typeof en;

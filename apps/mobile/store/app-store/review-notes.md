@@ -26,3 +26,7 @@
 treat. Practitioners are independently licensed by DHA / DOH / MOHAP.
 
 **Contact** — `<review contact name, phone, email>`
+
+## Content Rights
+
+See `content-rights.md` for the App Store Connect answer and the review note explaining how practitioner and facility content is licensed (in-app: Account → Content rights; every profile has "Report this content").

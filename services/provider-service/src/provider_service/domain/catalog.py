@@ -63,8 +63,10 @@ def _bookable(stmt):
             ServiceOffering.status == "active",
             Provider.status == "active",
             Provider.verification_status == "verified",
+            Provider.content_license_accepted_at.is_not(None),
             Facility.status == "active",
             Facility.verification_status == "verified",
+            Facility.content_license_accepted_at.is_not(None),
         )
     )
 

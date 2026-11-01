@@ -38,6 +38,7 @@ export function Footer({ locale, theme }: { locale: Locale; theme: "light" | "da
       links: [
         { href: `/${locale}/legal/privacy`, label: t("nav.privacy") },
         { href: `/${locale}/legal/terms`, label: t("nav.terms") },
+        { href: `/${locale}/legal/content-rights`, label: t("legal.content.title") },
         { href: `/${locale}/legal/cookies`, label: t("nav.cookies") },
       ],
     },

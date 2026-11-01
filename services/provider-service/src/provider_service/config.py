@@ -13,6 +13,9 @@ class Settings(ServiceSettings):
     service_auth_client_id: str = "healuxa-internal"
     service_auth_client_secret: str = "dev-service-secret-change-me"
     supported_currencies: list[str] = ["AED"]
+    # Version of the content publication licence profile owners accept (see legal/content-licence).
+    # Bump it when the licence text changes; owners then re-accept via PATCH accept_content_license.
+    content_license_version: str = "2026-11-01"
     # Public directory lookups run in this tenant when the caller is anonymous.
     public_tenant: str = "healuxa-dubai"
 

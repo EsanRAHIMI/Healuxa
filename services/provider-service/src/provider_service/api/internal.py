@@ -198,8 +198,10 @@ async def get_scheduling_context(
         offering.status == "active"
         and provider.status == "active"
         and provider.verification_status == "verified"
+        and provider.content_license_accepted_at is not None
         and facility.status == "active"
         and facility.verification_status == "verified"
+        and facility.content_license_accepted_at is not None
         and branch.status == "active"
         and affiliation_active
     )

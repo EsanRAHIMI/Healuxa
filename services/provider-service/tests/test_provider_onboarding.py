@@ -24,10 +24,10 @@ async def test_application_starts_pending_and_unverified(client: AsyncClient) ->
 async def test_one_profile_per_account_and_idempotent_replay(client: AsyncClient) -> None:
     owner = new_user()
     headers = {**user(owner), "Idempotency-Key": "onboard-1"}
-    first = await ok(await client.post("/v1/providers", json={"type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=headers), 201)
-    replay = await ok(await client.post("/v1/providers", json={"type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=headers), 201)
+    first = await ok(await client.post("/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=headers), 201)
+    replay = await ok(await client.post("/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=headers), 201)
     assert replay["id"] == first["id"]
-    again = await client.post("/v1/providers", json={"type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=user(owner))
+    again = await client.post("/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. A", "specialties": ["x"], "languages": ["en"]}, headers=user(owner))
     assert again.status_code == 409
 
 
@@ -155,7 +155,7 @@ async def test_status_events_are_staged(client: AsyncClient) -> None:
 async def test_unknown_language_tag_rejected(client: AsyncClient) -> None:
     response = await client.post(
         "/v1/providers",
-        json={"type": "doctor", "display_name": "Dr. B", "specialties": ["x"], "languages": ["en"], "bio": {"xx": "?"}},
+        json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. B", "specialties": ["x"], "languages": ["en"], "bio": {"xx": "?"}},
         headers=user(str(ULID())),
     )
     assert response.status_code == 422

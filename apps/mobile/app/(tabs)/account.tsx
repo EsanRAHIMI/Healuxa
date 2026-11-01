@@ -94,6 +94,7 @@ export default function Account() {
         {signedIn ? item('mail-unread-outline', 'inbox.title', '/notifications', 'account-inbox') : null}
         {signedIn ? item('notifications-outline', 'prefs.title', '/account/notifications', 'account-notifications') : null}
         <Item icon="document-text-outline" label={t('account.privacy')} onPress={() => Linking.openURL(config.privacyPolicyUrl)} />
+        {item('ribbon-outline', 'rights.title', '/account/content-rights', 'account-content-rights')}
         {signedIn ? item('trash-outline', 'account.delete', '/account/delete', 'account-delete', true) : null}
       </Card>
 

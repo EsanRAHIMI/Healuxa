@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-const STATIC = ["", "/services", "/providers", "/facilities", "/how-it-works", "/medical-travel", "/faq", "/contact", "/legal/privacy", "/legal/terms", "/legal/cookies"];
+const STATIC = ["", "/services", "/providers", "/facilities", "/how-it-works", "/medical-travel", "/faq", "/contact", "/legal/privacy", "/legal/terms", "/legal/content-rights", "/legal/cookies"];
 const MAX_PAGES = 50;
 
 async function collect<T extends { id: string }>(fetchPage: (cursor?: string) => Promise<{ data: T[]; page: { next_cursor?: string | null; has_more: boolean } }>): Promise<T[]> {

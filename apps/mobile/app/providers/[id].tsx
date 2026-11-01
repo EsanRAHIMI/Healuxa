@@ -6,6 +6,7 @@ import { credentialKindLabel, formatDate, languageName, localized, providerTypeL
 import { useApi } from '@/services';
 import { AppText, Badge, Card, Chip, EmptyState, ErrorState, Loading, OfflineBanner, PressableCard, Row, Screen, Section } from '@/ui/primitives';
 import { OfferingCard } from '@/ui/OfferingCard';
+import { ReportContent } from '@/ui/ReportContent';
 
 /**
  * Provider profile. Uses provider: getProvider, listServices(provider_id), getFacility (for the
@@ -107,6 +108,7 @@ export default function ProviderProfile() {
           <EmptyState message={t('provider.noOfferings')} />
         )}
       </Section>
+      <ReportContent kind="provider" id={String(id)} />
     </Screen>
   );
 }
