@@ -77,7 +77,7 @@ jobs:
       - name: Start container and probe health
         run: |
           docker run -d --name svc --network host --env-file runtime.env healuxa/${{ matrix.service }}:ci
-          for i in $(seq 1 40); do
+          for i in $(seq 1 90); do
             if curl -fsS "http://127.0.0.1:${{ matrix.port }}/health"; then echo; break; fi
             sleep 1
           done

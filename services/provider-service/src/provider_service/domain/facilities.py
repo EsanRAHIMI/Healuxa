@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ulid import ULID
 
+from provider_service.config import settings
 from provider_service.domain import schemas
 from provider_service.domain.access import (
     actor_of,
@@ -28,7 +29,12 @@ ADMIN = ("facility_admin",)
 
 
 def is_public(facility: Facility) -> bool:
-    return facility.status == "active" and facility.verification_status == "verified"
+    # Public only with the owner's content publication licence on record (Content Rights).
+    return (
+        facility.status == "active"
+        and facility.verification_status == "verified"
+        and facility.content_license_accepted_at is not None
+    )
 
 
 def facility_schema(facility: Facility, *, private: bool) -> schemas.Facility:
@@ -43,6 +49,8 @@ def facility_schema(facility: Facility, *, private: bool) -> schemas.Facility:
         phone=facility.phone,
         status=facility.status,
         verification_status=facility.verification_status,
+        content_license_version=facility.content_license_version if private else None,
+        content_license_accepted_at=facility.content_license_accepted_at if private else None,
         created_at=facility.created_at,
     )
 
@@ -115,6 +123,13 @@ async def _stage_staff_event(db: AsyncSession, facility: Facility, principal: Pr
     )
 
 
+def _record_license(entity: Facility, principal: Principal) -> None:
+    """Records acceptance of the current content publication licence (version, time, who)."""
+    entity.content_license_version = settings.content_license_version
+    entity.content_license_accepted_at = utcnow()
+    entity.content_license_accepted_by = principal.user_id
+
+
 class FacilityService:
     async def create(
         self, db: AsyncSession, principal: Principal, body: schemas.FacilityInput, *, idempotency_key: str | None
@@ -143,6 +158,9 @@ class FacilityService:
             verification_status="under_review",
             created_by=principal.user_id,
             creation_key=idempotency_key,
+            content_license_version=settings.content_license_version,
+            content_license_accepted_at=utcnow(),
+            content_license_accepted_by=principal.user_id,
         )
         db.add(facility)
         try:
@@ -177,7 +195,10 @@ class FacilityService:
     ) -> schemas.Facility:
         facility = await get_facility(db, principal.tenant_id, facility_id, for_update=True)
         await require_facility_role(db, principal, facility.id, ADMIN)
-        for field, value in body.model_dump(exclude_unset=True).items():
+        changes = body.model_dump(exclude_unset=True)
+        if changes.pop("accept_content_license", None):
+            _record_license(facility, principal)
+        for field, value in changes.items():
             setattr(facility, field, value if field != "description" else (value or {}))
         facility.updated_at = utcnow()
         await db.commit()
@@ -208,7 +229,10 @@ class FacilityService:
         self, db: AsyncSession, tenant_id: str, *, type_: str | None, city: str | None, limit: int, cursor: str | None
     ) -> tuple[list[schemas.Facility], str | None, bool]:
         stmt = select(Facility).where(
-            Facility.tenant_id == tenant_id, Facility.status == "active", Facility.verification_status == "verified"
+            Facility.tenant_id == tenant_id,
+            Facility.status == "active",
+            Facility.verification_status == "verified",
+            Facility.content_license_accepted_at.is_not(None),
         )
         if type_:
             stmt = stmt.where(Facility.type == type_)

@@ -8,6 +8,7 @@ import { facilityTypeLabel, localized, weekdayName } from '@/i18n/labels';
 import { useApi } from '@/services';
 import { AppText, Badge, Button, Card, EmptyState, ErrorState, Loading, OfflineBanner, Row, Screen, Section } from '@/ui/primitives';
 import { OfferingCard } from '@/ui/OfferingCard';
+import { ReportContent } from '@/ui/ReportContent';
 
 function BranchCard({ branch }: { branch: Branch }) {
   const { t, language } = useI18n();
@@ -94,6 +95,7 @@ export default function FacilityPage() {
           <EmptyState message={t('services.empty')} />
         )}
       </Section>
+      <ReportContent kind="facility" id={String(id)} />
     </Screen>
   );
 }

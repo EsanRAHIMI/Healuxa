@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from ulid import ULID
 
+from provider_service.config import settings
 from provider_service.domain import schemas
 from provider_service.domain.access import (
     actor_of,
@@ -51,7 +52,12 @@ def _credential_valid_on(credential: Credential, on: date) -> bool:
 
 
 def is_publicly_listed(provider: Provider) -> bool:
-    return provider.status == "active" and provider.verification_status == "verified"
+    # Public only with the owner's content publication licence on record (Content Rights).
+    return (
+        provider.status == "active"
+        and provider.verification_status == "verified"
+        and provider.content_license_accepted_at is not None
+    )
 
 
 async def _credentials(db: AsyncSession, provider_id: str) -> list[Credential]:
@@ -81,6 +87,8 @@ async def to_schema(db: AsyncSession, provider: Provider, *, private: bool) -> s
         verification_status=provider.verification_status,
         verified_credentials=verified,
         user_id=provider.user_id if private else None,
+        content_license_version=provider.content_license_version if private else None,
+        content_license_accepted_at=provider.content_license_accepted_at if private else None,
         version=provider.version,
         created_at=provider.created_at,
         updated_at=provider.updated_at,
@@ -178,6 +186,9 @@ class ProviderService:
             status="pending",
             verification_status="unverified",
             creation_key=idempotency_key,
+            content_license_version=settings.content_license_version,
+            content_license_accepted_at=utcnow(),
+            content_license_accepted_by=principal.user_id,
         )
         db.add(provider)
         try:
@@ -218,6 +229,17 @@ class ProviderService:
         if if_match is not None and if_match.strip('"') != f"v{provider.version}":
             raise conflict("If-Match does not match current provider version")
         changes = body.model_dump(exclude_unset=True)
+        if changes.pop("accept_content_license", None):
+            # Owner (re-)accepts the current content publication licence, e.g. after a version bump.
+            provider.content_license_version = settings.content_license_version
+            provider.content_license_accepted_at = utcnow()
+            provider.content_license_accepted_by = principal.user_id
+            if not changes:
+                provider.version += 1
+                provider.updated_at = utcnow()
+                await db.commit()
+                await db.refresh(provider)
+                return await to_schema(db, provider, private=True)
         if not changes:
             return await to_schema(db, provider, private=True)
         for field, value in changes.items():
@@ -281,7 +303,10 @@ class ProviderService:
         cursor: str | None,
     ) -> tuple[list[schemas.Provider], str | None, bool]:
         stmt = select(Provider).where(
-            Provider.tenant_id == tenant_id, Provider.status == "active", Provider.verification_status == "verified"
+            Provider.tenant_id == tenant_id,
+            Provider.status == "active",
+            Provider.verification_status == "verified",
+            Provider.content_license_accepted_at.is_not(None),
         )
         if type_:
             stmt = stmt.where(Provider.type == type_)

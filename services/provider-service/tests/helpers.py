@@ -27,6 +27,7 @@ def staff(*, tenant_id: str | None = None) -> dict[str, str]:
 
 
 PROVIDER_BODY = {
+    "accept_content_license": True,
     "type": "doctor",
     "display_name": "Dr. Test Practitioner",
     "title": "Consultant Infectious Diseases",
@@ -36,6 +37,7 @@ PROVIDER_BODY = {
 }
 
 FACILITY_BODY = {
+    "accept_content_license": True,
     "type": "clinic",
     "name": "Test Clinic",
     "license_authority": "dha",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { openFacilityAction, registerFacilityAction } from "@/actions/facility";
 import { StatusBadge, VerificationBadge } from "@/components/domain/badges";
 import { SubmitButton, TextField } from "@/components/forms/fields";
+import { ContentLicenseField } from "@/components/forms/ContentLicenseField";
 import { Form } from "@/components/forms/Form";
 import { FacilityFields } from "@/components/portal/FacilityFields";
 import { Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
@@ -51,6 +52,7 @@ export default async function FacilityHome({ params }: { params: Promise<{ local
         <Card className="max-w-3xl">
           <Form action={registerFacilityAction} locale={locale} label={t("fp.register")} showSuccess={false} hidden={{ idempotency_key: newIdempotencyKey("fac") }} testId="facility-register-form">
             <FacilityFields locale={locale} withLicence />
+            <ContentLicenseField locale={locale} />
             <div className="mt-6">
               <SubmitButton pendingLabel={t("pp.submitting")}>{t("fp.register")}</SubmitButton>
             </div>
