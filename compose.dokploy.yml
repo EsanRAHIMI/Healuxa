@@ -1,0 +1,806 @@
+# Dokploy Git source; Compose Path = ./compose.dokploy.yml
+# Required variables: infrastructure/production/dokploy.env.example
+# First deployment uses NEW named volumes. Do not apply to a previously initialised database.
+# Public domains: web:3000 and gateway:8080 ONLY. Backends/data stay private.
+name: healuxa
+services:
+  postgres:
+    image: healuxa/postgres:latest
+    restart: unless-stopped
+    networks:
+    - healuxa
+    environment:
+      POSTGRES_USER: healuxa_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: healuxa
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD}
+      TRANSFORMATION_DB_PASSWORD: ${TRANSFORMATION_DB_PASSWORD:?set TRANSFORMATION_DB_PASSWORD}
+      PROVIDER_DB_PASSWORD: ${PROVIDER_DB_PASSWORD:?set PROVIDER_DB_PASSWORD}
+      APPOINTMENT_DB_PASSWORD: ${APPOINTMENT_DB_PASSWORD:?set APPOINTMENT_DB_PASSWORD}
+      CONCIERGE_DB_PASSWORD: ${CONCIERGE_DB_PASSWORD:?set CONCIERGE_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD}
+      SUBSCRIPTION_DB_PASSWORD: ${SUBSCRIPTION_DB_PASSWORD:?set SUBSCRIPTION_DB_PASSWORD}
+    volumes:
+    - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    build:
+      context: .
+      dockerfile: infrastructure/production/postgres/Dockerfile
+    pull_policy: build
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+    - healuxa
+    command:
+    - redis-server
+    - --save
+    - ''
+    - --appendonly
+    - 'no'
+    - --maxmemory
+    - 256mb
+    - --maxmemory-policy
+    - allkeys-lru
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    networks:
+    - healuxa
+    command:
+    - -js
+    - -sd
+    - /data
+    - -m
+    - '8222'
+    volumes:
+    - nats-data:/data
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -qO-
+      - http://127.0.0.1:8222/healthz
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  identity-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/identity-service/Dockerfile
+    image: healuxa/identity-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_identity:${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD}@postgres:5432/identity
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER:?set PASSWORD_PEPPER}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY}
+      MFA_ISSUER: Healuxa
+      JWT_ISSUER: ${JWT_ISSUER:-https://api.healuxa.ae}
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  identity-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/identity-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_identity:${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD}@postgres:5432/identity
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER:?set PASSWORD_PEPPER}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY}
+      MFA_ISSUER: Healuxa
+      JWT_ISSUER: ${JWT_ISSUER:-https://api.healuxa.ae}
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8001'
+    depends_on:
+      nats:
+        condition: service_healthy
+      identity-service-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/identity-service/Dockerfile
+    pull_policy: build
+  provider-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/provider-service/Dockerfile
+    image: healuxa/provider-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_provider:${PROVIDER_DB_PASSWORD:?set PROVIDER_DB_PASSWORD}@postgres:5432/provider
+      SUPPORTED_CURRENCIES: '["AED"]'
+      PUBLIC_TENANT: healuxa-dubai
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  provider-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/provider-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_provider:${PROVIDER_DB_PASSWORD:?set PROVIDER_DB_PASSWORD}@postgres:5432/provider
+      SUPPORTED_CURRENCIES: '["AED"]'
+      PUBLIC_TENANT: healuxa-dubai
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8005'
+    depends_on:
+      nats:
+        condition: service_healthy
+      provider-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/provider-service/Dockerfile
+    pull_policy: build
+  appointment-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/appointment-service/Dockerfile
+    image: healuxa/appointment-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_appointment:${APPOINTMENT_DB_PASSWORD:?set APPOINTMENT_DB_PASSWORD}@postgres:5432/appointment
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  appointment-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/appointment-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_appointment:${APPOINTMENT_DB_PASSWORD:?set APPOINTMENT_DB_PASSWORD}@postgres:5432/appointment
+      IDENTITY_SERVICE_TOKEN_URL: http://identity-service:8001/v1/auth/service-token
+      PROVIDER_SERVICE_URL: http://provider-service:8005
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8007'
+    depends_on:
+      nats:
+        condition: service_healthy
+      appointment-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+      provider-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/appointment-service/Dockerfile
+    pull_policy: build
+  subscription-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/subscription-service/Dockerfile
+    image: healuxa/subscription-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_subscription:${SUBSCRIPTION_DB_PASSWORD:?set SUBSCRIPTION_DB_PASSWORD}@postgres:5432/subscription
+      MEMBERSHIPS_ENABLED: 'false'
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  subscription-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/subscription-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_subscription:${SUBSCRIPTION_DB_PASSWORD:?set SUBSCRIPTION_DB_PASSWORD}@postgres:5432/subscription
+      MEMBERSHIPS_ENABLED: 'false'
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8009'
+    depends_on:
+      nats:
+        condition: service_healthy
+      subscription-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/subscription-service/Dockerfile
+    pull_policy: build
+  payment-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    image: healuxa/payment-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_payment:${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD}@postgres:5432/payment
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?set STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?set STRIPE_WEBHOOK_SECRET}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:?set STRIPE_PUBLISHABLE_KEY}
+      PAYMENTS_LIVE_MODE: ${PAYMENTS_LIVE_MODE:?set PAYMENTS_LIVE_MODE}
+      PAYMENT_GATEWAY: stripe
+      CURRENCY: AED
+      PLATFORM_FEE_BPS: ${PLATFORM_FEE_BPS:-0}
+      PLATFORM_FEE_FIXED_MINOR: ${PLATFORM_FEE_FIXED_MINOR:-0}
+      PLATFORM_FEE_LABEL: Healuxa coordination fee
+      SELLER_LEGAL_NAME: ${SELLER_LEGAL_NAME:-}
+      SELLER_ADDRESS: ${SELLER_ADDRESS:-}
+      SELLER_TRN: ${SELLER_TRN:-}
+      VAT_NAME: VAT
+      TAX_CONFIG_REVIEWED: ${TAX_CONFIG_REVIEWED:-false}
+      INVOICE_NUMBER_PREFIX: HLX
+      MEMBERSHIP_PAYMENTS_ENABLED: 'false'
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  payment-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/payment-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_payment:${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD}@postgres:5432/payment
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?set STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?set STRIPE_WEBHOOK_SECRET}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:?set STRIPE_PUBLISHABLE_KEY}
+      PAYMENTS_LIVE_MODE: ${PAYMENTS_LIVE_MODE:?set PAYMENTS_LIVE_MODE}
+      PAYMENT_GATEWAY: stripe
+      CURRENCY: AED
+      PLATFORM_FEE_BPS: ${PLATFORM_FEE_BPS:-0}
+      PLATFORM_FEE_FIXED_MINOR: ${PLATFORM_FEE_FIXED_MINOR:-0}
+      PLATFORM_FEE_LABEL: Healuxa coordination fee
+      SELLER_LEGAL_NAME: ${SELLER_LEGAL_NAME:-}
+      SELLER_ADDRESS: ${SELLER_ADDRESS:-}
+      SELLER_TRN: ${SELLER_TRN:-}
+      VAT_NAME: VAT
+      TAX_CONFIG_REVIEWED: ${TAX_CONFIG_REVIEWED:-false}
+      INVOICE_NUMBER_PREFIX: HLX
+      MEMBERSHIP_PAYMENTS_ENABLED: 'false'
+      PROVIDER_SERVICE_URL: http://provider-service:8005
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8010'
+    depends_on:
+      nats:
+        condition: service_healthy
+      payment-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+      provider-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    pull_policy: build
+  concierge-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/concierge-service/Dockerfile
+    image: healuxa/concierge-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_concierge:${CONCIERGE_DB_PASSWORD:?set CONCIERGE_DB_PASSWORD}@postgres:5432/concierge
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  concierge-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/concierge-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_concierge:${CONCIERGE_DB_PASSWORD:?set CONCIERGE_DB_PASSWORD}@postgres:5432/concierge
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8021'
+    depends_on:
+      nats:
+        condition: service_healthy
+      concierge-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/concierge-service/Dockerfile
+    pull_policy: build
+  notification-service-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    image: healuxa/notification-service:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_notification:${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD}@postgres:5432/notification
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  notification-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/notification-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_notification:${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD}@postgres:5432/notification
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8022'
+    depends_on:
+      nats:
+        condition: service_healthy
+      notification-service-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    pull_policy: build
+  transformation-engine-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/transformation-engine/Dockerfile
+    image: healuxa/transformation-engine:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_transformation:${TRANSFORMATION_DB_PASSWORD:?set TRANSFORMATION_DB_PASSWORD}@postgres:5432/transformation
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  transformation-engine:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/transformation-engine:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_transformation:${TRANSFORMATION_DB_PASSWORD:?set TRANSFORMATION_DB_PASSWORD}@postgres:5432/transformation
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8000'
+    depends_on:
+      nats:
+        condition: service_healthy
+      transformation-engine-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/transformation-engine/Dockerfile
+    pull_policy: build
+  profile-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/profile-service/Dockerfile
+    image: healuxa/profile-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      MONGODB_URI: ${PROFILE_MONGODB_URI:?set PROFILE_MONGODB_URI}
+      MONGODB_DATABASE: healuxa_profile
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8002'
+    depends_on:
+      nats:
+        condition: service_healthy
+    pull_policy: build
+  assessment-service:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/assessment-service/Dockerfile
+    image: healuxa/assessment-service:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      MONGODB_URI: ${ASSESSMENT_MONGODB_URI:?set ASSESSMENT_MONGODB_URI}
+      MONGODB_DATABASE: healuxa_assessment
+      WEB_CONCURRENCY: '1'
+    expose:
+    - '8003'
+    depends_on:
+      nats:
+        condition: service_healthy
+    pull_policy: build
+  gateway:
+    image: healuxa/gateway:latest
+    restart: unless-stopped
+    networks:
+    - healuxa
+    - dokploy-network
+    expose:
+    - '8080'
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -qO-
+      - http://127.0.0.1:8080/health
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: infrastructure/production/gateway/Dockerfile
+    pull_policy: build
+  web:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    - dokploy-network
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: healuxa/web:latest
+    environment:
+      SITE_URL: ${SITE_URL:-https://healuxa.ae}
+      IDENTITY_JWT_ISSUER: ${JWT_ISSUER:-https://api.healuxa.ae}
+      TRUST_PROXY_HEADERS: 'true'
+      SERVER_ACTIONS_ALLOWED_ORIGINS: healuxa.ae,www.healuxa.ae
+      PUBLIC_REVALIDATE_SECONDS: '300'
+      API_TIMEOUT_MS: '8000'
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+      SUPPORT_PHONE: ${SUPPORT_PHONE:-}
+      SUPPORT_WHATSAPP: ${SUPPORT_WHATSAPP:-}
+      APP_VERSION: ${APP_VERSION:-}
+      API_BASE_URL: http://gateway:8080/v1
+      PORT: '3000'
+    expose:
+    - '3000'
+    depends_on:
+      gateway:
+        condition: service_healthy
+    pull_policy: build
+networks:
+  healuxa: {}
+  dokploy-network:
+    external: true
+volumes:
+  postgres-data: null
+  nats-data: null
