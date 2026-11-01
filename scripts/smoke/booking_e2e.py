@@ -60,12 +60,12 @@ def main() -> None:
     )
     staff = login(c, reviewer_email)  # new token carries the admin permissions
 
-    provider = check(c.post(f"{PR}/v1/providers", json={"type": "doctor", "display_name": "Dr. Smoke", "specialties": ["infectious diseases"], "languages": ["en", "ar"]}, headers=owner), 201)
+    provider = check(c.post(f"{PR}/v1/providers", json={"accept_content_license": True, "type": "doctor", "display_name": "Dr. Smoke", "specialties": ["infectious diseases"], "languages": ["en", "ar"]}, headers=owner), 201)
     cred = check(c.post(f"{PR}/v1/providers/{provider['id']}/credentials", json={"kind": "professional_license", "issuing_authority": "DHA", "number": f"DHA-{uuid.uuid4().hex[:6]}", "valid_until": str(date.today() + timedelta(days=365))}, headers=owner), 201)
     check(c.post(f"{PR}/v1/providers/{provider['id']}/credentials/{cred['id']}/review", json={"decision": "verify"}, headers=staff))
     check(c.post(f"{PR}/v1/providers/{provider['id']}/status", json={"status": "active", "reason": "verified licence"}, headers=staff))
 
-    facility = check(c.post(f"{PR}/v1/facilities", json={"type": "clinic", "name": "Smoke Clinic", "license_authority": "DHA", "license_number": f"F-{uuid.uuid4().hex[:6]}"}, headers=admin_fac), 201)
+    facility = check(c.post(f"{PR}/v1/facilities", json={"accept_content_license": True, "type": "clinic", "name": "Smoke Clinic", "license_authority": "DHA", "license_number": f"F-{uuid.uuid4().hex[:6]}"}, headers=admin_fac), 201)
     check(c.post(f"{PR}/v1/facilities/{facility['id']}/review", json={"decision": "verify"}, headers=staff))
     branch = check(c.post(f"{PR}/v1/facilities/{facility['id']}/branches", json={"name": "Marina", "address_line": "1 Marina Walk", "city": "Dubai", "country": "AE", "timezone": "Asia/Dubai"}, headers=admin_fac), 201)
     check(c.put(f"{PR}/v1/branches/{branch['id']}/operating-hours", json={"windows": [{"weekday": d, "start": "08:00", "end": "20:00"} for d in range(7)]}, headers=admin_fac))
