@@ -1,0 +1,58 @@
+# Dependency update policy. Security updates are raised by GitHub as they appear; version updates are
+# grouped weekly to keep review load low. Expo / React Native packages move only with an SDK upgrade.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Dubai
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+  - package-ecosystem: pip
+    directories:
+      - /packages/py-common
+      - /services/appointment-service
+      - /services/assessment-service
+      - /services/concierge-service
+      - /services/identity-service
+      - /services/notification-service
+      - /services/payment-service
+      - /services/profile-service
+      - /services/provider-service
+      - /services/subscription-service
+      - /services/transformation-engine
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Dubai
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directories:
+      - /services/identity-service
+      - /apps/web
+    schedule:
+      interval: monthly
