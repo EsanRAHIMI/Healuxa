@@ -2,14 +2,14 @@
 # Healuxa identity-service — production image for Dokploy (built on the server, never on the dev Mac).
 # Build context: repository root.  docker build -f services/identity-service/Dockerfile .
 # Migrations: run `alembic upgrade head` in this image as a pre-deploy step (not on start).
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 WORKDIR /build
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
 COPY packages/py-common ./packages/py-common
 COPY services/identity-service ./services/identity-service
 RUN pip install --prefix=/install ./packages/py-common ./services/identity-service
 
-FROM python:3.12-slim
+FROM python:3.15-slim
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     PORT=8001 WEB_CONCURRENCY=2 FORWARDED_ALLOW_IPS=*
 RUN groupadd --system --gid 10001 healuxa \
