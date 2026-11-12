@@ -1,0 +1,94 @@
+name: iOS Release launch
+
+# Guards against the App Review 2.1 rejection of 1.0.0 (2) (crash on launch). Builds the Release
+# configuration with the production config, launches it on a simulator and fails if the process
+# dies or a crash report appears. Evidence (crash reports, log, screenshot) is uploaded either way.
+
+on:
+  push:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/ios-release-launch.yml"
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/ios-release-launch.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-release-launch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  launch:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      APP_ENV: production
+      BUNDLE_ID: ae.healuxa.app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Generate native iOS project and install pods
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios --clean
+      - name: Record scene manifest and linked native modules
+        working-directory: apps/mobile/ios
+        run: |
+          xcodebuild -version
+          grep -c UIApplicationSceneManifest Healuxa/Info.plist || echo "UIApplicationSceneManifest: absent"
+          grep -nE "^  - (RNReanimated|RNWorklets|ExpoModulesCore|React-Core|hermes-engine) [(]" Podfile.lock || true
+      - name: xcodebuild (Release, iOS Simulator)
+        working-directory: apps/mobile/ios
+        run: |
+          if ! xcodebuild -workspace Healuxa.xcworkspace -scheme Healuxa -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/release-sim CODE_SIGNING_ALLOWED=NO build > xcodebuild-release.log 2>&1; then
+            grep -E "error:|fatal" xcodebuild-release.log | head -n 40; tail -n 80 xcodebuild-release.log; exit 1
+          fi
+          tail -n 5 xcodebuild-release.log
+      - name: Launch on a simulator and watch for 45 seconds
+        run: |
+          set -u
+          OUT="$RUNNER_TEMP/launch"; mkdir -p "$OUT"
+          APP="apps/mobile/ios/build/release-sim/Build/Products/Release-iphonesimulator/Healuxa.app"
+          test -d "$APP"
+          xcrun simctl list runtimes | tee "$OUT/runtimes.txt"
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          echo "Simulator: $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          rm -f "$HOME"/Library/Logs/DiagnosticReports/Healuxa* || true
+          xcrun simctl launch "$UDID" "$BUNDLE_ID" | tee "$OUT/launch.txt"
+          PID=$(awk -F': ' '{print $2}' "$OUT/launch.txt")
+          ALIVE=1
+          for i in 1 2 3 4 5 6 7 8 9; do
+            sleep 5
+            if ! ps -p "$PID" > /dev/null; then ALIVE=0; echo "Process $PID exited after about $((i*5)) s"; break; fi
+          done
+          xcrun simctl io "$UDID" screenshot "$OUT/after-launch.png" || true
+          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "Healuxa"' > "$OUT/app.log" 2>&1 || true
+          cp "$HOME"/Library/Logs/DiagnosticReports/Healuxa* "$OUT/" 2>/dev/null || true
+          CRASHES=$(ls "$OUT"/Healuxa* 2>/dev/null | wc -l | tr -d ' ')
+          echo "alive=$ALIVE crash_reports=$CRASHES"
+          if [ "$ALIVE" != "1" ] || [ "$CRASHES" != "0" ]; then
+            echo "::error::Release build did not stay alive after launch (alive=$ALIVE, crash reports=$CRASHES)"
+            grep -i -m5 "scene" "$OUT/app.log" || true
+            tail -n 40 "$OUT/app.log" || true
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: ios-release-launch-evidence
+          path: |
+            ${{ runner.temp }}/launch
+            apps/mobile/ios/xcodebuild-release.log
+            apps/mobile/ios/Podfile.lock
+          retention-days: 14

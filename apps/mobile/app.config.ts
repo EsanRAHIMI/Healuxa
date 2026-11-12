@@ -174,7 +174,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           // Cleartext only for local development/E2E builds that talk to http://10.0.2.2.
           usesCleartextTraffic: IS_LOCAL,
         },
-        ios: {},
+        ios: {
+          // iOS 27 terminates apps built with the iOS 27 SDK that have not adopted the UIKit scene life
+          // cycle (App Review 2.1 rejection of 1.0.0 (2)). Requires expo >= 57.0.23.
+          enableSceneSupport: true,
+        },
       },
     ],
     './plugins/withAndroidReleaseSigning',
