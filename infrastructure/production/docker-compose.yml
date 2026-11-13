@@ -301,7 +301,7 @@ services:
     image: healuxa/web:latest
     env_file: [env/web.env]
     environment:
-      API_BASE_URL: http://gateway:8080
+      API_BASE_URL: http://gateway:8080/v1
       PORT: "3000"
     expose: ["3000"]
     depends_on:
