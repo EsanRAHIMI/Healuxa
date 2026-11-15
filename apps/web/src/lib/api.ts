@@ -24,6 +24,7 @@ function baseUrls() {
     notification: env.notificationApiUrl,
     payment: env.paymentApiUrl,
     subscription: env.subscriptionApiUrl,
+    transformation: env.transformationApiUrl,
   };
 }
 

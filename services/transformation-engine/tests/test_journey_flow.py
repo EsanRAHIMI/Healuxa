@@ -12,7 +12,7 @@ from helpers import create_test_milestone
 async def test_journey_create_get_complete_flow(client: AsyncClient, user_id: str, auth_headers: dict) -> None:
     create = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["wellness"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=auth_headers,
     )
     assert create.status_code == 201, create.text
@@ -27,13 +27,14 @@ async def test_journey_create_get_complete_flow(client: AsyncClient, user_id: st
     roadmap = await client.get(f"/v1/journeys/{journey_id}/roadmap", headers=auth_headers)
     assert roadmap.status_code == 200
     assert roadmap.json()["journey_id"] == journey_id
-    assert roadmap.json()["phases"] == []
+    assert [p["code"] for p in roadmap.json()["phases"]] == ["understand", "consult", "care", "follow_up"]
 
     milestone_id = await create_test_milestone(journey_id, title="Initial assessment")
 
     listed = await client.get(f"/v1/journeys/{journey_id}/milestones", headers=auth_headers)
     assert listed.status_code == 200
-    assert len(listed.json()["data"]) == 1
+    # Five plan steps for one goal, plus the extra milestone created above.
+    assert len(listed.json()["data"]) == 6
 
     complete = await client.post(
         f"/v1/journeys/{journey_id}/milestones/{milestone_id}/complete",
@@ -51,4 +52,4 @@ async def test_journey_create_get_complete_flow(client: AsyncClient, user_id: st
 
     actions = await client.get(f"/v1/journeys/{journey_id}/next-actions", headers=auth_headers)
     assert actions.status_code == 200
-    assert actions.json() == []
+    assert [a["milestone_code"] for a in actions.json()] == ["intake_assessment"]

@@ -23,7 +23,10 @@ from transformation_engine.domain.schemas import (
     NextAction,
     PageMeta,
     Roadmap,
+    RoadmapPhase,
 )
+from transformation_engine.domain import progress
+from transformation_engine.domain.plan_templates import ACTION_FOR_STEP, build_plan
 from transformation_engine.domain.security import utcnow
 from transformation_engine.events.publisher import event_publisher
 from transformation_engine.infra.models import (
@@ -60,6 +63,14 @@ def _milestone_to_schema(row: MilestoneModel) -> Milestone:
         title=row.title,
         status=row.status,  # type: ignore[arg-type]
         due_at=row.due_at.isoformat() if row.due_at else None,
+        code=row.code,
+        goal=row.goal,
+        phase_id=row.phase_id,
+        sequence=row.sequence or 0,
+        service_category=row.service_category,
+        appointment_id=row.appointment_id,
+        scheduled_at=row.scheduled_at.isoformat() if row.scheduled_at else None,
+        completed_at=row.completed_at.isoformat() if row.completed_at else None,
     )
 
 
@@ -144,6 +155,37 @@ class JourneyService:
                 detail="User already has an active journey",
             ) from exc
 
+        sequence = 0
+        for phase_index, phase_template in enumerate(build_plan(list(body.primary_goals))):
+            phase = Phase(
+                id=str(ULID()),
+                journey_id=journey_id,
+                code=phase_template.code,
+                name=phase_template.name,
+                sequence=phase_index,
+                status="in_progress" if phase_index == 0 else "pending",
+                started_at=now if phase_index == 0 else None,
+            )
+            db.add(phase)
+            # No ORM relationship links the two tables, so insert the phase before its steps.
+            await db.flush()
+            for step in phase_template.steps:
+                db.add(
+                    MilestoneModel(
+                        id=str(ULID()),
+                        journey_id=journey_id,
+                        phase_id=phase.id,
+                        title=step.title,
+                        code=step.code,
+                        goal=step.goal,
+                        service_category=step.service_category,
+                        sequence=sequence,
+                        status="pending",
+                    )
+                )
+                sequence += 1
+        await db.flush()
+
         await event_publisher.publish(
 
             db=db,
@@ -160,6 +202,18 @@ class JourneyService:
                     if body.target_completion
                     else {}
                 ),
+            },
+            actor=EventActor(type="user", id=body.user_id),
+        )
+        await event_publisher.publish(
+            db=db,
+            event_type="journey.roadmap_updated",
+            tenant_id=tenant_id,
+            payload={
+                "journey_id": journey_id,
+                "user_id": body.user_id,
+                "milestone_count": sequence,
+                "reason": "manual",
             },
             actor=EventActor(type="user", id=body.user_id),
         )
@@ -221,19 +275,22 @@ class JourneyService:
         journey = await self.get_journey(db, journey_id)
         _ensure_access(journey, principal)
 
-        result = await db.execute(
-            select(Phase).where(Phase.journey_id == journey_id).order_by(Phase.sequence.asc(), Phase.id.asc())
-        )
+        steps: dict[str, list[Milestone]] = {}
+        for milestone in await progress.ordered_milestones(db, journey_id):
+            if milestone.phase_id:
+                steps.setdefault(milestone.phase_id, []).append(_milestone_to_schema(milestone))
         phases = [
-            {
-                "id": phase.id,
-                "name": phase.name,
-                "sequence": phase.sequence,
-                "status": phase.status,
-                "started_at": phase.started_at.isoformat() if phase.started_at else None,
-                "completed_at": phase.completed_at.isoformat() if phase.completed_at else None,
-            }
-            for phase in result.scalars()
+            RoadmapPhase(
+                id=phase.id,
+                code=phase.code,
+                name=phase.name,
+                sequence=phase.sequence,
+                status=phase.status,  # type: ignore[arg-type]
+                started_at=phase.started_at.isoformat() if phase.started_at else None,
+                completed_at=phase.completed_at.isoformat() if phase.completed_at else None,
+                milestones=steps.get(phase.id, []),
+            )
+            for phase in await progress.ordered_phases(db, journey_id)
         ]
         return Roadmap(journey_id=journey_id, phases=phases)
 
@@ -309,22 +366,11 @@ class JourneyService:
                 detail="Milestone already completed",
             )
 
-        now = utcnow()
-        milestone.status = "completed"
-        milestone.completed_at = now
-
-        await event_publisher.publish(
-
-            db=db,
-            event_type="journey.milestone_completed",
-            tenant_id=journey.tenant_id,
-            payload={
-                "journey_id": journey_id,
-                "user_id": journey.user_id,
-                "milestone_id": milestone_id,
-                "phase_id": milestone.phase_id,
-                "completed_at": now.isoformat(),
-            },
+        await progress.complete_milestone(
+            db,
+            journey,
+            milestone,
+            now=utcnow(),
             actor=EventActor(type="user", id=principal.user_id),
         )
 
@@ -353,6 +399,27 @@ class JourneyService:
         journey = await self.get_journey(db, journey_id)
         _ensure_access(journey, principal)
 
+        phases = await progress.ordered_phases(db, journey_id)
+        current = next((phase for phase in phases if phase.status == "in_progress"), None)
+        if current is not None and journey.status not in TERMINAL_JOURNEY_STATUSES:
+            # Derived from step state on every read, so it can never drift from the roadmap.
+            actions: list[NextAction] = []
+            for milestone in await progress.ordered_milestones(db, journey_id):
+                if milestone.phase_id != current.id or milestone.status != "pending":
+                    continue
+                actions.append(
+                    NextAction(
+                        action_type=ACTION_FOR_STEP.get(milestone.code or "", "contact"),  # type: ignore[arg-type]
+                        priority="medium" if actions else "high",
+                        due_at=milestone.due_at.isoformat() if milestone.due_at else None,
+                        milestone_id=milestone.id,
+                        milestone_code=milestone.code,
+                        goal=milestone.goal,
+                        service_category=milestone.service_category,
+                    )
+                )
+            return actions
+
         result = await db.execute(
             select(NextActionModel)
             .where(NextActionModel.journey_id == journey_id, NextActionModel.status == "pending")
@@ -366,6 +433,23 @@ class JourneyService:
             )
             for row in result.scalars()
         ]
+
+    async def close_journey(
+        self,
+        db: AsyncSession,
+        journey_id: str,
+        *,
+        principal: Principal,
+    ) -> Journey:
+        """End the active journey so the customer can start another. Idempotent."""
+        journey = await self.get_journey(db, journey_id)
+        _ensure_access(journey, principal)
+        if journey.status not in TERMINAL_JOURNEY_STATUSES:
+            milestones = await progress.ordered_milestones(db, journey_id)
+            finished = bool(milestones) and all(m.status == "completed" for m in milestones)
+            journey.status = "completed" if finished else "churned"
+            await db.commit()
+        return _journey_to_schema(journey)
 
     async def reassess_journey(
         self,

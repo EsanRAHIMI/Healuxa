@@ -10,6 +10,7 @@ import type { paths as PaymentPaths } from "./generated/payment";
 import type { paths as ProfilePaths } from "./generated/profile";
 import type { paths as ProviderPaths } from "./generated/provider";
 import type { paths as SubscriptionPaths } from "./generated/subscription";
+import type { paths as TransformationPaths } from "./generated/transformation";
 
 /** One entry per backend service; each gets its own base URL (they share path prefixes like /services). */
 export type ServiceName =
@@ -21,7 +22,8 @@ export type ServiceName =
   | "concierge"
   | "notification"
   | "payment"
-  | "subscription";
+  | "subscription"
+  | "transformation";
 
 export interface ServicePaths {
   identity: IdentityPaths;
@@ -33,6 +35,7 @@ export interface ServicePaths {
   notification: NotificationPaths;
   payment: PaymentPaths;
   subscription: SubscriptionPaths;
+  transformation: TransformationPaths;
 }
 
 export type ServiceClient<S extends ServiceName> = Client<ServicePaths[S], "application/json">;
@@ -135,7 +138,7 @@ export function createHealuxaClient(options: HealuxaClientOptions): HealuxaClien
     return client;
   };
 
-  const names: ServiceName[] = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription"];
+  const names: ServiceName[] = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription", "transformation"];
   const out = {} as Record<ServiceName, unknown>;
   for (const name of names) Object.defineProperty(out, name, { enumerable: true, get: () => make(name) });
   return out as HealuxaClient;

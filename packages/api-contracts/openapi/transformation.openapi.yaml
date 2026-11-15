@@ -123,6 +123,22 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/NextAction" } }
+  /journeys/{id}/close:
+    post:
+      operationId: closeJourney
+      summary: End the active journey so the customer can start another (idempotent)
+      tags: [journeys]
+      x-required-permission: journeys:write
+      parameters:
+        - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Journey" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
   /journeys/{id}/reassess:
     post:
       operationId: reassessJourney
@@ -163,13 +179,31 @@ components:
     JourneyStatus:
       type: string
       enum: [draft, onboarding, active, at_risk, renewing, completed, churned]
+    GoalCode:
+      type: string
+      enum:
+        - skin_health
+        - facial_aesthetics
+        - hair_restoration
+        - dental_smile
+        - weight_management
+        - fitness_recovery
+        - preventive_checkup
+        - longevity
+        - mental_wellbeing
     CreateJourney:
       type: object
       additionalProperties: false
       required: [user_id, primary_goals]
       properties:
         user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        primary_goals: { type: array, items: { type: string }, minItems: 1 }
+        primary_goals:
+          type: array
+          description: Goals in the customer's order of priority. The plan (phases and steps) is derived from them.
+          items: { $ref: "#/components/schemas/GoalCode" }
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
         target_completion: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
     Journey:
       type: object
@@ -185,17 +219,46 @@ components:
       type: object
       properties:
         journey_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-        phases: { type: array, items: { type: object, additionalProperties: true } }
+        phases: { type: array, items: { $ref: "#/components/schemas/RoadmapPhase" } }
+    RoadmapPhase:
+      type: object
+      required: [id, name, sequence, status, milestones]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        code: { type: [string, "null"], description: "understand | consult | care | follow_up" }
+        name: { type: string }
+        sequence: { type: integer }
+        status: { type: string, enum: [pending, in_progress, completed] }
+        started_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        milestones: { type: array, items: { $ref: "#/components/schemas/Milestone" } }
     Milestone:
       type: object
+      description: >
+        A plan step. Bookable steps (consultation, care, follow_up) name the provider-catalog
+        `service_category` to book from; pass the step id as `milestone_id` when creating the
+        appointment and the step then follows that appointment's lifecycle.
       properties:
         id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
         title: { type: string }
         status: { type: string, enum: [pending, scheduled, in_progress, completed, blocked] }
-        due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        due_at: { type: [string, "null"], format: date-time }
+        code: { type: [string, "null"], description: "intake_assessment | consultation | care | follow_up | progress_review" }
+        goal: { type: [string, "null"] }
+        phase_id: { type: [string, "null"] }
+        sequence: { type: integer }
+        service_category: { type: [string, "null"] }
+        appointment_id: { type: [string, "null"] }
+        scheduled_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
     NextAction:
       type: object
+      description: Derived from the pending steps of the current phase; the first one has priority high.
       properties:
         action_type: { type: string, enum: [book, assess, renew, upsell, adherence, follow_up, contact] }
         priority: { type: string, enum: [low, medium, high, urgent] }
-        due_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        due_at: { type: [string, "null"], format: date-time }
+        milestone_id: { type: [string, "null"] }
+        milestone_code: { type: [string, "null"] }
+        goal: { type: [string, "null"] }
+        service_category: { type: [string, "null"] }

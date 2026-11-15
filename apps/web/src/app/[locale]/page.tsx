@@ -35,10 +35,13 @@ export default async function HomePage({ params, searchParams }: Props) {
             <h1 className="text-4xl leading-tight md:text-5xl">{t("home.title")}</h1>
             <p className="mt-5 max-w-xl text-lg text-text-muted">{t("home.lead")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink href={`/${locale}/providers`} size="lg">
+              <ButtonLink href={`/${locale}/journey`} size="lg" data-testid="home-journey">
+                {t("home.ctaJourney")}
+              </ButtonLink>
+              <ButtonLink href={`/${locale}/providers`} variant="secondary" size="lg">
                 {t("home.ctaProviders")}
               </ButtonLink>
-              <ButtonLink href={`/${locale}/how-it-works`} variant="secondary" size="lg">
+              <ButtonLink href={`/${locale}/how-it-works`} variant="ghost" size="lg">
                 {t("home.ctaHow")}
               </ButtonLink>
             </div>

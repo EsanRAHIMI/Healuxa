@@ -11,6 +11,8 @@ import { publicApi } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
 import { getPublicFacility, getPublicProvider, listPublicBranches } from "@/lib/catalog";
 import { getT, resolveLocale } from "@/lib/i18n";
+import { stepLabel } from "@/lib/journey";
+import { findOpenStep } from "@/lib/journey-server";
 import { qp } from "@/lib/query";
 
 type Props = { params: Promise<{ locale: string; serviceId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -37,7 +39,10 @@ export default async function BookPage({ params, searchParams }: Props) {
     getSession(),
   ]);
   const branch = branches.find((b) => b.id === offering.branch_id);
-  const from = qp(await searchParams, "from", 10);
+  const sp = await searchParams;
+  const from = qp(sp, "from", 10);
+  const step = await findOpenStep(qp(sp, "milestone", 26));
+  const path = `/${locale}/book/${serviceId}${step ? `?milestone=${step.id}` : ""}`;
   return (
     <div className="hx-container py-12">
       <PageHeader eyebrow={t("booking.title")} title={offering.name} lead={[provider?.display_name, facility?.name, branch ? `${branch.name}, ${branch.city}` : null].filter(Boolean).join(" · ")} />
@@ -46,16 +51,21 @@ export default async function BookPage({ params, searchParams }: Props) {
           <h2 className="mb-4 text-xl">{t("booking.chooseTime")}</h2>
           {!session ? (
             <Alert tone="info" role="note" className="mb-4" title={t("booking.signInToHold")}>
-              <Link href={`/${locale}/login?next=${encodeURIComponent(`/${locale}/book/${serviceId}`)}`}>{t("auth.signIn")}</Link>
+              <Link href={`/${locale}/login?next=${encodeURIComponent(path)}`}>{t("auth.signIn")}</Link>
+            </Alert>
+          ) : null}
+          {step ? (
+            <Alert tone="info" role="note" className="mb-4" data-testid="booking-journey-step">
+              {t("booking.journeyStep", { step: stepLabel(t, step) })}
             </Alert>
           ) : null}
           <SlotPicker
             serviceId={serviceId}
             locale={locale}
             from={from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : new Date().toISOString().slice(0, 10)}
-            basePath={`/${locale}/book/${serviceId}`}
+            basePath={path}
             action={holdSlotAction}
-            hidden={{ service_id: serviceId }}
+            hidden={step ? { service_id: serviceId, milestone_id: step.id! } : { service_id: serviceId }}
             submitLabel={t("booking.holdSlot")}
           />
         </Card>

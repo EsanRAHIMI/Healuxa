@@ -408,7 +408,8 @@
     "forFacilities": "للعيادات والمستشفيات",
     "privacy": "إشعار الخصوصية",
     "terms": "شروط الاستخدام",
-    "cookies": "إشعار ملفات تعريف الارتباط"
+    "cookies": "إشعار ملفات تعريف الارتباط",
+    "journey": "رحلتي"
   },
   "footer": {
     "explore": "استكشف",
@@ -446,7 +447,8 @@
     "featuredAll": "عرض جميع مقدّمي الخدمات",
     "featuredEmpty": "سيُفتتح دليلنا قريبًا. تواصل مع الكونسيرج وسنساعدك مباشرة.",
     "partnersTitle": "هل أنت ممارس صحي أو منشأة؟",
-    "partnersBody": "قدّم طلب الانضمام إلى هيلوكسا. نتحقّق من المؤهلات، وننشر ملفك وخدماتك، ونرسل إليك طلبات الحجز."
+    "partnersBody": "قدّم طلب الانضمام إلى هيلوكسا. نتحقّق من المؤهلات، وننشر ملفك وخدماتك، ونرسل إليك طلبات الحجز.",
+    "ctaJourney": "ابنِ رحلتك"
   },
   "how": {
     "title": "كيف يعمل الكونسيرج",
@@ -556,7 +558,10 @@
     "resultsHeading": "الخدمات",
     "emptyTitle": "لا توجد خدمات تطابق عوامل التصفية",
     "emptyBody": "جرّب فئة أخرى أو اطلب المساعدة من الكونسيرج.",
-    "duration": "{minutes} دقيقة"
+    "duration": "{minutes} دقيقة",
+    "journeyBanner": "نعرض خدمات خطوة رحلتك: {step}.",
+    "journeyBannerHelp": "لم تجد ما يناسبك؟ يمكن للكونسيرج ترتيب ذلك لك.",
+    "journeyAskConcierge": "اطلب من الكونسيرج"
   },
   "providers": {
     "eyebrow": "الدليل",
@@ -660,7 +665,8 @@
     "deleteButton": "حذف الحساب",
     "deleteWarning": "ستُحذف حجوزاتك وطلباتك وملفك أو تُخفى هويتها. وتُحفظ السجلات التي يُلزمنا القانون بالاحتفاظ بها (مثل الفواتير الضريبية) بصيغة مجهولة الهوية.",
     "deleteWrongPassword": "كلمة المرور غير صحيحة.",
-    "deleted": "تم حذف حسابك."
+    "deleted": "تم حذف حسابك.",
+    "journeyBody": "أهدافك وخطتك وخطوتك التالية في مكان واحد."
   },
   "bookings": {
     "title": "الحجوزات",
@@ -748,7 +754,8 @@
     "paymentStatus_pending": "الدفع مطلوب",
     "paymentStatus_authorized": "تم تفويض الدفع",
     "paymentStatus_captured": "مدفوع",
-    "paymentStatus_refunded": "مُسترد"
+    "paymentStatus_refunded": "مُسترد",
+    "journeyStep": "هذا الحجز جزء من رحلتك: {step}."
   },
   "concierge": {
     "title": "الكونسيرج",
@@ -1239,5 +1246,132 @@
     "disputes": "النزاعات",
     "noDisputes": "لا توجد نزاعات.",
     "evidenceDue": "الأدلة مستحقة {date}"
+  },
+  "journey": {
+    "title": "رحلتك",
+    "eyebrow": "خطة شخصية",
+    "lead": "خطة واحدة تربط أهدافك بممارسين موثَّقين وبالحجوزات والمتابعة.",
+    "coordinationNote": "هيلوكسا تنسّق رعايتك. لا تشخّص ولا تختار العلاج — هذا قرار بينك وبين ممارسك.",
+    "signedOutTitle": "سجّل الدخول لبناء رحلتك",
+    "signedOutBody": "أهدافك وخطتك خاصة بحسابك.",
+    "chooseTitle": "على ماذا تودّ أن تعمل؟",
+    "chooseLead": "اختر حتى ثلاثة أهداف، الأهم أولاً. يمكنك إنهاء الرحلة وبدء رحلة جديدة في أي وقت.",
+    "goalsLegend": "أهدافك",
+    "errGoals": "اختر من هدف واحد إلى ثلاثة أهداف.",
+    "startButton": "ابنِ رحلتي",
+    "starting": "جارٍ البناء…",
+    "alreadyActive": "لديك رحلة نشطة بالفعل.",
+    "goal": {
+      "skin_health": "صحة البشرة",
+      "facial_aesthetics": "تجميل الوجه",
+      "hair_restoration": "استعادة الشعر",
+      "dental_smile": "الأسنان والابتسامة",
+      "weight_management": "إدارة الوزن",
+      "fitness_recovery": "اللياقة والتعافي",
+      "preventive_checkup": "فحص وقائي",
+      "longevity": "طول العمر الصحي",
+      "mental_wellbeing": "العافية النفسية"
+    },
+    "goalBody": {
+      "skin_health": "راجع ممارساً موثَّقاً في الأمراض الجلدية بخصوص بشرتك.",
+      "facial_aesthetics": "ناقش الخيارات التجميلية مع ممارس موثَّق.",
+      "hair_restoration": "استشر ممارساً موثَّقاً بخصوص الشعر وفروة الرأس.",
+      "dental_smile": "رعاية الأسنان واستشارات الابتسامة.",
+      "weight_management": "اعمل مع ممارس تغذية موثَّق.",
+      "fitness_recovery": "العلاج الطبيعي ودعم التعافي.",
+      "preventive_checkup": "فحص عام لدى ممارس موثَّق.",
+      "longevity": "خطة صحية طويلة الأمد مع ممارس موثَّق.",
+      "mental_wellbeing": "تحدّث مع ممارس عافية موثَّق."
+    },
+    "yourGoals": "أهدافك",
+    "progress": "اكتملت {done} من {total} خطوات",
+    "progressLabel": "تقدّم الرحلة",
+    "nextTitle": "خطوتك التالية",
+    "timelineTitle": "خطتك",
+    "phase": {
+      "understand": "فهم احتياجاتك",
+      "consult": "استشارة ممارس موثَّق",
+      "care": "تلقّي رعايتك",
+      "follow_up": "المتابعة والمراجعة"
+    },
+    "phaseStatus": {
+      "pending": "لم تبدأ",
+      "in_progress": "المرحلة الحالية",
+      "completed": "مكتملة"
+    },
+    "step": {
+      "intake_assessment": "أخبرنا بتفضيلاتك",
+      "consultation": "استشارة — {goal}",
+      "care": "الرعاية المتفق عليها مع ممارسك — {goal}",
+      "follow_up": "زيارة متابعة — {goal}",
+      "progress_review": "راجع تقدّمك",
+      "other": "خطوة في الخطة"
+    },
+    "stepBody": {
+      "intake_assessment": "بضعة أسئلة عن التوقيت والمكان والتفضيلات لننسّق بما يناسبك.",
+      "consultation": "احجز استشارة مع ممارس موثَّق. سيخبرك بما يأتي بعد ذلك، إن وُجد.",
+      "care": "احجز الخدمة التي اتفقت عليها مع ممارسك.",
+      "follow_up": "احجز زيارة متابعة عندما يوصي ممارسك بذلك.",
+      "progress_review": "راجع ما تم إنجازه وقرّر إن كنت ستستمر.",
+      "other": "جزء من خطتك."
+    },
+    "stepStatus": {
+      "pending": "مطلوبة",
+      "scheduled": "محجوزة",
+      "in_progress": "قيد التنفيذ",
+      "completed": "مكتملة",
+      "blocked": "معلّقة"
+    },
+    "answerQuestions": "أجب عن بضعة أسئلة",
+    "findProviders": "ابحث عن مقدّمي خدمة موثَّقين",
+    "askConcierge": "اطلب من الكونسيرج ترتيبها",
+    "markDone": "وضع علامة مكتملة",
+    "markDoneTitle": "وضع علامة مكتملة على هذه الخطوة؟",
+    "markDoneBody": "استخدم هذا إذا اكتملت الخطوة خارج هيلوكسا. لا يمكن التراجع.",
+    "marking": "جارٍ الحفظ…",
+    "markedDone": "تم وضع علامة مكتملة على الخطوة.",
+    "viewAppointment": "عرض الموعد",
+    "scheduledFor": "محجوزة بتاريخ {date}",
+    "completedOn": "اكتملت في {date}",
+    "laterStage": "تُفتح عند اكتمال المرحلة السابقة.",
+    "updating": "تم حفظ تفضيلاتك. ستتحدّث خطتك خلال لحظات — حدّث الصفحة إن لم تتحدّث.",
+    "allDoneTitle": "اكتملت جميع خطوات هذه الرحلة",
+    "allDoneBody": "يمكنك إنهاء هذه الرحلة وبدء رحلة جديدة متى شئت.",
+    "endTitle": "إنهاء هذه الرحلة",
+    "endLead": "إنهاء الرحلة يُبقي حجوزاتك وسجلّك. يمكنك بعدها بدء رحلة جديدة بأهداف مختلفة.",
+    "endButton": "إنهاء الرحلة",
+    "endConfirmBody": "سيتم إغلاق خطتك. لن تُلغى المواعيد القائمة.",
+    "ending": "جارٍ الإنهاء…",
+    "intake": {
+      "title": "تفضيلاتك",
+      "lead": "تساعدنا هذه الإجابات على تنسيق الحجوزات بما يناسبك. ليست تقييماً طبياً.",
+      "timeframe": "متى تودّ أن تبدأ؟",
+      "timeframe_asap": "في أقرب وقت ممكن",
+      "timeframe_within_month": "خلال شهر",
+      "timeframe_within_three_months": "خلال ثلاثة أشهر",
+      "timeframe_flexible": "وقتي مرن",
+      "city": "أين تفضّل أن تُراجع؟",
+      "city_dubai": "دبي",
+      "city_abu_dhabi": "أبوظبي",
+      "city_sharjah": "الشارقة",
+      "city_other": "مكان آخر",
+      "language": "اللغة المفضّلة لزياراتك",
+      "practitioner_gender": "تفضيل الممارس",
+      "practitioner_gender_no_preference": "لا تفضيل",
+      "practitioner_gender_female": "ممارسة",
+      "practitioner_gender_male": "ممارس",
+      "visit_mode": "كيف تودّ أن تُراجع؟",
+      "visit_mode_in_person": "في العيادة",
+      "visit_mode_home_visit": "في المنزل",
+      "visit_mode_no_preference": "لا تفضيل",
+      "notes": "هل هناك شيء آخر ينبغي أن يعرفه المنسّق؟",
+      "notesHint": "اختياري. لا تُدرج ما لا تودّ أن يقرأه منسّق الرعاية.",
+      "choose": "اختر…",
+      "errRequired": "اختر خياراً.",
+      "submit": "احفظ تفضيلاتي",
+      "saving": "جارٍ الحفظ…",
+      "alreadyDone": "لقد أجبت عن هذه الأسئلة لهذه الرحلة.",
+      "noJourney": "ابدأ رحلة أولاً."
+    }
   }
 }
