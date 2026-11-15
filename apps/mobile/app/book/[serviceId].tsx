@@ -3,6 +3,8 @@
  *
  *   listAvailableSlots → createAppointment (hold, Idempotency-Key) → transitionAppointment(submit)
  *   reschedule mode (?reschedule=<id>): listAvailableSlots → rescheduleAppointment
+ *   journey step (?milestoneId=<id>): the hold is created with milestone_id, so the step follows
+ *   the appointment (scheduled → completed, back to pending if it is cancelled)
  *
  * Slots come only from the server (derived from provider availability); a 503 means availability
  * cannot be checked and no times are shown. A hold that the user abandons is released with the
@@ -28,7 +30,7 @@ const WINDOW_DAYS = 14;
 const DEFAULT_TZ = 'Asia/Dubai';
 
 export default function Book() {
-  const { serviceId, reschedule } = useLocalSearchParams<{ serviceId: string; reschedule?: string }>();
+  const { serviceId, reschedule, milestoneId } = useLocalSearchParams<{ serviceId: string; reschedule?: string; milestoneId?: string }>();
   const { t, language } = useI18n();
   const theme = useTheme();
   const api = useApi();
@@ -107,7 +109,13 @@ export default function Book() {
         setHold(null);
       }
       const created = await auth.withAuth((tk) =>
-        api.appointments.hold(tk, { service_id: serviceId, scheduled_at: s.scheduled_at }, keyFor(`hold-${s.scheduled_at}`))
+        api.appointments.hold(
+          tk,
+          milestoneId
+            ? { service_id: serviceId, scheduled_at: s.scheduled_at, milestone_id: milestoneId }
+            : { service_id: serviceId, scheduled_at: s.scheduled_at },
+          keyFor(`hold-${s.scheduled_at}`)
+        )
       );
       setHold(created);
     } catch (e) {

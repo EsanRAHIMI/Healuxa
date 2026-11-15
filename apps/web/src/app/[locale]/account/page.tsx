@@ -14,6 +14,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   const isStaff = ["providers:verify", "facilities:verify", "concierge:coordinate", "payments:manage", "payments:refund", "finance:reconcile"].some((p) => hasPermission(session, p));
   const base = `/${locale}/account`;
   const cards = [
+    { href: `/${locale}/journey`, title: t("journey.title"), body: t("account.journeyBody") },
     { href: `${base}/bookings`, title: t("bookings.title"), body: t("bookings.lead") },
     { href: `${base}/concierge`, title: t("concierge.title"), body: t("concierge.lead") },
     { href: `${base}/notifications`, title: t("notifications.title"), body: t("notifications.lead") },

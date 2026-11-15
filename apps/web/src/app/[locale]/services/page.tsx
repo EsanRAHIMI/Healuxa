@@ -3,9 +3,11 @@ import type { Metadata } from "next";
 import { OfferingCard } from "@/components/domain/cards";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
 import { CursorPager, FilterBar, FilterInput } from "@/components/ui/filters";
-import { EmptyState, PageHeader } from "@/components/ui/primitives";
+import { Alert, ButtonLink, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { listPublicServices, offeringContext } from "@/lib/catalog";
 import { getT, resolveLocale } from "@/lib/i18n";
+import { stepLabel } from "@/lib/journey";
+import { findOpenStep } from "@/lib/journey-server";
 import { qp } from "@/lib/query";
 import { pageMetadata } from "@/lib/seo";
 
@@ -24,6 +26,9 @@ export default async function ServicesPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   const category = qp(sp, "category", 80);
   const cursor = qp(sp, "cursor", 512);
+  // Arriving from a journey step: bookings made from this list are linked to that step.
+  const step = await findOpenStep(qp(sp, "milestone", 26));
+  const bookQuery = step ? `milestone=${step.id}` : undefined;
   const result = await settle(async () => {
     const page = await listPublicServices({ category, cursor });
     return { page, ctx: await offeringContext(page.data) };
@@ -35,6 +40,19 @@ export default async function ServicesPage({ params, searchParams }: Props) {
       <FilterBar action={base} label={t("services.filtersLabel")} submitLabel={t("common.search")} clearHref={base} clearLabel={t("common.clearFilters")}>
         <FilterInput name="category" label={t("services.category")} defaultValue={category} placeholder={t("services.categoryPlaceholder")} />
       </FilterBar>
+      {step ? (
+        <Alert tone="info" role="note" className="mt-6 max-w-3xl" title={t("services.journeyBanner", { step: stepLabel(t, step) })}>
+          <p>{t("services.journeyBannerHelp")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <ButtonLink href={`/${locale}/account/concierge#new`} variant="secondary" size="sm">
+              {t("services.journeyAskConcierge")}
+            </ButtonLink>
+            <ButtonLink href={`/${locale}/journey`} variant="ghost" size="sm">
+              {t("journey.title")}
+            </ButtonLink>
+          </div>
+        </Alert>
+      ) : null}
       <p className="mt-6 max-w-3xl text-sm text-text-muted">{t("payment.feeBreakdownExplainer")}</p>
       <section aria-labelledby="results" className="mt-6">
         <h2 id="results" className="sr-only">
@@ -55,12 +73,13 @@ export default async function ServicesPage({ params, searchParams }: Props) {
                   provider={result.value.ctx.providers.get(o.provider_id)}
                   facility={o.facility_id ? result.value.ctx.facilities.get(o.facility_id) : undefined}
                   branch={result.value.ctx.branches.get(o.branch_id)}
+                  bookQuery={bookQuery}
                 />
               ))}
             </ul>
             <CursorPager
               basePath={base}
-              params={{ category }}
+              params={{ category, milestone: step?.id ?? undefined }}
               nextCursor={result.value.page.page.next_cursor}
               isFirst={!cursor}
               nextLabel={t("common.next")}

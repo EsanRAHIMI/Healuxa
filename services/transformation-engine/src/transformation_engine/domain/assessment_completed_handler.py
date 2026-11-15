@@ -4,7 +4,14 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from healuxa_py_common.events.envelope import EventActor
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from transformation_engine.domain.plan_templates import STEP_INTAKE
+from transformation_engine.domain.progress import complete_milestone
+from transformation_engine.domain.security import utcnow
+from transformation_engine.infra.models import Milestone
 
 from transformation_engine.domain.event_validation import (
     ASSESSMENT_COMPLETED_TYPE,
@@ -19,7 +26,7 @@ from transformation_engine.infra.event_repository import (
     is_event_processed,
     record_processed_event,
 )
-from transformation_engine.infra.event_models import OUTCOME_ACKED, OUTCOME_REJECTED, OUTCOME_SKIPPED
+from transformation_engine.infra.event_models import CONSUMER_NAME, OUTCOME_ACKED, OUTCOME_REJECTED, OUTCOME_SKIPPED
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +146,20 @@ class AssessmentCompletedHandler:
             assessment_kind=payload["kind"],
             completed_at=payload["completed_at"],
         )
+
+        if payload["kind"] == "intake":
+            # The intake assessment is the first plan step; completing it activates the journey.
+            intake = await db.scalar(
+                select(Milestone).where(Milestone.journey_id == journey.id, Milestone.code == STEP_INTAKE)
+            )
+            if intake is not None:
+                await complete_milestone(
+                    db,
+                    journey,
+                    intake,
+                    now=utcnow(),
+                    actor=EventActor(type="system", id=CONSUMER_NAME),
+                )
 
         await record_processed_event(
             db,

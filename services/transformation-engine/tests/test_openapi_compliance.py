@@ -13,7 +13,7 @@ from transformation_engine.api.deps import principal_headers
 async def _create_journey(client: AsyncClient, user_id: str, headers: dict) -> dict:
     response = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-a"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=headers,
     )
     assert response.status_code == 201, response.text
@@ -24,7 +24,7 @@ async def _create_journey(client: AsyncClient, user_id: str, headers: dict) -> d
 async def test_create_journey_requires_permission(client: AsyncClient, user_id: str) -> None:
     response = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["x"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
     )
     assert response.status_code == 401
 
@@ -34,7 +34,7 @@ async def test_create_journey_forbidden_other_user(client: AsyncClient, user_id:
     other = str(ULID())
     response = await client.post(
         "/v1/journeys",
-        json={"user_id": other, "primary_goals": ["x"]},
+        json={"user_id": other, "primary_goals": ["skin_health"]},
         headers=auth_headers,
     )
     assert response.status_code == 403
@@ -45,7 +45,7 @@ async def test_create_duplicate_journey_returns_409(client: AsyncClient, user_id
     await _create_journey(client, user_id, auth_headers)
     second = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-b"]},
+        json={"user_id": user_id, "primary_goals": ["longevity"]},
         headers=auth_headers,
     )
     assert second.status_code == 409
@@ -57,12 +57,12 @@ async def test_create_journey_idempotency_replay(client: AsyncClient, user_id: s
     headers = {**auth_headers, "Idempotency-Key": "journey-create-replay-01"}
     first = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-a"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=headers,
     )
     second = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-a"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=headers,
     )
     assert first.status_code == 201
@@ -76,13 +76,13 @@ async def test_create_journey_idempotency_conflict(client: AsyncClient, user_id:
     headers = {**auth_headers, "Idempotency-Key": "journey-create-conflict-01"}
     first = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-a"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=headers,
     )
     assert first.status_code == 201
     second = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["goal-b"]},
+        json={"user_id": user_id, "primary_goals": ["longevity"]},
         headers=headers,
     )
     assert second.status_code == 409
@@ -114,8 +114,9 @@ async def test_list_milestones_cursor_pagination(client: AsyncClient, user_id: s
     )
     assert page2.status_code == 200
     body2 = page2.json()
-    assert len(body2["data"]) == 1
-    assert body2["page"]["has_more"] is False
+    # Three milestones created here plus the five generated plan steps: more pages remain.
+    assert len(body2["data"]) == 2
+    assert body2["page"]["has_more"] is True
 
     ids1 = {item["id"] for item in body1["data"]}
     ids2 = {item["id"] for item in body2["data"]}

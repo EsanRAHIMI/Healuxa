@@ -28,6 +28,7 @@ export async function Header({ locale }: { locale: Locale }) {
   const session = await getSession();
   const isStaff = hasPermission(session, "providers:verify") || hasPermission(session, "facilities:verify");
   const nav = [
+    { href: `/${locale}/journey`, label: t("nav.journey") },
     { href: `/${locale}/services`, label: t("nav.services") },
     { href: `/${locale}/providers`, label: t("nav.providers") },
     { href: `/${locale}/facilities`, label: t("nav.facilities") },

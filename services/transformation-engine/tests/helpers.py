@@ -29,7 +29,7 @@ async def create_test_milestone(
 async def create_test_journey(client, user_id: str, auth_headers: dict) -> str:
     response = await client.post(
         "/v1/journeys",
-        json={"user_id": user_id, "primary_goals": ["wellness"]},
+        json={"user_id": user_id, "primary_goals": ["skin_health"]},
         headers=auth_headers,
     )
     assert response.status_code == 201, response.text

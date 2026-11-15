@@ -50,6 +50,7 @@ class Phase(Base):
 
     id: Mapped[str] = mapped_column(String(26), primary_key=True)
     journey_id: Mapped[str] = mapped_column(String(26), ForeignKey("journeys.id", ondelete="CASCADE"), index=True)
+    code: Mapped[str | None] = mapped_column(String(32))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
@@ -65,6 +66,14 @@ class Milestone(Base):
     journey_id: Mapped[str] = mapped_column(String(26), ForeignKey("journeys.id", ondelete="CASCADE"), index=True)
     phase_id: Mapped[str | None] = mapped_column(String(26), ForeignKey("phases.id", ondelete="SET NULL"))
     title: Mapped[str] = mapped_column(String(512), nullable=False)
+    # Plan step: `code` is the step type, `goal` the goal it serves, `service_category` the
+    # provider-catalog category a booking for this step should come from.
+    code: Mapped[str | None] = mapped_column(String(32))
+    goal: Mapped[str | None] = mapped_column(String(64))
+    service_category: Mapped[str | None] = mapped_column(String(80))
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    appointment_id: Mapped[str | None] = mapped_column(String(36))
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

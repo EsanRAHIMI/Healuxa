@@ -44,6 +44,8 @@ export interface Appointment {
   facility_id: string;
   branch_id: string;
   service_id: string;
+  /** journey step this booking fulfils, when it was booked from the journey */
+  milestone_id?: string | null;
   status: AppointmentStatus;
   scheduled_at: string;
   ends_at: string;
