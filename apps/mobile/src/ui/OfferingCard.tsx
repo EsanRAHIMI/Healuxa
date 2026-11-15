@@ -6,7 +6,16 @@ import { localized } from '../i18n/labels';
 import { FeeBreakdownView } from './FeeBreakdownView';
 import { AppText, Button, Card, Row } from './primitives';
 
-export function OfferingCard({ offering, showProviderLink }: { offering: ServiceOffering; showProviderLink?: boolean }) {
+export function OfferingCard({
+  offering,
+  showProviderLink,
+  milestoneId,
+}: {
+  offering: ServiceOffering;
+  showProviderLink?: boolean;
+  /** journey step being booked; carried to the booking screen so the appointment is linked to it */
+  milestoneId?: string;
+}) {
   const { t, language } = useI18n();
   const router = useRouter();
   const description = localized(offering.description, language);
@@ -29,7 +38,9 @@ export function OfferingCard({ offering, showProviderLink }: { offering: Service
         <Button
           label={t('book.cta')}
           icon="calendar-outline"
-          onPress={() => router.push({ pathname: '/book/[serviceId]', params: { serviceId: offering.id } })}
+          onPress={() =>
+            router.push({ pathname: '/book/[serviceId]', params: milestoneId ? { serviceId: offering.id, milestoneId } : { serviceId: offering.id } })
+          }
           testID={`book-${offering.id}`}
         />
       ) : null}

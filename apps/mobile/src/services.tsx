@@ -23,6 +23,8 @@ export function createServices(): Services {
     appointmentBaseUrl: config.appointmentBaseUrl,
     conciergeBaseUrl: config.conciergeBaseUrl,
     notificationBaseUrl: config.notificationBaseUrl,
+    journeyBaseUrl: config.journeyBaseUrl,
+    assessmentBaseUrl: config.assessmentBaseUrl,
     fetch: (input, init) => fetch(input, init),
     cache: new PublicCache(createFileStore('cache', 'public-directory')),
   });
