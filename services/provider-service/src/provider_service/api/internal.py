@@ -1,4 +1,5 @@
-"""Service-authenticated read endpoints for appointment-service (booking engine).
+"""Service-authenticated read endpoints for appointment-service (booking engine) and profile-service
+(records access checks).
 
 Mesh-internal only (``serviceAuth``): the caller presents a service token issued by identity-service
 (``POST /v1/auth/service-token``); introspection yields the ``service`` permission. Responses are raw
@@ -8,7 +9,7 @@ scheduling facts — appointment-service derives slots from them and never inven
 from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from healuxa_py_common.middleware.auth import Principal
@@ -240,4 +241,98 @@ async def get_scheduling_actor(
         user_id=user_id,
         provider_ids=list(provider_ids),
         facility_roles=[FacilityRole(facility_id=f, role=r) for f, r in roles],
+    )
+
+
+# ── Records access (consumed by profile-service) ─────────────────────────────────────────────
+# profile-service decides whether a caller may read a customer's shared medical record. It must not
+# trust the caller's claim to belong to an organisation, so it asks here, with a service token.
+
+records_router = APIRouter(prefix="/v1/internal/records-access", tags=["internal"])
+
+
+class RecordsActorProvider(BaseModel):
+    id: str
+    status: str
+    verification_status: str
+
+
+class RecordsActorFacility(BaseModel):
+    id: str
+    role: str
+    status: str
+    verification_status: str
+
+
+class RecordsActor(BaseModel):
+    user_id: str
+    providers: list[RecordsActorProvider]
+    facilities: list[RecordsActorFacility]
+
+
+class RecordsGrantee(BaseModel):
+    type: Literal["provider", "facility"]
+    id: str
+    name: str
+    status: str
+    verification_status: str
+
+
+@records_router.get("/actors/{user_id}")
+async def get_records_actor(
+    db: Db, _: Service, user_id: str, tenant_id: str = Query(min_length=2, max_length=64)
+) -> RecordsActor:
+    """The practitioner profiles a user owns and the facilities they are currently staff of."""
+    providers = (
+        await db.execute(
+            select(Provider.id, Provider.status, Provider.verification_status)
+            .where(Provider.tenant_id == tenant_id, Provider.user_id == user_id)
+            .order_by(Provider.id)
+        )
+    ).all()
+    facilities = (
+        await db.execute(
+            select(FacilityStaff.facility_id, FacilityStaff.role, Facility.status, Facility.verification_status)
+            .join(Facility, Facility.id == FacilityStaff.facility_id)
+            .where(FacilityStaff.user_id == user_id, Facility.tenant_id == tenant_id)
+            .order_by(FacilityStaff.facility_id)
+        )
+    ).all()
+    return RecordsActor(
+        user_id=user_id,
+        providers=[RecordsActorProvider(id=i, status=s, verification_status=v) for i, s, v in providers],
+        facilities=[RecordsActorFacility(id=i, role=r, status=s, verification_status=v) for i, r, s, v in facilities],
+    )
+
+
+@records_router.get("/grantees/{grantee_type}/{grantee_id}")
+async def get_records_grantee(
+    db: Db,
+    _: Service,
+    grantee_type: Literal["provider", "facility"],
+    grantee_id: str,
+    tenant_id: str = Query(min_length=2, max_length=64),
+) -> RecordsGrantee:
+    """Whether an organisation exists in the tenant (and its public name), before a customer shares with it."""
+    if grantee_type == "provider":
+        row = (
+            await db.execute(
+                select(Provider.display_name, Provider.status, Provider.verification_status).where(
+                    Provider.id == grantee_id, Provider.tenant_id == tenant_id
+                )
+            )
+        ).first()
+    else:
+        row = (
+            await db.execute(
+                select(Facility.name, Facility.status, Facility.verification_status).where(
+                    Facility.id == grantee_id, Facility.tenant_id == tenant_id
+                )
+            )
+        ).first()
+    if row is None:
+        raise not_found("Grantee")
+    name, status, verification_status = row
+    return RecordsGrantee(
+        type=grantee_type, id=grantee_id, name=name, status=status, verification_status=verification_status
     )

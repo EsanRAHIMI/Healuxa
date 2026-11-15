@@ -496,6 +496,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/records-access/actors/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Practitioner profiles a user owns and facilities they currently staff (consumed by profile-service)
+         * @description Authorization input for shared medical records: profile-service never trusts a caller's claim to belong to an organisation and asks here on every read. Mesh-internal; requires a service token (`service` permission).
+         */
+        get: operations["getRecordsActor"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/records-access/grantees/{grantee_type}/{grantee_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a provider or facility exists in the tenant, with its public name (consumed by profile-service) */
+        get: operations["getRecordsGrantee"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/providers": {
         parameters: {
             query?: never;
@@ -623,6 +660,29 @@ export interface components {
                 /** @enum {string} */
                 role: "facility_admin" | "scheduler" | "billing";
             }[];
+        };
+        RecordsActor: {
+            user_id: string;
+            providers: {
+                id: string;
+                status: components["schemas"]["ProviderStatus"];
+                verification_status: components["schemas"]["VerificationStatus"];
+            }[];
+            facilities: {
+                id: string;
+                /** @enum {string} */
+                role: "facility_admin" | "scheduler" | "billing";
+                status: string;
+                verification_status: components["schemas"]["VerificationStatus"];
+            }[];
+        };
+        RecordsGrantee: {
+            /** @enum {string} */
+            type: "provider" | "facility";
+            id: string;
+            name: string;
+            status: string;
+            verification_status: components["schemas"]["VerificationStatus"];
         };
         /** @enum {string} */
         ProviderType: "doctor" | "clinic" | "therapist" | "trainer" | "nutritionist" | "pharmacy" | "brand" | "home_visit";
@@ -2041,6 +2101,58 @@ export interface operations {
                 };
             };
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getRecordsActor: {
+        parameters: {
+            query: {
+                tenant_id: string;
+            };
+            header?: never;
+            path: {
+                user_id: components["schemas"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordsActor"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getRecordsGrantee: {
+        parameters: {
+            query: {
+                tenant_id: string;
+            };
+            header?: never;
+            path: {
+                grantee_type: "provider" | "facility";
+                grantee_id: components["schemas"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordsGrantee"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listAdminProviders: {
