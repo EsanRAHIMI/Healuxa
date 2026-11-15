@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import SettingsConfigDict
 
 from healuxa_py_common.config import ServiceSettings
@@ -43,6 +44,14 @@ class Settings(ServiceSettings):
     rate_limit_per_day: int = 150
     max_cards_per_turn: int = 6
     slot_lookahead_days: int = 14
+
+    emergency_number: str = "998"
+
+    @model_validator(mode="after")
+    def _no_fake_model_in_production(self):
+        if self.app_env.lower() in ("production", "staging") and self.llm_provider != "anthropic":
+            raise ValueError(f"APP_ENV={self.app_env}: LLM_PROVIDER must be 'anthropic'")
+        return self
 
 
 settings = Settings()
