@@ -15,7 +15,7 @@ dependencies = [
     "python-ulid>=3.0",
     "httpx>=0.28",
     "psycopg[binary]>=3.2",
-    "tzdata>=2024.1",
+    "tzdata>=2026.6",
 ]
 
 [project.optional-dependencies]
