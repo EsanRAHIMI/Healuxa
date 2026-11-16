@@ -7,7 +7,7 @@ dependencies = [
     "healuxa-py-common[events-sql]",
     "fastapi>=0.162.2",
     "uvicorn[standard]>=0.32",
-    "sqlalchemy[asyncio]>=2.0",
+    "sqlalchemy[asyncio]>=2.1.8",
     "asyncpg>=0.30",
     "alembic>=1.14",
     "prometheus-client>=0.26.0",
