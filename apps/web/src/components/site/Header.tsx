@@ -9,6 +9,7 @@ import { getSession, hasPermission } from "@/lib/auth/session";
 import { getT } from "@/lib/i18n";
 
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { BottomNav, MainNav, type NavItem } from "./NavLinks";
 
 export function Wordmark({ locale }: { locale: Locale }) {
   const t = getT(locale);
@@ -27,16 +28,24 @@ export async function Header({ locale }: { locale: Locale }) {
   const t = getT(locale);
   const session = await getSession();
   const isStaff = hasPermission(session, "providers:verify") || hasPermission(session, "facilities:verify");
-  const nav = [
-    { href: `/${locale}/journey`, label: t("nav.journey") },
-    { href: `/${locale}/services`, label: t("nav.services") },
+  const account = `/${locale}/account`;
+  const discover: NavItem[] = [
+    { href: `/${locale}/services`, label: t("nav.services"), also: [`/${locale}/book`] },
     { href: `/${locale}/providers`, label: t("nav.providers") },
     { href: `/${locale}/facilities`, label: t("nav.facilities") },
-    { href: `/${locale}/how-it-works`, label: t("nav.howItWorks") },
-    { href: `/${locale}/medical-travel`, label: t("nav.medicalTravel") },
   ];
+  // Signed in: the customer's own places first, then discovery. Signed out: discovery and how it works.
+  const nav: NavItem[] = session
+    ? [
+        { href: account, label: t("nav.home"), exact: true },
+        { href: `/${locale}/journey`, label: t("nav.journey") },
+        { href: `${account}/bookings`, label: t("nav.bookings") },
+        { href: `${account}/concierge`, label: t("nav.concierge") },
+        ...discover,
+      ]
+    : [{ href: `/${locale}/journey`, label: t("nav.journey") }, ...discover, { href: `/${locale}/how-it-works`, label: t("nav.howItWorks") }, { href: `/${locale}/medical-travel`, label: t("nav.medicalTravel") }];
   return (
-    <header className="border-b border-border bg-surface">
+    <header className="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
       <div className="hx-container flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-3">
         <Wordmark locale={locale} />
         <div className="flex flex-wrap items-center gap-2">
@@ -73,17 +82,21 @@ export async function Header({ locale }: { locale: Locale }) {
           )}
         </div>
       </div>
-      <nav aria-label={t("a11y.mainNav")} className="border-t border-border">
-        <ul className="hx-container flex gap-1 overflow-x-auto py-1 text-sm md:gap-3">
-          {nav.map((item) => (
-            <li key={item.href} className="shrink-0">
-              <Link href={item.href} className="inline-flex min-h-10 items-center rounded-md px-2 text-text no-underline hover:bg-surface-muted">
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <div className="border-t border-border">
+        <MainNav items={nav} label={t("a11y.mainNav")} />
+      </div>
+      {session ? (
+        <BottomNav
+          label={t("nav.mobileNav")}
+          items={[
+            { href: account, label: t("nav.home"), exact: true, icon: "home" },
+            { href: `/${locale}/journey`, label: t("nav.journey"), icon: "journey" },
+            { href: `/${locale}/services`, label: t("nav.findCare"), also: [`/${locale}/providers`, `/${locale}/facilities`, `/${locale}/book`], icon: "search" },
+            { href: `${account}/bookings`, label: t("nav.bookings"), icon: "calendar" },
+            { href: `${account}/concierge`, label: t("nav.concierge"), icon: "chat" },
+          ]}
+        />
+      ) : null}
     </header>
   );
 }
