@@ -48,7 +48,7 @@ jobs:
         image: redis:7-alpine
         ports: ["6379:6379"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build image
         run: docker build -f services/${{ matrix.service }}/Dockerfile -t healuxa/${{ matrix.service }}:ci .
       - name: Image runs as non-root
