@@ -28,7 +28,8 @@ AP = os.environ.get("APPOINTMENT", "http://127.0.0.1:8407")
 IDENTITY_DB = os.environ.get("IDENTITY_DB", "postgresql://healuxa:dev@127.0.0.1:5432/journey_e2e_identity")
 PSQL = os.environ.get("PSQL", "/opt/homebrew/opt/postgresql@16/bin/psql")
 ADMIN_ROLE = "01JROLE00000000000000002"
-PASSWORD = "Smoke-pass-1234"
+# Throwaway accounts on a local stack: a fresh random credential per run.
+PASSWORD = os.environ.get("SMOKE_PASSWORD") or f"Smk-{uuid.uuid4().hex}-Aa1"
 
 
 def check(response: httpx.Response, status: int = 200) -> dict:

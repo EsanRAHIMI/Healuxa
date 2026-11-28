@@ -1,0 +1,2 @@
+# Dev-only credential for throwaway accounts on a local smoke stack (since replaced by a random value).
+0be4de201d2bb3189c3f1085f2e56b628d9ff1e6:scripts/smoke/journey_e2e.py:generic-api-key:31

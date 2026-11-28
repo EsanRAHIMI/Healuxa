@@ -137,3 +137,15 @@ class Appointment(BaseModel):
     reminders: list[Reminder]
     version: int
     created_at: datetime
+
+
+class AppointmentSummary(BaseModel):
+    """Operational report for a practice scope over a time range."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: datetime = Field(alias="from")
+    to: datetime
+    total: int
+    by_status: dict[str, int]
+    completed_revenue: list[Money]

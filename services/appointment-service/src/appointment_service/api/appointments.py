@@ -81,6 +81,21 @@ async def list_appointments(
     }
 
 
+@router.get("/v1/appointments/summary", response_model_by_alias=True)
+async def appointment_summary(
+    db: Db,
+    directory: Directory,
+    principal: Reader,
+    from_: datetime = Query(alias="from"),
+    to: datetime = Query(),
+    provider_id: str | None = Query(default=None, max_length=36),
+    facility_id: str | None = Query(default=None, max_length=36),
+) -> schemas.AppointmentSummary:
+    return await booking_service.summary(
+        db, directory, principal, provider_id=provider_id, facility_id=facility_id, from_=from_, to=to
+    )
+
+
 @router.post("/v1/appointments", status_code=201)
 async def create_appointment(
     db: Db,
