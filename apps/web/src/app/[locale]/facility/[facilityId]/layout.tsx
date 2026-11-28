@@ -31,6 +31,7 @@ export default async function FacilityWorkspaceLayout({ children, params }: { ch
           { href: `${base}/affiliations`, label: t("pp.affiliations") },
           { href: `${base}/offerings`, label: t("fp.offerings") },
           { href: `${base}/bookings`, label: t("bookings.calendar") },
+          { href: `${base}/shared`, label: t("records.sharedWithMe") },
         ]}
       />
       {children}

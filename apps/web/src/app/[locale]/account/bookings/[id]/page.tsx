@@ -4,19 +4,24 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { rescheduleAction, startPaymentAction } from "@/actions/booking";
+import { shareRecordsAction } from "@/actions/records";
 import { AppointmentActions } from "@/components/booking/AppointmentActions";
 import { HoldCountdown } from "@/components/booking/HoldCountdown";
 import { SlotPicker } from "@/components/booking/SlotPicker";
+import { expiryOptions, purposeOptions, shareLabels } from "@/components/records/labels";
+import { ShareDialog } from "@/components/records/ShareDialog";
 import { StatusBadge } from "@/components/domain/badges";
 import { settle } from "@/components/domain/ServiceError";
 import { SubmitButton } from "@/components/forms/fields";
 import { Form } from "@/components/forms/Form";
 import { Alert, ButtonLink, Card, DefinitionList, PageHeader, Section } from "@/components/ui/primitives";
 import { userApi } from "@/lib/api";
+import { getCsrfToken } from "@/lib/csrf";
 import { requireSession } from "@/lib/auth/session";
 import { getPublicFacility, getPublicProvider, listPublicBranches } from "@/lib/catalog";
 import { getT, resolveLocale } from "@/lib/i18n";
 import { qp } from "@/lib/query";
+import { listMyRecords } from "@/lib/records";
 
 type Props = { params: Promise<{ locale: string; id: string }>; searchParams: Promise<Record<string, string | undefined>> };
 
@@ -32,13 +37,20 @@ export default async function BookingDetail({ params, searchParams }: Props) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   });
-  const [provider, facility, branches, transitions, payments] = await Promise.all([
+  const shareable = ["requested", "confirmed", "checked_in", "completed"].includes(a.status);
+  const [provider, facility, branches, transitions, payments, records, csrf] = await Promise.all([
     getPublicProvider(a.provider_id).catch(() => null),
     getPublicFacility(a.facility_id).catch(() => null),
     listPublicBranches(a.facility_id).catch(() => []),
     settle(() => unwrap(api.appointment.GET("/appointments/{id}/transitions", { params: { path: { id } } }))),
     settle(() => unwrap(api.payment.GET("/payments", { params: { query: { subject_id: id } } }))),
+    shareable ? settle(() => listMyRecords()) : Promise.resolve(null),
+    getCsrfToken(),
   ]);
+  const shareCandidates = [
+    ...(provider ? [{ type: "provider" as const, id: provider.id, name: provider.display_name }] : []),
+    ...(facility ? [{ type: "facility" as const, id: facility.id, name: facility.name }] : []),
+  ];
   const branch = branches.find((b) => b.id === a.branch_id);
   const tz = { timeZone: a.timezone };
   const canReschedule = a.status === "requested" || a.status === "confirmed";
@@ -71,6 +83,28 @@ export default async function BookingDetail({ params, searchParams }: Props) {
             {a.decline_reason ? <p className="mt-4 text-sm">{t("booking.declinedBecause", { reason: t(`booking.reason_${a.decline_reason}`) })}</p> : null}
             <div className="mt-6 flex flex-wrap gap-3">
               <AppointmentActions appointment={a} side="customer" locale={locale} />
+              {records?.ok && shareCandidates.length ? (
+                records.value.data.length ? (
+                  <ShareDialog
+                    action={shareRecordsAction}
+                    csrf={csrf}
+                    locale={locale}
+                    records={records.value.data.map((r) => ({ id: r.id, title: r.title, meta: t(`records.types.${r.type}`) }))}
+                    preselected={[]}
+                    candidates={shareCandidates}
+                    defaultGrantee={shareCandidates[0] ? `${shareCandidates[0].type}:${shareCandidates[0].id}` : undefined}
+                    appointmentId={a.id}
+                    expiryOptions={expiryOptions(t)}
+                    purposeOptions={purposeOptions(t)}
+                    labels={shareLabels(t, t("records.shareWithProvider"))}
+                    testId="booking-share-records"
+                  />
+                ) : (
+                  <ButtonLink href={`/${locale}/account/records`} variant="secondary" size="sm">
+                    {t("records.shareWithProvider")}
+                  </ButtonLink>
+                )
+              ) : null}
               {canReschedule && !rescheduling ? (
                 <ButtonLink href={`/${locale}/account/bookings/${a.id}?reschedule=1`} variant="secondary" size="sm">
                   {t("booking.reschedule")}

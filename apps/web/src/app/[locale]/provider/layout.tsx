@@ -34,6 +34,7 @@ export default async function ProviderPortalLayout({ children, params }: { child
             { href: `${base}/services`, label: t("pp.services") },
             { href: `${base}/availability`, label: t("pp.availability") },
             { href: `${base}/bookings`, label: t("bookings.calendar") },
+            { href: `${base}/shared`, label: t("records.sharedWithMe") },
           ]}
         />
       ) : null}

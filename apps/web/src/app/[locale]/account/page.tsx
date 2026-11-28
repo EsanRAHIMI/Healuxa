@@ -16,6 +16,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
   const cards = [
     { href: `/${locale}/journey`, title: t("journey.title"), body: t("account.journeyBody") },
     { href: `${base}/bookings`, title: t("bookings.title"), body: t("bookings.lead") },
+    { href: `${base}/records`, title: t("records.title"), body: t("records.hubBody") },
     { href: `${base}/concierge`, title: t("concierge.title"), body: t("concierge.lead") },
     { href: `${base}/notifications`, title: t("notifications.title"), body: t("notifications.lead") },
     { href: `${base}/payments`, title: t("payments.title"), body: t("payments.lead") },
