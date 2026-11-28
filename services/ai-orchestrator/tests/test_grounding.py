@@ -36,7 +36,7 @@ async def test_service_cards_carry_real_price_and_booking_link(client: AsyncClie
     assert set(cards) == {SERVICE_DENTAL, SERVICE_DENTAL_2}
     first = cards[SERVICE_DENTAL]
     assert first["title"] == "Dental check-up and cleaning"
-    assert first["price"] == {"amount": "450.00", "currency": "AED"} and first["price_type"] == "fixed"
+    assert first["price"] == {"amount_minor": 45000, "amount": "450.00", "currency": "AED"} and first["price_type"] == "fixed"
     assert first["provider_name"] == "Dr. Layla Haddad"
     assert first["href"] == f"/book/{SERVICE_DENTAL}"
     assert cards[SERVICE_DENTAL_2]["price"] is None and cards[SERVICE_DENTAL_2]["price_type"] == "on_request"

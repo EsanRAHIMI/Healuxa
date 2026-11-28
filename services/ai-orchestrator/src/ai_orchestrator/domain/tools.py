@@ -210,7 +210,8 @@ class TurnContext:
 def _money(value: Any) -> dict[str, str] | None:
     if not isinstance(value, dict) or not isinstance(value.get("amount_minor"), int) or not value.get("currency"):
         return None
-    return {"amount": f"{Decimal(value['amount_minor']) / 100:.2f}", "currency": str(value["currency"])}
+    # Healuxa currencies (AED and peers) use two minor digits; amount is the decimal the model may quote.
+    return {"amount_minor": value["amount_minor"], "amount": f"{Decimal(value['amount_minor']) / 100:.2f}", "currency": str(value["currency"])}
 
 
 def _valid_id(value: Any) -> bool:

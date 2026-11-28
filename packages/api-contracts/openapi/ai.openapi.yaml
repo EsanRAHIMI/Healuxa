@@ -202,9 +202,10 @@ components:
     AiCardMoney:
       type: object
       additionalProperties: false
-      required: [amount, currency]
+      required: [amount_minor, amount, currency]
       properties:
-        amount: { type: string, description: "Decimal major units, e.g. \"450.00\" (from Money.amount_minor)." }
+        amount_minor: { type: integer, description: Amount in minor units, as in Money. }
+        amount: { type: string, description: "Decimal major units, e.g. \"450.00\"." }
         currency: { type: string }
     AiCard:
       description: >

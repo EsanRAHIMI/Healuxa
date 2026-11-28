@@ -126,7 +126,9 @@ export interface components {
             created_at: components["schemas"]["Timestamp"];
         };
         AiCardMoney: {
-            /** @description Decimal major units, e.g. "450.00" (from Money.amount_minor). */
+            /** @description Amount in minor units */
+            amount_minor: number;
+            /** @description Decimal major units, e.g. "450.00". */
             amount: string;
             currency: string;
         };
