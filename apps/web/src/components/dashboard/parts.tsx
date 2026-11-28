@@ -6,7 +6,7 @@ import { cn } from "@/components/ui/cn";
 /** A figure with its label, set on a ruled row rather than boxed: reads as a report, not a card grid. */
 export function Stat({ label, value, hint, tone }: { label: ReactNode; value: ReactNode; hint?: ReactNode; tone?: "default" | "attention" }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 border-s border-border ps-4 first:border-s-0 first:ps-0">
+    <div className="flex min-w-0 flex-col gap-1 md:border-s md:border-border md:ps-4 md:first:border-s-0 md:first:ps-0">
       <dt className="text-sm text-text-muted">{label}</dt>
       <dd className={cn("hx-ltr-nums font-serif text-3xl leading-none font-medium md:text-4xl", tone === "attention" && "text-primary")}>{value}</dd>
       {hint ? <dd className="text-sm text-text-muted">{hint}</dd> : null}
