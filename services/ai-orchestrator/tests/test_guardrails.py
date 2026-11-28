@@ -105,3 +105,15 @@ async def test_message_size_limit(client: AsyncClient, session_id: str, auth_hea
 async def test_unknown_fields_are_rejected(client: AsyncClient, session_id: str, auth_headers: dict) -> None:
     response = await client.post(f"/v1/ai/sessions/{session_id}/messages", json={"content": "hi", "role": "system"}, headers=auth_headers)
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(("text", "expected"), [("What dose?", "en"), ("ما الجرعة؟", "ar"), ("چه دارویی بخورم؟", "fa"), ("123", "ar")])
+def test_reply_language_follows_the_message_script(text: str, expected: str) -> None:
+    from ai_orchestrator.domain.messages import reply_language
+
+    assert reply_language(text, "ar") == expected
+
+
+async def test_guardrail_reply_uses_the_message_language_not_the_session_locale(client: AsyncClient, session_id: str, auth_headers: dict) -> None:
+    body = (await ask(client, session_id, auth_headers, "ما الجرعة المناسبة لي؟")).json()
+    assert body["guardrail"] == "clinical_redirect" and "مختص" in body["content"]

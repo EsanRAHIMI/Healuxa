@@ -7,6 +7,8 @@ service-side strings need the same sign-off before launch).
 
 from __future__ import annotations
 
+import re
+
 LOCALES = ("en", "ar", "fa")
 
 _MESSAGES: dict[str, dict[str, str]] = {
@@ -36,6 +38,22 @@ _MESSAGES: dict[str, dict[str, str]] = {
         "fa": "اینجا نمی‌توانم در این مورد کمک کنم، اما یک هماهنگ‌کننده می‌تواند کمکتان کند.",
     },
 }
+
+
+_ARABIC_SCRIPT = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+_PERSIAN_ONLY = re.compile(r"[پچژگکی]")
+_LATIN = re.compile(r"[A-Za-z]")
+
+
+def reply_language(text: str, fallback: str) -> str:
+    """Language for a code-written reply: the script of the customer's message, else the session locale."""
+    arabic = len(_ARABIC_SCRIPT.findall(text))
+    latin = len(_LATIN.findall(text))
+    if arabic > latin:
+        return "fa" if _PERSIAN_ONLY.search(text) else "ar"
+    if latin:
+        return "en"
+    return fallback if fallback in LOCALES else "en"
 
 
 def message(key: str, locale: str, **params: str) -> str:

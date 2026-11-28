@@ -16,7 +16,7 @@ from prometheus_client import Counter
 
 from ai_orchestrator.config import settings
 from ai_orchestrator.domain import guardrails
-from ai_orchestrator.domain.messages import message
+from ai_orchestrator.domain.messages import message, reply_language
 from ai_orchestrator.domain.prompt import build_system
 from ai_orchestrator.domain.tools import (
     BOOKABLE_STEP_CODES,
@@ -95,14 +95,16 @@ async def run_turn(*, llm: LLMProvider, ctx: TurnContext, history: list[dict[str
     Raises LLMUnavailable (→ 503) before yielding anything when no model is configured and the turn
     is not answered by a code guardrail.
     """
+    # Code-written replies follow the language the customer wrote in (the model does this itself).
+    lang = reply_language(user_text, ctx.locale)
     verdict = guardrails.classify_input(user_text)
     if verdict == "emergency":
-        text = message("emergency", ctx.locale, number=settings.emergency_number)
+        text = message("emergency", lang, number=settings.emergency_number)
         yield "delta", {"text": text}
         yield "result", _finish(ctx, TurnResult(text=text, cards=_with_handoff([]), guardrail="emergency"), "emergency")
         return
     if verdict == "clinical":
-        text = message("clinical_redirect", ctx.locale)
+        text = message("clinical_redirect", lang)
         yield "delta", {"text": text}
         cards = _with_handoff(await _consultation_card(ctx))
         yield "result", _finish(ctx, TurnResult(text=text, cards=cards, guardrail="clinical_redirect"), "clinical_redirect")
@@ -188,19 +190,19 @@ async def run_turn(*, llm: LLMProvider, ctx: TurnContext, history: list[dict[str
     text = "\n\n".join(parts)
 
     if failure == "refusal":
-        result.text, result.cards, result.guardrail = message("refusal", ctx.locale), _with_handoff(cards), "refusal"
+        result.text, result.cards, result.guardrail = message("refusal", lang), _with_handoff(cards), "refusal"
         yield "replace", {"text": result.text}
         yield "result", _finish(ctx, result, "refusal")
         return
 
     output_verdict = guardrails.check_output(text, ctx.grounded_amounts()) if text else None
     if output_verdict == "clinical_redirect":
-        result.text, result.cards, result.guardrail = message("clinical_redirect", ctx.locale), _with_handoff(cards), "clinical_redirect"
+        result.text, result.cards, result.guardrail = message("clinical_redirect", lang), _with_handoff(cards), "clinical_redirect"
         yield "replace", {"text": result.text}
         yield "result", _finish(ctx, result, "clinical_output")
         return
     if output_verdict == "ungrounded":
-        result.text, result.cards, result.guardrail = message("ungrounded", ctx.locale), _with_handoff(cards), "ungrounded"
+        result.text, result.cards, result.guardrail = message("ungrounded", lang), _with_handoff(cards), "ungrounded"
         yield "replace", {"text": result.text}
         yield "result", _finish(ctx, result, "ungrounded")
         return
@@ -208,7 +210,7 @@ async def run_turn(*, llm: LLMProvider, ctx: TurnContext, history: list[dict[str
     if failure or not text:
         # Loop cap, timeout, truncation or an empty answer: keep what was verified, offer a person.
         result.guardrail = "limit" if failure == "limit" else result.guardrail
-        fallback = message("ungrounded" if cards else "unable", ctx.locale)
+        fallback = message("ungrounded" if cards else "unable", lang)
         result.text = f"{text}\n\n{fallback}" if text and failure else (text or fallback)
         result.cards = _with_handoff(cards)
         if result.text != text:

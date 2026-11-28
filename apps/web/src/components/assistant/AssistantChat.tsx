@@ -253,7 +253,7 @@ export function AssistantChat({
                 )}
               >
                 <p className="text-xs text-text-muted">{turn.role === "user" ? labels.you : labels.assistantName}</p>
-                <p className="mt-1 whitespace-pre-wrap">{turn.content}</p>
+                <p className="mt-1 whitespace-pre-wrap" dir="auto">{turn.content}</p>
                 {turn.role === "assistant" ? (
                   <AssistantCards cards={turn.cards as AiCard[]} locale={locale} intlLocale={intlLocale} labels={cardLabels} vocab={vocab} />
                 ) : null}
@@ -264,7 +264,7 @@ export function AssistantChat({
             <li className="flex flex-col items-start" data-testid="assistant-pending">
               <div className="w-full rounded-lg border border-border bg-surface px-4 py-3 sm:max-w-[85%]">
                 <p className="text-xs text-text-muted">{labels.assistantName}</p>
-                {pending.text ? <p className="mt-1 whitespace-pre-wrap">{pending.text}</p> : null}
+                {pending.text ? <p className="mt-1 whitespace-pre-wrap" dir="auto">{pending.text}</p> : null}
                 {pending.status ? (
                   <p className="mt-1 flex items-center gap-2 text-sm text-text-muted">
                     <span className="inline-block size-2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" aria-hidden="true" />
@@ -314,6 +314,7 @@ export function AssistantChat({
             placeholder={labels.placeholder}
             aria-describedby={hintId}
             disabled={disabled}
+            dir="auto"
             className="min-h-12 flex-1 resize-y rounded-md border border-border-strong bg-surface px-3 py-2 text-base text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
             data-testid="assistant-input"
           />
