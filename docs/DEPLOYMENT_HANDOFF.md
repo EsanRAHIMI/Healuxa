@@ -97,6 +97,13 @@ Per service:
   `.env.example` are placeholders for future integrations).
 - profile-service: `MONGODB_URI`, `MONGODB_DATABASE`, `MONGODB_SERVER_SELECTION_TIMEOUT_MS`,
   `IDENTITY_INTROSPECT_URL`, `MONGODB_CSFLE_KEY_VAULT`, `AWS_KMS_KEY_ID` (CSFLE not yet enabled).
+  Medical records: `RECORDS_ENCRYPTION_KEY` (**secret**, base64 of 32 random bytes — `openssl rand
+  -base64 32`; required in production, records answer 503 without it elsewhere), `RECORDS_KEY_ID`
+  (default `k1`), `RECORDS_RETIRED_KEYS` (`<id>:<key>,...` kept to read files sealed with older keys),
+  `IDENTITY_SERVICE_TOKEN_URL` and `PROVIDER_SERVICE_URL` (membership checks for shared records),
+  optional limits `RECORDS_MAX_FILE_BYTES` (10 MB), `RECORDS_MAX_PER_USER` (200),
+  `RECORDS_MAX_TOTAL_BYTES_PER_USER` (1 GB), `RECORDS_DEFAULT_GRANT_DAYS` (30),
+  `RECORDS_MAX_GRANT_DAYS` (365), `RECORDS_FACILITY_ROLES` (`facility_admin,scheduler`).
 - assessment-service: `MONGODB_URI`, `MONGODB_DATABASE`, `MONGODB_SERVER_SELECTION_TIMEOUT_MS`,
   `IDENTITY_INTROSPECT_URL`.
 

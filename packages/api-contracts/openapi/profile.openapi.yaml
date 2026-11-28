@@ -1,10 +1,15 @@
 openapi: 3.1.0
 info:
   title: Healuxa Profile Service API
-  version: 3.3.0
+  version: 3.5.0
   description: >
     Profile Open Host Service. Authoritative owner of customer/medical/beauty/body profiles
-    (MongoDB, CSFLE for PII). Emits profile.updated. See Healuxa_DDD_Boundaries.md §3.3.
+    (MongoDB, CSFLE for PII) and of the customer's own medical documents (records), which the
+    customer shares with a specific provider or facility through explicit, expiring, revocable
+    consent grants. Every read of a shared record is authorised per request against provider-service
+    and written to an append-only access log the customer can see. Emits profile.updated,
+    profile.record_grant_created, profile.record_grant_revoked and profile.record_accessed
+    (identifiers only). See Healuxa_DDD_Boundaries.md §3.3.
 servers:
   - url: https://api.healuxa.com/v1
     description: Production edge (Traefik)
@@ -14,6 +19,9 @@ security:
   - bearerAuth: []
 tags:
   - name: profiles
+  - name: records
+  - name: record-grants
+  - name: shared-records
 paths:
   /profiles/{userId}:
     get:
@@ -50,6 +58,254 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Profile" }
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+  /records:
+    get:
+      operationId: listRecords
+      summary: The caller's own medical records, each with the organisations it is currently shared with
+      tags: [records]
+      x-required-permission: records:manage
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordList" }
+    post:
+      operationId: uploadRecord
+      summary: Upload a document (PDF, JPEG or PNG; type verified from content; encrypted at rest)
+      description: >
+        multipart/form-data with one `file` part (max 10 MB by default) and the metadata fields.
+        The file type is taken from its leading bytes; a declared type or extension that contradicts
+        them is refused. Per-user soft limits apply (count and total bytes).
+      tags: [records]
+      x-required-permission: records:manage
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/RecordUpload" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Record" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "413":
+          description: File larger than the limit.
+          content:
+            application/json:
+              schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503":
+          description: Records unavailable (encryption not configured).
+          content:
+            application/json:
+              schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
+  /records/{record_id}:
+    parameters:
+      - { name: record_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    get:
+      operationId: getRecord
+      summary: One of the caller's records (404 for anyone else's)
+      tags: [records]
+      x-required-permission: records:manage
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Record" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    patch:
+      operationId: updateRecord
+      summary: Edit a record's title, type, document date or note
+      tags: [records]
+      x-required-permission: records:manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Record" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+    delete:
+      operationId: deleteRecord
+      summary: Delete a record and its file bytes; any share of it ends immediately
+      tags: [records]
+      x-required-permission: records:manage
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /records/{record_id}/content:
+    get:
+      operationId: downloadRecord
+      summary: Download the file (owner, or a member of an organisation holding an active grant)
+      description: >
+        Always served as an attachment with `X-Content-Type-Options: nosniff` and `no-store`.
+        Grantees are authorised on every request: the grant must be active and provider-service must
+        confirm the caller owns the granted practitioner profile or currently staffs the granted
+        facility (facility_admin or scheduler). Refusals are logged; a record the caller has no
+        relationship with answers 404.
+      tags: [records]
+      x-required-permission: "records:manage or records:read_shared"
+      parameters:
+        - { name: record_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: File bytes
+          headers:
+            Content-Disposition: { description: "attachment; filename=...", schema: { type: string } }
+            X-Content-Type-Options: { description: nosniff, schema: { type: string } }
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "503":
+          description: Membership could not be verified, or the file is temporarily unavailable.
+          content:
+            application/json:
+              schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
+  /record-grants:
+    get:
+      operationId: listRecordGrants
+      summary: The caller's consent grants (active, expired and revoked), newest first
+      tags: [record-grants]
+      x-required-permission: records:manage
+      parameters:
+        - { name: record_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/GrantStatus" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/RecordGrant" } }
+    post:
+      operationId: createRecordGrant
+      summary: Share selected records with one provider or facility until an expiry (default 30 days)
+      description: >
+        Replaces any active grant of the same records to the same organisation. Emits
+        profile.record_grant_created.
+      tags: [record-grants]
+      x-required-permission: records:manage
+      parameters:
+        - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordGrantCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordGrant" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /record-grants/{grant_id}/revoke:
+    post:
+      operationId: revokeRecordGrant
+      summary: Revoke a grant (or some of its records) with immediate effect; idempotent
+      tags: [record-grants]
+      x-required-permission: records:manage
+      parameters:
+        - { name: grant_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                record_ids: { type: array, minItems: 1, maxItems: 50, items: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordGrant" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /record-access-log:
+    get:
+      operationId: listRecordAccessLog
+      summary: Who accessed the caller's records, when, from which organisation (append-only, newest first)
+      tags: [records]
+      x-required-permission: records:manage
+      parameters:
+        - { name: record_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - $ref: "./_shared/components.yaml#/components/parameters/Limit"
+        - $ref: "./_shared/components.yaml#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/RecordAccessLogEntry" } }
+                  page: { $ref: "./_shared/components.yaml#/components/schemas/PageMeta" }
+  /shared-records:
+    get:
+      operationId: listSharedRecords
+      summary: Active grants to an organisation the caller currently belongs to ("shared with me")
+      tags: [shared-records]
+      x-required-permission: records:read_shared
+      parameters:
+        - { name: grantee_type, in: query, required: true, schema: { $ref: "#/components/schemas/GranteeType" } }
+        - { name: grantee_id, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/SharedGrant" } }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "503":
+          description: Membership could not be verified.
+          content:
+            application/json:
+              schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
+  /shared-records/{grant_id}:
+    get:
+      operationId: getSharedRecords
+      summary: The records of one active grant (logged as a view of each record)
+      tags: [shared-records]
+      x-required-permission: records:read_shared
+      parameters:
+        - { name: grant_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedGrantDetail" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
@@ -65,3 +321,178 @@ components:
         vip_tier: { type: string, enum: [none, silver, gold, black] }
         scores: { type: object, additionalProperties: { type: number } }
         consent: { type: object, additionalProperties: true }
+    RecordType:
+      type: string
+      enum: [lab_result, imaging_report, prescription, referral_letter, discharge_summary, other]
+    GranteeType:
+      type: string
+      enum: [provider, facility]
+    GrantPurpose:
+      type: string
+      enum: [consultation, treatment, second_opinion, follow_up, other]
+    GrantStatus:
+      type: string
+      enum: [active, expired, revoked]
+    RecordShare:
+      type: object
+      additionalProperties: false
+      required: [grant_id, grantee_type, grantee_id, grantee_name, purpose, expires_at]
+      properties:
+        grant_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grantee_type: { $ref: "#/components/schemas/GranteeType" }
+        grantee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grantee_name: { type: string }
+        purpose: { $ref: "#/components/schemas/GrantPurpose" }
+        expires_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    Record:
+      type: object
+      additionalProperties: false
+      required: [id, user_id, title, type, document_date, note, file_name, content_type, size_bytes, created_at, updated_at, shares]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: string }
+        type: { $ref: "#/components/schemas/RecordType" }
+        document_date: { type: [string, "null"], format: date }
+        note: { type: [string, "null"] }
+        file_name: { type: string }
+        content_type: { type: string, enum: [application/pdf, image/jpeg, image/png] }
+        size_bytes: { type: integer }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        updated_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        shares: { type: array, items: { $ref: "#/components/schemas/RecordShare" } }
+    RecordUsage:
+      type: object
+      additionalProperties: false
+      required: [record_count, total_bytes, max_records, max_total_bytes, max_file_bytes]
+      properties:
+        record_count: { type: integer }
+        total_bytes: { type: integer }
+        max_records: { type: integer }
+        max_total_bytes: { type: integer }
+        max_file_bytes: { type: integer }
+    RecordList:
+      type: object
+      additionalProperties: false
+      required: [data, usage]
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/Record" } }
+        usage: { $ref: "#/components/schemas/RecordUsage" }
+    RecordUpload:
+      type: object
+      required: [file, title, type]
+      properties:
+        file: { type: string, format: binary, description: "PDF, JPEG or PNG" }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        type: { $ref: "#/components/schemas/RecordType" }
+        document_date: { type: string, format: date }
+        note: { type: string, maxLength: 1000 }
+    RecordUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        type: { $ref: "#/components/schemas/RecordType" }
+        document_date: { type: [string, "null"], format: date }
+        note: { type: [string, "null"], maxLength: 1000 }
+    RecordGrantCreate:
+      type: object
+      additionalProperties: false
+      required: [grantee_type, grantee_id, record_ids, purpose]
+      properties:
+        grantee_type: { $ref: "#/components/schemas/GranteeType" }
+        grantee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        record_ids: { type: array, minItems: 1, maxItems: 50, uniqueItems: true, items: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        purpose: { $ref: "#/components/schemas/GrantPurpose" }
+        expires_in_days: { type: integer, minimum: 1, maximum: 365, default: 30 }
+        appointment_id: { $ref: "./_shared/components.yaml#/components/schemas/Id", description: "Booking the share was offered from" }
+    RecordGrant:
+      type: object
+      additionalProperties: false
+      required: [id, user_id, grantee_type, grantee_id, grantee_name, record_ids, purpose, appointment_id, status, created_at, expires_at, revoked_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grantee_type: { $ref: "#/components/schemas/GranteeType" }
+        grantee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grantee_name: { type: string }
+        record_ids: { type: array, items: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        purpose: { $ref: "#/components/schemas/GrantPurpose" }
+        appointment_id: { type: [string, "null"] }
+        status: { $ref: "#/components/schemas/GrantStatus" }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        expires_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        revoked_at: { type: [string, "null"], format: date-time }
+    RecordAccessLogEntry:
+      type: object
+      additionalProperties: false
+      required: [id, record_id, grant_id, action, attempted, reason, actor, organisation, client, occurred_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        record_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grant_id: { type: [string, "null"] }
+        action: { type: string, enum: [view, download, grant, revoke, delete, denied] }
+        attempted: { type: [string, "null"], enum: [view, download, null] }
+        reason:
+          type: [string, "null"]
+          description: For denied attempts — no_grant, not_member, grant_revoked, grant_expired, missing_permission, verification_unavailable.
+        actor:
+          type: object
+          additionalProperties: false
+          required: [kind, user_id]
+          properties:
+            kind: { type: string, enum: [owner, practitioner, facility_staff, other] }
+            user_id: { type: [string, "null"] }
+        organisation:
+          oneOf:
+            - type: "null"
+            - type: object
+              additionalProperties: false
+              required: [type, id, name]
+              properties:
+                type: { $ref: "#/components/schemas/GranteeType" }
+                id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+                name: { type: [string, "null"] }
+        client:
+          type: object
+          additionalProperties: false
+          required: [network, agent]
+          description: Coarse only — network prefix (/24 or /48) and browser family.
+          properties:
+            network: { type: [string, "null"] }
+            agent: { type: [string, "null"] }
+        occurred_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    SharedGrant:
+      type: object
+      additionalProperties: false
+      required: [id, patient_user_id, grantee_type, grantee_id, purpose, appointment_id, record_count, created_at, expires_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        patient_user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        grantee_type: { $ref: "#/components/schemas/GranteeType" }
+        grantee_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        purpose: { $ref: "#/components/schemas/GrantPurpose" }
+        appointment_id: { type: [string, "null"] }
+        record_count: { type: integer }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        expires_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    SharedRecord:
+      type: object
+      additionalProperties: false
+      required: [id, title, type, document_date, note, file_name, content_type, size_bytes]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: string }
+        type: { $ref: "#/components/schemas/RecordType" }
+        document_date: { type: [string, "null"], format: date }
+        note: { type: [string, "null"] }
+        file_name: { type: string }
+        content_type: { type: string }
+        size_bytes: { type: integer }
+    SharedGrantDetail:
+      allOf:
+        - $ref: "#/components/schemas/SharedGrant"
+        - type: object
+          required: [records]
+          properties:
+            records: { type: array, items: { $ref: "#/components/schemas/SharedRecord" } }
