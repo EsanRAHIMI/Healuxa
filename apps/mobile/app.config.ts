@@ -46,6 +46,7 @@ const conciergeBaseUrl = baseUrl(process.env.CONCIERGE_BASE_URL, 'http://localho
 const notificationBaseUrl = baseUrl(process.env.NOTIFICATION_BASE_URL, 'http://localhost:8222');
 const journeyBaseUrl = baseUrl(process.env.JOURNEY_BASE_URL, 'http://localhost:8000');
 const assessmentBaseUrl = baseUrl(process.env.ASSESSMENT_BASE_URL, 'http://localhost:8003');
+const aiBaseUrl = baseUrl(process.env.AI_BASE_URL, 'http://localhost:8017');
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -197,6 +198,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     notificationBaseUrl,
     journeyBaseUrl,
     assessmentBaseUrl,
+    aiBaseUrl,
     linkDomain: LINK_DOMAIN,
     supportEmail: process.env.SUPPORT_EMAIL ?? 'privacy@healuxa.ae',
     privacyPolicyUrl: process.env.PRIVACY_POLICY_URL ?? `https://${LINK_DOMAIN}/privacy`,

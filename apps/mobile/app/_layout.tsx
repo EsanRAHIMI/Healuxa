@@ -101,6 +101,7 @@ function Navigation() {
           <Stack.Screen name="notifications" options={{ title: t('inbox.title') }} />
           <Stack.Screen name="journey/index" options={{ title: t('journey.title') }} />
           <Stack.Screen name="journey/intake" options={{ title: t('intake.title') }} />
+          <Stack.Screen name="assistant/index" options={{ title: t('assistant.title') }} />
         </Stack>
       )}
     </ThemeProvider>
