@@ -779,6 +779,12 @@ services:
       MONGODB_URI: ${PROFILE_MONGODB_URI:?set PROFILE_MONGODB_URI}
       MONGODB_DATABASE: healuxa_profile
       WEB_CONCURRENCY: '1'
+      # Medical records: AES-256-GCM key (base64 of 32 random bytes) and its id; see docs/SECURITY.md.
+      RECORDS_ENCRYPTION_KEY: ${RECORDS_ENCRYPTION_KEY:?set RECORDS_ENCRYPTION_KEY}
+      RECORDS_KEY_ID: ${RECORDS_KEY_ID:-k1}
+      RECORDS_RETIRED_KEYS: ${RECORDS_RETIRED_KEYS:-}
+      IDENTITY_SERVICE_TOKEN_URL: http://identity-service:8001/v1/auth/service-token
+      PROVIDER_SERVICE_URL: http://provider-service:8005
     expose:
     - '8002'
     depends_on:

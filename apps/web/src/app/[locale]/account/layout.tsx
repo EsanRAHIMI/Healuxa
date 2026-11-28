@@ -25,6 +25,7 @@ export default async function AccountLayout({ children, params }: Props) {
         items={[
           { href: base, label: t("account.overview"), exact: true },
           { href: `${base}/bookings`, label: t("bookings.title") },
+          { href: `${base}/records`, label: t("records.navLabel") },
           { href: `${base}/concierge`, label: t("concierge.title") },
           { href: `${base}/notifications`, label: t("notifications.title") },
           { href: `${base}/payments`, label: t("payments.title") },

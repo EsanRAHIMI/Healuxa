@@ -14,7 +14,9 @@ from healuxa_py_common.events.consumer import DurableConsumer
 from healuxa_py_common.events.jetstream import JetStreamConnection, subject_for
 
 from profile_service.config import settings
+from profile_service.domain.records import erase_user
 from profile_service.infra.mongo import get_database
+from profile_service.infra.storage import GridFSRecordStore
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,9 @@ async def handle_user_deleted(envelope: dict[str, Any]) -> None:
     db = get_database()
     result = await db["customer_profiles"].delete_many({"tenant_id": tenant_id, "user_id": user_id})
     logger.info("erased %d customer_profiles document(s) for deleted user %s", result.deleted_count, user_id)
+    # Medical records: metadata, encrypted file bytes, consent grants and the user's access history.
+    erased = await erase_user(GridFSRecordStore(db), tenant_id, user_id)
+    logger.info("erased medical records for deleted user %s: %s", user_id, erased)
 
 
 def build_consumer(connection: JetStreamConnection) -> DurableConsumer:

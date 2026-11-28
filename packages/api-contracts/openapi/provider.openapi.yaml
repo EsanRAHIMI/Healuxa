@@ -709,6 +709,46 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SchedulingActor" }
         "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /internal/records-access/actors/{user_id}:
+    get:
+      operationId: getRecordsActor
+      summary: Practitioner profiles a user owns and facilities they currently staff (consumed by profile-service)
+      description: >
+        Authorization input for shared medical records: profile-service never trusts a caller's claim
+        to belong to an organisation and asks here on every read. Mesh-internal; requires a service
+        token (`service` permission).
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - { name: user_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: tenant_id, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 64 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordsActor" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+  /internal/records-access/grantees/{grantee_type}/{grantee_id}:
+    get:
+      operationId: getRecordsGrantee
+      summary: Whether a provider or facility exists in the tenant, with its public name (consumed by profile-service)
+      tags: [internal]
+      security:
+        - serviceAuth: [service]
+      parameters:
+        - { name: grantee_type, in: path, required: true, schema: { type: string, enum: [provider, facility] } }
+        - { name: grantee_id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: tenant_id, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 64 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordsGrantee" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
   /admin/providers:
     get:
       operationId: listAdminProviders
@@ -902,6 +942,43 @@ components:
             properties:
               facility_id: { type: string }
               role: { type: string, enum: [facility_admin, scheduler, billing] }
+    RecordsActor:
+      type: object
+      additionalProperties: false
+      required: [user_id, providers, facilities]
+      properties:
+        user_id: { type: string }
+        providers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, status, verification_status]
+            properties:
+              id: { type: string }
+              status: { $ref: "#/components/schemas/ProviderStatus" }
+              verification_status: { $ref: "#/components/schemas/VerificationStatus" }
+        facilities:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, role, status, verification_status]
+            properties:
+              id: { type: string }
+              role: { type: string, enum: [facility_admin, scheduler, billing] }
+              status: { type: string }
+              verification_status: { $ref: "#/components/schemas/VerificationStatus" }
+    RecordsGrantee:
+      type: object
+      additionalProperties: false
+      required: [type, id, name, status, verification_status]
+      properties:
+        type: { type: string, enum: [provider, facility] }
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+        verification_status: { $ref: "#/components/schemas/VerificationStatus" }
     ProviderType:
       type: string
       enum: [doctor, clinic, therapist, trainer, nutritionist, pharmacy, brand, home_visit]

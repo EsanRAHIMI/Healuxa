@@ -105,6 +105,23 @@ export type RoadmapPhase = T["RoadmapPhase"];
 export type JourneyMilestone = T["Milestone"];
 export type JourneyNextAction = T["NextAction"];
 
+type R = ProfileComponents["schemas"];
+
+export type MedicalRecord = R["Record"];
+export type MedicalRecordList = R["RecordList"];
+export type MedicalRecordType = R["RecordType"];
+export type MedicalRecordUpdate = R["RecordUpdate"];
+export type RecordShare = R["RecordShare"];
+export type RecordGrant = R["RecordGrant"];
+export type RecordGrantCreate = R["RecordGrantCreate"];
+export type RecordGrantStatus = R["GrantStatus"];
+export type RecordGrantPurpose = R["GrantPurpose"];
+export type RecordGranteeType = R["GranteeType"];
+export type RecordAccessLogEntry = R["RecordAccessLogEntry"];
+export type SharedGrant = R["SharedGrant"];
+export type SharedGrantDetail = R["SharedGrantDetail"];
+export type SharedRecord = R["SharedRecord"];
+
 type AI = AiComponents["schemas"];
 export type AiSession = AI["AiSession"];
 export type AiTurn = AI["AiTurn"];

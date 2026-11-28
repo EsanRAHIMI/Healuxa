@@ -1703,6 +1703,108 @@ export interface ProfileUpdated {
 }
 
 /**
+ * payload of profile.record_grant_created (v1): a customer consented to share specific records with one provider or facility until expires_at. Identifiers only.
+ */
+
+export interface ProfileRecordGrantCreated {
+  /**
+   * ULID or UUID identifier.
+   */
+  grant_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  grantee_type: "provider" | "facility";
+  /**
+   * ULID or UUID identifier.
+   */
+  grantee_id: string;
+  /**
+   * @minItems 1
+   * @maxItems 50
+   */
+  record_ids: [string, ...string[]];
+  purpose: "consultation" | "treatment" | "second_opinion" | "follow_up" | "other";
+  /**
+   * ULID or UUID identifier.
+   */
+  appointment_id?: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  expires_at: string;
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  created_at: string;
+}
+
+/**
+ * payload of profile.record_grant_revoked (v1): records were withdrawn from a grant, effective immediately. fully_revoked is true when no record remains shared under the grant. Identifiers only.
+ */
+
+export interface ProfileRecordGrantRevoked {
+  /**
+   * ULID or UUID identifier.
+   */
+  grant_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  grantee_type: "provider" | "facility";
+  /**
+   * ULID or UUID identifier.
+   */
+  grantee_id: string;
+  /**
+   * @minItems 1
+   * @maxItems 50
+   */
+  record_ids: [string, ...string[]];
+  fully_revoked: boolean;
+  reason: "owner_revoked" | "record_deleted" | "superseded";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  revoked_at: string;
+}
+
+/**
+ * payload of profile.record_accessed (v1): a member of the granted organisation viewed or downloaded a shared record. The owner's own reads are not published. Identifiers only.
+ */
+
+export interface ProfileRecordAccessed {
+  /**
+   * ULID or UUID identifier.
+   */
+  record_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  user_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  grant_id: string;
+  /**
+   * ULID or UUID identifier.
+   */
+  accessor_user_id: string;
+  grantee_type: "provider" | "facility";
+  /**
+   * ULID or UUID identifier.
+   */
+  grantee_id: string;
+  action: "view" | "download";
+  /**
+   * RFC 3339 / ISO 8601 timestamp in UTC.
+   */
+  accessed_at: string;
+}
+
+/**
  * payload of provider.score_updated (v1) — consumed by Matching for ranking.
  */
 

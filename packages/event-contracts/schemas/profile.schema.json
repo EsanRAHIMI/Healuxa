@@ -2,20 +2,219 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.healuxa.com/events/profile.schema.json",
   "title": "ProfileEvents",
-  "description": "Events owned by profile-service (authoritative owner of profile attributes). Owner is the only publisher. Never includes raw medical/PII payloads — only references + non-sensitive scores.",
+  "description": "Events owned by profile-service (authoritative owner of profile attributes and customer medical records). Owner is the only publisher. Never includes raw medical/PII payloads — only references + non-sensitive scores. Record events carry identifiers only: never document titles, file names, notes or content.",
   "$defs": {
     "ProfileUpdated": {
       "title": "ProfileUpdated",
       "description": "payload of profile.updated (v1)",
       "type": "object",
       "additionalProperties": false,
-      "required": ["user_id", "updated_fields", "updated_at"],
+      "required": [
+        "user_id",
+        "updated_fields",
+        "updated_at"
+      ],
       "properties": {
-        "user_id": { "$ref": "common.schema.json#/$defs/Ulid" },
-        "updated_fields": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-        "lifecycle_stage": { "type": "string", "enum": ["lead", "onboarding", "active", "at_risk", "churned", "reactivated"] },
-        "vip_tier": { "type": "string", "enum": ["none", "silver", "gold", "black"] },
-        "updated_at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "updated_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "lifecycle_stage": {
+          "type": "string",
+          "enum": [
+            "lead",
+            "onboarding",
+            "active",
+            "at_risk",
+            "churned",
+            "reactivated"
+          ]
+        },
+        "vip_tier": {
+          "type": "string",
+          "enum": [
+            "none",
+            "silver",
+            "gold",
+            "black"
+          ]
+        },
+        "updated_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "ProfileRecordGrantCreated": {
+      "title": "ProfileRecordGrantCreated",
+      "description": "payload of profile.record_grant_created (v1): a customer consented to share specific records with one provider or facility until expires_at. Identifiers only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "user_id",
+        "grantee_type",
+        "grantee_id",
+        "record_ids",
+        "purpose",
+        "expires_at",
+        "created_at"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "grantee_type": {
+          "type": "string",
+          "enum": [
+            "provider",
+            "facility"
+          ]
+        },
+        "grantee_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "record_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/Ulid"
+          },
+          "minItems": 1,
+          "maxItems": 50
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "consultation",
+            "treatment",
+            "second_opinion",
+            "follow_up",
+            "other"
+          ]
+        },
+        "appointment_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "expires_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "ProfileRecordGrantRevoked": {
+      "title": "ProfileRecordGrantRevoked",
+      "description": "payload of profile.record_grant_revoked (v1): records were withdrawn from a grant, effective immediately. fully_revoked is true when no record remains shared under the grant. Identifiers only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "user_id",
+        "grantee_type",
+        "grantee_id",
+        "record_ids",
+        "fully_revoked",
+        "reason",
+        "revoked_at"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "grantee_type": {
+          "type": "string",
+          "enum": [
+            "provider",
+            "facility"
+          ]
+        },
+        "grantee_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "record_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/Ulid"
+          },
+          "minItems": 1,
+          "maxItems": 50
+        },
+        "fully_revoked": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "owner_revoked",
+            "record_deleted",
+            "superseded"
+          ]
+        },
+        "revoked_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "ProfileRecordAccessed": {
+      "title": "ProfileRecordAccessed",
+      "description": "payload of profile.record_accessed (v1): a member of the granted organisation viewed or downloaded a shared record. The owner's own reads are not published. Identifiers only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "user_id",
+        "grant_id",
+        "accessor_user_id",
+        "grantee_type",
+        "grantee_id",
+        "action",
+        "accessed_at"
+      ],
+      "properties": {
+        "record_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "grant_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "accessor_user_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "grantee_type": {
+          "type": "string",
+          "enum": [
+            "provider",
+            "facility"
+          ]
+        },
+        "grantee_id": {
+          "$ref": "common.schema.json#/$defs/Ulid"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "view",
+            "download"
+          ]
+        },
+        "accessed_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
       }
     }
   }

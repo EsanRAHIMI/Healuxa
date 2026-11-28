@@ -86,6 +86,9 @@ export interface ReviewModerated { review_id: Ulid; decision: "approved" | "reje
 // ── assessment / profile / identity / medication / marketing / ml ─────────────
 export interface AssessmentCompleted { assessment_id: Ulid; user_id: Ulid; kind: "beauty" | "body" | "wellness" | "longevity" | "intake" | "reassessment"; recommended_goals?: string[]; scores?: Record<string, Score01>; completed_at: Timestamp }
 export interface ProfileUpdated { user_id: Ulid; updated_fields: string[]; lifecycle_stage?: "lead" | "onboarding" | "active" | "at_risk" | "churned" | "reactivated"; vip_tier?: "none" | "silver" | "gold" | "black"; updated_at: Timestamp }
+export interface ProfileRecordGrantCreated { grant_id: Ulid; user_id: Ulid; grantee_type: "provider" | "facility"; grantee_id: Ulid; record_ids: Ulid[]; purpose: "consultation" | "treatment" | "second_opinion" | "follow_up" | "other"; appointment_id?: Ulid; expires_at: Timestamp; created_at: Timestamp }
+export interface ProfileRecordGrantRevoked { grant_id: Ulid; user_id: Ulid; grantee_type: "provider" | "facility"; grantee_id: Ulid; record_ids: Ulid[]; fully_revoked: boolean; reason: "owner_revoked" | "record_deleted" | "superseded"; revoked_at: Timestamp }
+export interface ProfileRecordAccessed { record_id: Ulid; user_id: Ulid; grant_id: Ulid; accessor_user_id: Ulid; grantee_type: "provider" | "facility"; grantee_id: Ulid; action: "view" | "download"; accessed_at: Timestamp }
 export interface AuthUserRegistered { user_id: Ulid; channel?: Channel; registered_at: Timestamp }
 export interface AuthSessionRevoked { user_id: Ulid; session_id?: Ulid; scope: "single" | "all"; reason?: "logout" | "logout_all" | "token_reuse" | "admin" | "security"; revoked_at: Timestamp }
 export interface AuthSecurityEvent { user_id?: Ulid; kind: "brute_force" | "impossible_travel" | "new_device" | "token_reuse" | "mfa_failure" | "lockout"; severity: "info" | "warning" | "critical"; ip?: string; detected_at: Timestamp }
@@ -139,6 +142,9 @@ export interface EventPayloadMap {
   "review.moderated": ReviewModerated;
   "assessment.completed": AssessmentCompleted;
   "profile.updated": ProfileUpdated;
+  "profile.record_grant_created": ProfileRecordGrantCreated;
+  "profile.record_grant_revoked": ProfileRecordGrantRevoked;
+  "profile.record_accessed": ProfileRecordAccessed;
   "auth.user_registered": AuthUserRegistered;
   "auth.session_revoked": AuthSessionRevoked;
   "auth.security_event": AuthSecurityEvent;

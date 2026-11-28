@@ -14,6 +14,7 @@ from sqlalchemy import text
 from provider_service.api.admin import router as admin_router
 from provider_service.api.catalog import router as catalog_router
 from provider_service.api.facilities import router as facilities_router
+from provider_service.api.internal import records_router as internal_records_router
 from provider_service.api.internal import router as internal_router
 from provider_service.api.providers import router as providers_router
 from provider_service.config import settings
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(facilities_router)
     app.include_router(catalog_router)
     app.include_router(internal_router)
+    app.include_router(internal_records_router)
     app.include_router(admin_router)
 
     @app.exception_handler(ApiError)

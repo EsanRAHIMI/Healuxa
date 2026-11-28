@@ -57,6 +57,7 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
       links: [
         { href: `/${locale}/journey`, label: t("journey.title") },
         { href: `${base}/bookings`, label: t("bookings.title") },
+        { href: `${base}/records`, label: t("records.title") },
         { href: `/${locale}/services`, label: t("nav.services") },
       ],
     },
