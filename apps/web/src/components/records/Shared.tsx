@@ -87,7 +87,7 @@ export async function SharedDetail({ locale, grantId, backHref }: { locale: Loca
               <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-muted">
                 <Badge>{t(`records.types.${r.type}`)}</Badge>
                 {r.document_date ? <span>{t("records.dated", { date: formatDate(r.document_date, locale) })}</span> : null}
-                <span className="hx-ltr-nums">{formatBytes(r.size_bytes, locale)}</span>
+                <span className="hx-ltr-nums" dir="ltr">{formatBytes(r.size_bytes, locale)}</span>
               </p>
               {r.note ? <p className="mt-2 text-sm">{r.note}</p> : null}
             </div>

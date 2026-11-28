@@ -113,7 +113,7 @@ export default async function RecordsPage({ params }: { params: Promise<{ locale
                       <Badge>{typeLabel(r.type)}</Badge>
                       {r.document_date ? <span>{t("records.dated", { date: formatDate(r.document_date, locale) })}</span> : null}
                       <span>{t("records.uploadedOn", { date: formatDate(r.created_at, locale) })}</span>
-                      <span className="hx-ltr-nums">{formatBytes(r.size_bytes, locale)}</span>
+                      <span className="hx-ltr-nums" dir="ltr">{formatBytes(r.size_bytes, locale)}</span>
                     </p>
                     {r.note ? <p className="mt-2 text-sm">{r.note}</p> : null}
                   </div>
