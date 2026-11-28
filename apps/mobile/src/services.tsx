@@ -25,6 +25,7 @@ export function createServices(): Services {
     notificationBaseUrl: config.notificationBaseUrl,
     journeyBaseUrl: config.journeyBaseUrl,
     assessmentBaseUrl: config.assessmentBaseUrl,
+    aiBaseUrl: config.aiBaseUrl,
     fetch: (input, init) => fetch(input, init),
     cache: new PublicCache(createFileStore('cache', 'public-directory')),
   });

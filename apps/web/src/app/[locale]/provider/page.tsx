@@ -7,7 +7,8 @@ import { SubmitButton } from "@/components/forms/fields";
 import { ContentLicenseField } from "@/components/forms/ContentLicenseField";
 import { Form } from "@/components/forms/Form";
 import { ProviderProfileFields } from "@/components/portal/ProviderProfileFields";
-import { Alert, Card, DefinitionList, PageHeader } from "@/components/ui/primitives";
+import { PracticeDashboard } from "@/components/portal/PracticeDashboard";
+import { ButtonLink, Card, DefinitionList, PageHeader } from "@/components/ui/primitives";
 import { userApi } from "@/lib/api";
 import { requireSession } from "@/lib/auth/session";
 import { getT, resolveLocale } from "@/lib/i18n";
@@ -62,16 +63,27 @@ export default async function ProviderHome({ params }: { params: Promise<{ local
   ];
   return (
     <>
-      <PageHeader title={provider.display_name} lead={provider.title ?? undefined} />
-      {provider.status === "active" && provider.verification_status === "verified" ? (
-        <Alert tone="success" role="status" className="mb-6" title={t("pp.liveTitle")}>
-          <Link href={`/${locale}/providers/${provider.id}`}>{t("pp.viewPublic")}</Link>
-        </Alert>
-      ) : (
-        <Alert tone="info" role="status" className="mb-6" title={t("pp.notLiveTitle")}>
-          {t("pp.notLiveBody")}
-        </Alert>
+      <PageHeader
+        title={provider.display_name}
+        lead={provider.title ?? undefined}
+        actions={
+          provider.status === "active" && provider.verification_status === "verified" ? (
+            <ButtonLink href={`/${locale}/providers/${provider.id}`} variant="secondary" size="sm">
+              {t("dash.practice.publicProfile")}
+            </ButtonLink>
+          ) : undefined
+        }
+      />
+      {provider.status === "active" && provider.verification_status === "verified" ? null : (
+        <p className="mb-6 text-text-muted" role="status">
+          <strong className="font-semibold text-text">{t("pp.notLiveTitle")}</strong> {t("pp.notLiveBody")}
+        </p>
       )}
+      {provider.status === "active" ? (
+        <div className="mb-8">
+          <PracticeDashboard scope={{ provider_id: provider.id }} locale={locale} calendarHref={`/${locale}/provider/bookings`} />
+        </div>
+      ) : null}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <h2 className="text-xl">{t("pp.statusTitle")}</h2>

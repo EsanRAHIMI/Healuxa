@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-for database in identity transformation provider appointment concierge notification payment subscription; do
+for database in identity transformation provider appointment concierge notification payment subscription ai; do
   variable="$(printf '%s' "$database" | tr '[:lower:]' '[:upper:]')_DB_PASSWORD"
   password="$(printenv "$variable")"
   psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set=ON_ERROR_STOP=1 \

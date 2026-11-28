@@ -32,11 +32,7 @@ export default async function JourneyPage({ params, searchParams }: Props) {
   const t = getT(locale);
   const session = await getSession();
   const header = <PageHeader eyebrow={t("journey.eyebrow")} title={t("journey.title")} lead={t("journey.lead")} />;
-  const note = (
-    <Alert tone="info" role="note" className="mb-8 max-w-3xl">
-      {t("journey.coordinationNote")}
-    </Alert>
-  );
+  const note = <p className="mb-8 max-w-3xl text-sm text-text-muted">{t("journey.coordinationNote")}</p>;
 
   if (!session) {
     return (
@@ -162,9 +158,8 @@ export default async function JourneyPage({ params, searchParams }: Props) {
               {t("journey.allDoneBody")}
             </Alert>
           ) : null}
-          <Alert tone="info" role="note">
-            {t("journey.coordinationNote")}
-          </Alert>
+          <ButtonLink href={`/${locale}/assistant`} variant="secondary" data-testid="journey-ask-assistant">{t("assistant.askLink")}</ButtonLink>
+          <p className="text-sm text-text-muted">{t("journey.coordinationNote")}</p>
           <Card className="bg-surface-muted shadow-none">
             <h2 className="text-lg">{t("journey.endTitle")}</h2>
             <p className="mt-2 text-sm text-text-muted">{t("journey.endLead")}</p>

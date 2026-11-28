@@ -12,6 +12,7 @@ export interface AppConfig {
   notificationBaseUrl: string;
   journeyBaseUrl: string;
   assessmentBaseUrl: string;
+  aiBaseUrl: string;
   linkDomain: string;
   supportEmail: string;
   privacyPolicyUrl: string;
@@ -46,6 +47,7 @@ function load(): AppConfig {
     notificationBaseUrl: host(extra.notificationBaseUrl, 'http://localhost:8222'),
     journeyBaseUrl: host(extra.journeyBaseUrl, 'http://localhost:8000'),
     assessmentBaseUrl: host(extra.assessmentBaseUrl, 'http://localhost:8003'),
+    aiBaseUrl: host(extra.aiBaseUrl, 'http://localhost:8017'),
     linkDomain: extra.linkDomain ?? 'healuxa.ae',
     supportEmail: extra.supportEmail ?? 'privacy@healuxa.ae',
     privacyPolicyUrl: extra.privacyPolicyUrl ?? 'https://healuxa.ae/privacy',

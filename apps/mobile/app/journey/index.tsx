@@ -228,6 +228,7 @@ export default function JourneyScreen() {
             )}
           </Section>
 
+          <Button kind="secondary" label={t('journey.askAssistant')} onPress={() => router.push('/assistant')} testID="journey-ask-assistant" />
           <Row style={{ justifyContent: 'center' }}>
             <Button kind="link" label={t('journey.end')} onPress={end} busy={ending} testID="journey-end" />
           </Row>

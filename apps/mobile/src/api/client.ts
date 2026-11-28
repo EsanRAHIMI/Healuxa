@@ -5,6 +5,7 @@
  * Operation ids refer to packages/api-contracts/openapi/*.yaml.
  */
 import type { PublicCache } from '../cache/publicCache';
+import type { AssistantSession, AssistantTurn } from './assistantTypes';
 import { ApiError } from './errors';
 import { buildUrl, type FetchLike, type Query, request } from './http';
 import type {
@@ -177,6 +178,20 @@ export interface AssessmentsApi {
   submit(token: string, id: string, responses: AssessmentResponse[], idempotencyKey: string): Promise<Assessment>;
 }
 
+/**
+ * ai-orchestrator (ai.openapi.yaml): the customer's own assistant conversations. The app uses the
+ * JSON reply (React Native fetch has no streaming body); the web streams the same endpoint as SSE.
+ * The assistant never books or pays: cards link to the normal booking screens.
+ */
+export interface AssistantApi {
+  /** ai: createAiSession */
+  createSession(token: string, locale: string): Promise<AssistantSession>;
+  /** ai: getAiSession */
+  getSession(token: string, id: string): Promise<AssistantSession>;
+  /** ai: postAiMessage (JSON reply; replaying the Idempotency-Key returns the stored answer) */
+  send(token: string, sessionId: string, content: string, idempotencyKey: string): Promise<AssistantTurn>;
+}
+
 export interface ApiClient {
   identity: IdentityApi;
   directory: DirectoryApi;
@@ -185,6 +200,7 @@ export interface ApiClient {
   notifications: NotificationsApi;
   journeys: JourneysApi;
   assessments: AssessmentsApi;
+  assistant: AssistantApi;
 }
 
 export interface ApiClientOptions {
@@ -195,6 +211,7 @@ export interface ApiClientOptions {
   notificationBaseUrl?: string;
   journeyBaseUrl?: string;
   assessmentBaseUrl?: string;
+  aiBaseUrl?: string;
   fetch: FetchLike;
   cache?: PublicCache;
 }
@@ -363,5 +380,20 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
       }),
   };
 
-  return { identity, directory, appointments, concierge, notifications, journeys, assessments };
+  const AI = opts.aiBaseUrl ?? PV;
+  const assistant: AssistantApi = {
+    createSession: (accessToken, locale) => request(f, AI, '/v1/ai/sessions', { method: 'POST', accessToken, body: { locale } }),
+    getSession: (accessToken, id) => request(f, AI, `/v1/ai/sessions/${enc(id)}`, { accessToken }),
+    send: (accessToken, sessionId, content, key) =>
+      request(f, AI, `/v1/ai/sessions/${enc(sessionId)}/messages`, {
+        method: 'POST',
+        accessToken,
+        body: { content },
+        headers: { 'Idempotency-Key': key },
+        // A turn may run several verified lookups; the service caps it at 90 s.
+        timeoutMs: 95000,
+      }),
+  };
+
+  return { identity, directory, appointments, concierge, notifications, journeys, assessments, assistant };
 }

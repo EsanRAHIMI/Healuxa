@@ -35,3 +35,9 @@ export async function assertCsrf(formData: FormData): Promise<void> {
   const expected = await getCsrfToken();
   if (typeof presented !== "string" || !expected || !timingSafeEqual(presented, expected)) throw new CsrfError();
 }
+
+/** Same double-submit check for fetch() calls to Route Handlers (token sent in the X-HX-CSRF header). */
+export async function assertCsrfToken(presented: string | null): Promise<void> {
+  const expected = await getCsrfToken();
+  if (!presented || !expected || !timingSafeEqual(presented, expected)) throw new CsrfError();
+}

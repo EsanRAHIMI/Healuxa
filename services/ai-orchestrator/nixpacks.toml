@@ -1,0 +1,13 @@
+# Dokploy Nixpacks alternative to Dockerfile (port 8017).
+# Set build context to monorepo root if your Dokploy app path differs.
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = [
+  "pip install -e packages/py-common",
+  "pip install -e services/ai-orchestrator",
+]
+
+[start]
+cmd = "cd services/ai-orchestrator && uvicorn ai_orchestrator.main:app --host 0.0.0.0 --port 8017"

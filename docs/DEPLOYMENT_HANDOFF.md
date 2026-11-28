@@ -26,6 +26,7 @@ Status words: **Implemented / Tested** apply to code; **Deployed** is your job; 
 | notification-service | `services/notification-service` | `services/notification-service/Dockerfile` | 8022 | PostgreSQL `notification` | `alembic upgrade head` |
 | payment-service | `services/payment-service` | `services/payment-service/Dockerfile` | 8010 | PostgreSQL `payment` | `alembic upgrade head` |
 | subscription-service | `services/subscription-service` | `services/subscription-service/Dockerfile` | 8009 | PostgreSQL `subscription` | `alembic upgrade head` |
+| ai-orchestrator | `services/ai-orchestrator` | `services/ai-orchestrator/Dockerfile` | 8017 | PostgreSQL `ai` | `alembic upgrade head` (identity-service `0011_ai_permissions` grants `ai:chat`) |
 
 Further components (appointment-service, web) are added to this table when their branches merge;
 check `docs/EXECUTION_LEDGER.md` for the current list before deploying.
