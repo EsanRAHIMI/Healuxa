@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PracticeDashboard } from "@/components/portal/PracticeDashboard";
 
 import { updateFacilityAction } from "@/actions/facility";
 import { SubmitButton } from "@/components/forms/fields";
@@ -18,7 +19,12 @@ export default async function FacilityOverview({ params, searchParams }: { param
   return (
     <>
       {registered ? <Alert tone="success" role="status" className="mb-6" title={t("fp.registeredTitle")}>{t("fp.registeredBody")}</Alert> : null}
-      {facility.verification_status !== "verified" ? <Alert tone="info" role="note" className="mb-6" title={t("fp.pendingVerification")} /> : null}
+      {facility.verification_status !== "verified" ? <p className="mb-6 text-text-muted" role="note">{t("fp.pendingVerification")}</p> : null}
+      {facility.verification_status === "verified" ? (
+        <div className="mb-8">
+          <PracticeDashboard scope={{ facility_id: facility.id }} locale={locale} calendarHref={`/${locale}/facility/${facility.id}/bookings`} />
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         <Card className="h-fit">
           <DefinitionList

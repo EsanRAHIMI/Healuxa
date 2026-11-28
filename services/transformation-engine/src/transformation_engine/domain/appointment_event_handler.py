@@ -75,7 +75,8 @@ class AppointmentEventHandler:
             and isinstance(payload.get("user_id"), str)
         )
         if not valid:
-            logger.warning("%s rejected: invalid envelope", event_type)
+            # Log nothing taken from the envelope: it carries user identifiers.
+            logger.warning("appointment event rejected: invalid envelope")
             return AppointmentEventResult(OUTCOME_REJECTED, DETAIL_INVALID_ENVELOPE)
 
         milestone_id = payload.get("milestone_id")

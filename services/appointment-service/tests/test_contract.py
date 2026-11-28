@@ -29,7 +29,7 @@ def test_every_contract_operation_is_implemented_and_nothing_else() -> None:
         if p not in {"/health", "/ready", "/metrics"}
     }
     assert wanted == served
-    assert len(wanted) == 7
+    assert len(wanted) == 8
 
 
 def test_status_vocabularies_match_contract() -> None:

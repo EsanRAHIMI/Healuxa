@@ -124,6 +124,30 @@ paths:
         "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
         "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /appointments/summary:
+    get:
+      operationId: getAppointmentSummary
+      summary: Counts per status and completed revenue for a practice scope
+      description: >
+        Operational report for a provider or facility calendar over `[from, to)` (at most 366 days).
+        Same access rule as the calendar views of `listAppointments`. Holds that never became a
+        request are excluded.
+      tags: [appointments]
+      x-required-permission: appointments:read
+      parameters:
+        - { name: provider_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: facility_id, in: query, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+        - { name: from, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+        - { name: to, in: query, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppointmentSummary" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
   /appointments/{id}:
     get:
       operationId: getAppointment
@@ -245,6 +269,15 @@ components:
         application/json:
           schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
   schemas:
+    AppointmentSummary:
+      type: object
+      required: [from, to, total, by_status, completed_revenue]
+      properties:
+        from: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        to: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        total: { type: integer }
+        by_status: { type: object, additionalProperties: { type: integer } }
+        completed_revenue: { type: array, items: { $ref: "./_shared/components.yaml#/components/schemas/Money" } }
     AppointmentStatus:
       type: string
       enum: [held, requested, confirmed, checked_in, completed, cancelled, declined, no_show, expired, rescheduled]

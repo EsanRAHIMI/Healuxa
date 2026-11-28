@@ -6,7 +6,7 @@ import { submitIntakeAction } from "@/actions/journey";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
 import { SelectField, SubmitButton, TextArea } from "@/components/forms/fields";
 import { Form } from "@/components/forms/Form";
-import { Alert, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
+import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui/primitives";
 import { requireSession } from "@/lib/auth/session";
 import { getT, resolveLocale } from "@/lib/i18n";
 import { INTAKE_NOTES_MAX, INTAKE_QUESTIONS } from "@/lib/journey";
@@ -54,9 +54,7 @@ export default async function IntakePage({ params }: Props) {
                 />
               ))}
               <TextArea name="notes" label={t("journey.intake.notes")} hint={t("journey.intake.notesHint")} optionalLabel={t("common.optional")} maxLength={INTAKE_NOTES_MAX} rows={4} />
-              <Alert tone="info" role="note">
-                {t("journey.coordinationNote")}
-              </Alert>
+              <p className="text-sm text-text-muted">{t("journey.coordinationNote")}</p>
               <SubmitButton pendingLabel={t("journey.intake.saving")} testId="intake-submit">
                 {t("journey.intake.submit")}
               </SubmitButton>
