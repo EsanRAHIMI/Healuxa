@@ -40,12 +40,12 @@ _CONDITIONS_EN = (
 _CLINICAL_INPUT = re.compile(
     rf"\b(?:do|could|might|may) i have {_CONDITIONS_EN}\b|\bhave i got {_CONDITIONS_EN}\b|\b(?:is|could) (?:it|this) (?:be )?{_CONDITIONS_EN}\b"
     r"|\b(?:diagnos\w*|what (?:is|are) (?:the |my )?(?:dose|dosage)|how (?:much|many) .{0,40}\b(?:mg|milligram|pills?|tablets?)\b|"
-    r"dosage|should i (?:take|stop taking|start taking)\b|can i take\b|which (?:medication|medicine|drug|antibiotic|pill|supplement)|"
-    r"what (?:medication|medicine|drug|antibiotic)|prescri\w*|is (?:it|this) (?:serious|dangerous|normal|infected)|"
+    r"dosage|should i (?:take|stop taking|start taking) (?:\w+ ){0,2}(?:medication|medicine|pills?|tablets?|antibiotics?|painkillers?|supplements?|ibuprofen|paracetamol|panadol)|can i take (?:\w+ ){0,2}(?:medication|medicine|pills?|tablets?|antibiotics?|painkillers?|supplements?|ibuprofen|paracetamol|panadol|aspirin)|which (?:medication|medicine|drug|antibiotic|pill|supplement)|"
+    r"what (?:medication|medicine|drug|antibiotic)|(?:give|write|need|get) (?:me )?(?:a )?prescription|prescribe\w*|is (?:it|this) (?:serious|dangerous|infected)|"
     r"what treatment (?:do i need|should i (?:get|have|choose))|which treatment (?:is best|should i)|side effects? of)\b"
     r"|هل أنا مصاب|هل عندي (?:مرض|التهاب|عدوى|سرطان)|هل لدي (?:مرض|التهاب|عدوى|سرطان)|تشخيص|شخّص|ما الجرعة|كم جرعة|جرعة|أي دواء|ما الدواء|"
     r"هل آخذ|هل أتناول|هل أتوقف عن|وصفة|هل هذا خطير|هل هو سرطان|أي علاج أحتاج|ما العلاج المناسب لي"
-    r"|آیا (?:من )?(?:بیماری|عفونت|سرطان|التهاب)|تشخیص|چه دوز|دوز|مقدار مصرف|چه دارویی|کدام دارو|آیا مصرف کنم|مصرف کنم|قطع کنم|نسخه|"
+    r"|آیا (?:من )?(?:بیماری|عفونت|سرطان|التهاب)|تشخیص بده|تشخیص من|چه دوزی|مقدار مصرف|چه دارویی|کدام دارو|آیا مصرف کنم|مصرف کنم|قطع کنم|نسخه|"
     r"آیا خطرناک است|آیا سرطان است|چه درمانی لازم دارم|کدام درمان برای من",
     _I,
 )

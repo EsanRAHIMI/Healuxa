@@ -24,7 +24,7 @@ def test_emergency_language_is_detected(text: str) -> None:
 
 @pytest.mark.parametrize(
     "text",
-    ["What dosage of retinol should I use?", "Do I have eczema?", "Could this be an infection?", "Which medication is best for acne?", "Should I stop taking my pills?", "ما الجرعة المناسبة؟", "چه دارویی بخورم؟ کدام دارو"],
+    ["What dosage of retinol should I use?", "Do I have eczema?", "Could this be an infection?", "Which medication is best for acne?", "Should I stop taking my pills?", "Can I take ibuprofen after the procedure?", "Can you prescribe something for my skin?", "ما الجرعة المناسبة؟", "چه دارویی بخورم؟ کدام دارو"],
 )
 def test_clinical_questions_are_detected(text: str) -> None:
     assert guardrails.classify_input(text) == "clinical"
@@ -43,6 +43,13 @@ def test_clinical_questions_are_detected(text: str) -> None:
         "أريد حجز موعد أسنان",
         "هل لدي مواعيد قادمة؟",
         "آیا من نوبتی دارم؟",
+        # Everyday booking questions that share words with clinical ones must stay answerable.
+        "Can I take my mother to the appointment?",
+        "Can I take a later slot on Friday?",
+        "Is it normal to wait two days for confirmation?",
+        "Do I need to bring my prescription to the visit?",
+        "Should I take the metro or a taxi to the clinic?",
+        "می‌توانم زمان نوبتم را عوض کنم؟",
     ],
 )
 def test_coordination_questions_pass_through(text: str) -> None:
