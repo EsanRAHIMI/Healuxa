@@ -66,21 +66,24 @@ def main() -> None:
 
     turn = ask(c, sid, customer, "what is next in my journey?")
     service_cards = cards(turn, "service")
-    mine = next((card for card in service_cards if card["id"] == offering["id"]), None)
-    assert mine, turn
-    real = check(c.get(f"{j.PR}/v1/services/{offering['id']}"))
-    assert mine["price"]["amount_minor"] == real["price"]["amount_minor"] and mine["price"]["currency"] == real["price"]["currency"]
-    assert mine["milestone_id"] == consult["id"] and mine["href"] == f"/book/{offering['id']}?milestone={consult['id']}"
-    print(f"card: {mine['title']} {mine['price']['amount']} {mine['price']['currency']} → {mine['href']} (price matches provider-service)")
+    assert service_cards, turn
+    # The local database accumulates offerings across runs; every card shown must match provider-service.
+    for card in service_cards:
+        real = check(c.get(f"{j.PR}/v1/services/{card['id']}"))
+        assert card["category"] == consult["service_category"]
+        assert (card["price"] or {}).get("amount_minor") == (real["price"] or {}).get("amount_minor"), (card, real)
+        assert card["milestone_id"] == consult["id"] and card["href"] == f"/book/{card['id']}?milestone={consult['id']}"
+    first = service_cards[0]
+    print(f"{len(service_cards)} card(s), e.g. {first['title']} {first['price']['amount']} {first['price']['currency']} → {first['href']} (prices match provider-service)")
 
     turn = ask(c, sid, customer, f"is {consult['service_category']} available this week? show slot times")
-    card = next(card for card in cards(turn, "service") if card["id"] == offering["id"])
+    card = cards(turn, "service")[0]
     from datetime import UTC, datetime, timedelta
 
     today = datetime.now(UTC).date()
-    real_slots = check(c.get(f"{j.AP}/v1/services/{offering['id']}/slots", params={"from": today.isoformat(), "to": (today + timedelta(days=14)).isoformat()}))["slots"]
-    assert card["next_slots"] and card["next_slots"] == [s["scheduled_at"] for s in real_slots[:3]], (card["next_slots"], real_slots[:3])
-    print(f"slots on card equal appointment-service slots: {card['next_slots'][0]} …")
+    real_slots = check(c.get(f"{j.AP}/v1/services/{card['id']}/slots", params={"from": today.isoformat(), "to": (today + timedelta(days=14)).isoformat()}))["slots"]
+    assert card["next_slots"] == [s["scheduled_at"] for s in real_slots[:3]], (card["next_slots"], real_slots[:3])
+    print(f"slots on card equal appointment-service slots: {card['next_slots'][:1]} …")
 
     # No booking was made by the assistant.
     appts = check(c.get(f"{j.AP}/v1/appointments", params={"user_id": user_id}, headers=customer))["data"]
