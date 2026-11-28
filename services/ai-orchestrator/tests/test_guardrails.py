@@ -24,7 +24,7 @@ def test_emergency_language_is_detected(text: str) -> None:
 
 @pytest.mark.parametrize(
     "text",
-    ["What dosage of retinol should I use?", "Do I have eczema?", "Which medication is best for acne?", "Should I stop taking my pills?", "ما الجرعة المناسبة؟", "چه دارویی بخورم؟ کدام دارو"],
+    ["What dosage of retinol should I use?", "Do I have eczema?", "Could this be an infection?", "Which medication is best for acne?", "Should I stop taking my pills?", "ما الجرعة المناسبة؟", "چه دارویی بخورم؟ کدام دارو"],
 )
 def test_clinical_questions_are_detected(text: str) -> None:
     assert guardrails.classify_input(text) == "clinical"
@@ -32,7 +32,18 @@ def test_clinical_questions_are_detected(text: str) -> None:
 
 @pytest.mark.parametrize(
     "text",
-    ["Which clinics offer dental cleaning?", "What is next in my journey?", "Can I book a dermatology consultation this week?", "How much is a hair consultation?", "أريد حجز موعد أسنان"],
+    [
+        "Which clinics offer dental cleaning?",
+        "What is next in my journey?",
+        "Can I book a dermatology consultation this week?",
+        "How much is a hair consultation?",
+        "What appointments do I have coming up?",
+        "Do I have anything booked?",
+        "Have I got a booking tomorrow?",
+        "أريد حجز موعد أسنان",
+        "هل لدي مواعيد قادمة؟",
+        "آیا من نوبتی دارم؟",
+    ],
 )
 def test_coordination_questions_pass_through(text: str) -> None:
     assert guardrails.classify_input(text) is None
@@ -117,3 +128,14 @@ def test_reply_language_follows_the_message_script(text: str, expected: str) -> 
 async def test_guardrail_reply_uses_the_message_language_not_the_session_locale(client: AsyncClient, session_id: str, auth_headers: dict) -> None:
     body = (await ask(client, session_id, auth_headers, "ما الجرعة المناسبة لي؟")).json()
     assert body["guardrail"] == "clinical_redirect" and "مختص" in body["content"]
+
+
+def test_web_starter_prompts_are_not_misread_as_clinical_or_urgent() -> None:
+    import json
+    from pathlib import Path
+
+    messages = Path(__file__).resolve().parents[3] / "packages" / "i18n" / "messages"
+    for locale in ("en", "ar", "fa"):
+        starters = json.loads((messages / f"{locale}.json").read_text(encoding="utf-8"))["assistant"]["starter"]
+        for key, text in starters.items():
+            assert guardrails.classify_input(text.replace("{goal}", "skin")) is None, f"{locale}:{key}"

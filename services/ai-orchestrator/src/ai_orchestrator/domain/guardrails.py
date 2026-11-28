@@ -33,14 +33,19 @@ _EMERGENCY = re.compile(
     _I,
 )
 
+_CONDITIONS_EN = (
+    r"(?:an? )?(?:infection|disease|condition|cancer|tumou?r|eczema|acne|rosacea|psoriasis|dermatitis|diabetes|allergy|"
+    r"deficiency|depression|anxiety|std|sti|covid|flu|virus|fungus|melanoma|hernia|arthritis|ulcer)"
+)
 _CLINICAL_INPUT = re.compile(
-    r"\b(do i have|have i got|diagnos\w*|what (is|are) (the |my )?(dose|dosage)|how (much|many) .{0,40}\b(mg|milligram|pills?|tablets?)\b|"
-    r"dosage|should i (take|stop taking|start taking|stop|use)\b.{0,60}|can i take\b|which (medication|medicine|drug|antibiotic|pill|supplement)|"
-    r"what (medication|medicine|drug|antibiotic)|prescri\w*|is (it|this) (cancer|serious|dangerous|normal|infected)|"
-    r"what treatment (do i need|should i (get|have|choose))|which treatment (is best|should i)|side effects? of)\b"
-    r"|هل أنا مصاب|هل لدي|تشخيص|شخّص|ما الجرعة|كم جرعة|جرعة|أي دواء|ما الدواء|هل آخذ|هل أتناول|هل أتوقف عن|وصفة|"
-    r"هل هذا خطير|هل هو سرطان|أي علاج أحتاج|ما العلاج المناسب لي"
-    r"|آیا من .{0,30}دارم|تشخیص|چه دوز|دوز|مقدار مصرف|چه دارویی|کدام دارو|آیا مصرف کنم|مصرف کنم|قطع کنم|نسخه|"
+    rf"\b(?:do|could|might|may) i have {_CONDITIONS_EN}\b|\bhave i got {_CONDITIONS_EN}\b|\b(?:is|could) (?:it|this) (?:be )?{_CONDITIONS_EN}\b"
+    r"|\b(?:diagnos\w*|what (?:is|are) (?:the |my )?(?:dose|dosage)|how (?:much|many) .{0,40}\b(?:mg|milligram|pills?|tablets?)\b|"
+    r"dosage|should i (?:take|stop taking|start taking)\b|can i take\b|which (?:medication|medicine|drug|antibiotic|pill|supplement)|"
+    r"what (?:medication|medicine|drug|antibiotic)|prescri\w*|is (?:it|this) (?:serious|dangerous|normal|infected)|"
+    r"what treatment (?:do i need|should i (?:get|have|choose))|which treatment (?:is best|should i)|side effects? of)\b"
+    r"|هل أنا مصاب|هل عندي (?:مرض|التهاب|عدوى|سرطان)|هل لدي (?:مرض|التهاب|عدوى|سرطان)|تشخيص|شخّص|ما الجرعة|كم جرعة|جرعة|أي دواء|ما الدواء|"
+    r"هل آخذ|هل أتناول|هل أتوقف عن|وصفة|هل هذا خطير|هل هو سرطان|أي علاج أحتاج|ما العلاج المناسب لي"
+    r"|آیا (?:من )?(?:بیماری|عفونت|سرطان|التهاب)|تشخیص|چه دوز|دوز|مقدار مصرف|چه دارویی|کدام دارو|آیا مصرف کنم|مصرف کنم|قطع کنم|نسخه|"
     r"آیا خطرناک است|آیا سرطان است|چه درمانی لازم دارم|کدام درمان برای من",
     _I,
 )
