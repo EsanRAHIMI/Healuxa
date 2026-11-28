@@ -29,3 +29,15 @@ def test_routes_match_contract() -> None:
         if method in METHODS
     }
     assert served == contract
+
+
+def test_production_refuses_to_start_without_records_key(monkeypatch) -> None:
+    import pytest
+
+    from profile_service.config import Settings
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SERVICE_AUTH_CLIENT_SECRET", "a-real-mesh-secret-value")
+    monkeypatch.setenv("RECORDS_ENCRYPTION_KEY", "")
+    with pytest.raises(ValueError, match="RECORDS_ENCRYPTION_KEY"):
+        Settings()

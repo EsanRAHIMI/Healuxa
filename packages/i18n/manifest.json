@@ -49,7 +49,10 @@
       "journey.stepBody.follow_up",
       "notifications.marketingHint",
       "pp.bioHint",
-      "travel.sections.limits.body"
+      "travel.sections.limits.body",
+      "records.privacyLine",
+      "records.deleteBody",
+      "records.sharedLead"
     ],
     "keys": [
       "account.consentWithdraw",
@@ -186,6 +189,9 @@
       "payments.viewInvoice",
       "payments.viewPayment",
       "pp.bioHint",
+      "records.deleteBody",
+      "records.privacyLine",
+      "records.sharedLead",
       "travel.sections.limits.body"
     ]
   },
@@ -209,6 +215,7 @@
     "enums.facilityType.diagnostic_center",
     "enums.paymentStatus.pending",
     "nav.privacy",
-    "nav.terms"
+    "nav.terms",
+    "records.types.prescription"
   ]
 }
