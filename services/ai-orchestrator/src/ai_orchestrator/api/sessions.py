@@ -121,12 +121,16 @@ async def post_message(
         return StreamingResponse(_stream(events, user_turn), media_type="text/event-stream", headers=_SSE_HEADERS)
 
     final: schemas.Turn | None = None
-    async for kind, payload in events:
-        if kind == "done":
-            final = payload
-        elif kind == "error":
-            raise _unavailable()
-    if final is None:
+    failed = False
+    try:
+        async for kind, payload in events:
+            if kind == "done":
+                final = payload
+            elif kind == "error":
+                failed = True
+    finally:
+        await events.aclose()  # runs the generator's cleanup (discard an unanswered question) now
+    if failed or final is None:
         raise _unavailable()
     return JSONResponse(content=final.model_dump(mode="json"))
 
