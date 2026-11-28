@@ -366,6 +366,71 @@ class BookingService:
         next_cursor = encode_cursor(rows[-1].starts_at, rows[-1].id, sort) if has_more else None
         return await present(db, rows), next_cursor, has_more
 
+    async def summary(
+        self,
+        db: AsyncSession,
+        directory: ProviderDirectory,
+        principal: Principal,
+        *,
+        provider_id: str | None,
+        facility_id: str | None,
+        from_: datetime,
+        to: datetime,
+    ) -> schemas.AppointmentSummary:
+        """Counts per status and completed revenue for a practice scope (same access rule as list)."""
+        for name, value in (("from", from_), ("to", to)):
+            if value.tzinfo is None:
+                raise unprocessable(f"{name} must include a UTC offset", name)
+        if to <= from_ or to - from_ > timedelta(days=366):
+            raise unprocessable("to must be after from, within 366 days", "to")
+        if not (provider_id or facility_id):
+            raise unprocessable("provider_id or facility_id is required", "provider_id")
+        access = await load_access(directory, principal)
+        if not access.has_staff_scope:
+            raise forbidden("Calendar views need a provider or facility scheduling role")
+        where = [
+            Appointment.tenant_id == principal.tenant_id,
+            Appointment.starts_at >= from_,
+            Appointment.starts_at < to,
+        ]
+        if not access.is_manager:
+            where.append(
+                or_(
+                    Appointment.provider_id.in_(access.provider_ids),
+                    Appointment.facility_id.in_(access.scheduling_facilities),
+                )
+            )
+        if provider_id:
+            where.append(Appointment.provider_id == provider_id)
+        if facility_id:
+            where.append(Appointment.facility_id == facility_id)
+
+        counts = {
+            status: count
+            for status, count in (
+                await db.execute(select(Appointment.status, func.count()).where(*where).group_by(Appointment.status))
+            ).all()
+        }
+        revenue = [
+            schemas.Money(amount_minor=int(amount), currency=currency)
+            for currency, amount in (
+                await db.execute(
+                    select(Appointment.currency, func.coalesce(func.sum(Appointment.price_minor), 0))
+                    .where(*where, Appointment.status == "completed", Appointment.currency.is_not(None))
+                    .group_by(Appointment.currency)
+                    .order_by(Appointment.currency)
+                )
+            ).all()
+        ]
+        # Holds that never became a request are not bookings; keep them out of the totals.
+        by_status = {k: v for k, v in counts.items() if k not in ("held", "expired")}
+        return schemas.AppointmentSummary(
+            **{"from": from_, "to": to},
+            total=sum(by_status.values()),
+            by_status=by_status,
+            completed_revenue=revenue,
+        )
+
     # ── transitions ───────────────────────────────────────────────────────────────────────────────
     async def _prepare(
         self,

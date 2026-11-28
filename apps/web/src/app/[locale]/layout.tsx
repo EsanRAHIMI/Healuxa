@@ -42,7 +42,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
   const theme = themeCookie === "light" || themeCookie === "dark" ? themeCookie : "system";
   return (
     <html lang={locale} dir={info.dir} data-theme={theme === "system" ? undefined : theme} className={fontClasses(locale)}>
-      <body className="flex min-h-dvh flex-col">
+      <body className="flex min-h-dvh flex-col pb-14 md:pb-0">
         <a
           href="#main"
           className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-on-primary focus:not-sr-only focus:fixed focus:start-4 focus:top-4"
