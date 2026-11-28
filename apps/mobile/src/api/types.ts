@@ -1,6 +1,7 @@
 /**
  * Wire types used by the mobile app. They mirror packages/api-contracts/openapi:
  *   identity.openapi.yaml 3.3.0, provider.openapi.yaml 3.4.0, _shared/components.yaml.
+ *   (journeys and assessments: see ./journeyTypes.ts)
  *
  * These live behind the adapter in ./client.ts so they can be swapped for the shared
  * `@healuxa/api-client` package once it lands on main (see apps/mobile/README.md#api-client).
@@ -174,6 +175,7 @@ export interface ServiceOffering {
 }
 
 export * from './careTypes';
+export * from './journeyTypes';
 
 export interface ServiceSearch {
   category?: string;

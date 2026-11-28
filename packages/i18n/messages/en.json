@@ -408,7 +408,8 @@
     "forFacilities": "For clinics & hospitals",
     "privacy": "Privacy notice",
     "terms": "Terms of use",
-    "cookies": "Cookie notice"
+    "cookies": "Cookie notice",
+    "journey": "My journey"
   },
   "footer": {
     "explore": "Explore",
@@ -446,7 +447,8 @@
     "featuredAll": "See all providers",
     "featuredEmpty": "Our directory is opening soon. Contact the concierge and we will help you directly.",
     "partnersTitle": "Are you a practitioner or a facility?",
-    "partnersBody": "Apply to join Healuxa. We verify credentials, publish your profile and services, and send you booking requests."
+    "partnersBody": "Apply to join Healuxa. We verify credentials, publish your profile and services, and send you booking requests.",
+    "ctaJourney": "Build your journey"
   },
   "how": {
     "title": "How the concierge works",
@@ -556,7 +558,10 @@
     "resultsHeading": "Services",
     "emptyTitle": "No services match these filters",
     "emptyBody": "Try another category, or ask the concierge to help.",
-    "duration": "{minutes} min"
+    "duration": "{minutes} min",
+    "journeyBanner": "Showing services for your journey step: {step}.",
+    "journeyBannerHelp": "Nothing suitable here? The concierge can arrange it for you.",
+    "journeyAskConcierge": "Ask the concierge"
   },
   "providers": {
     "eyebrow": "Directory",
@@ -660,7 +665,8 @@
     "deleteButton": "Delete account",
     "deleteWarning": "Your bookings, requests and profile will be removed or anonymised. Records we must keep by law (such as tax invoices) are retained in anonymised form.",
     "deleteWrongPassword": "The password is incorrect.",
-    "deleted": "Your account has been deleted."
+    "deleted": "Your account has been deleted.",
+    "journeyBody": "Your goals, your plan and your next step in one place."
   },
   "bookings": {
     "title": "Bookings",
@@ -748,7 +754,8 @@
     "paymentStatus_pending": "Payment required",
     "paymentStatus_authorized": "Payment authorised",
     "paymentStatus_captured": "Paid",
-    "paymentStatus_refunded": "Refunded"
+    "paymentStatus_refunded": "Refunded",
+    "journeyStep": "This booking is part of your journey: {step}."
   },
   "concierge": {
     "title": "Concierge",
@@ -1239,5 +1246,132 @@
     "disputes": "Disputes",
     "noDisputes": "No disputes.",
     "evidenceDue": "Evidence due {date}"
+  },
+  "journey": {
+    "title": "Your journey",
+    "eyebrow": "Personal plan",
+    "lead": "One plan that connects your goals to verified practitioners, bookings and follow-up.",
+    "coordinationNote": "Healuxa coordinates your care. It does not diagnose or choose treatment — that is decided between you and your practitioner.",
+    "signedOutTitle": "Sign in to build your journey",
+    "signedOutBody": "Your goals and plan are private to your account.",
+    "chooseTitle": "What would you like to work on?",
+    "chooseLead": "Choose up to three goals, most important first. You can end a journey and start a new one at any time.",
+    "goalsLegend": "Your goals",
+    "errGoals": "Choose between one and three goals.",
+    "startButton": "Build my journey",
+    "starting": "Building…",
+    "alreadyActive": "You already have an active journey.",
+    "goal": {
+      "skin_health": "Skin health",
+      "facial_aesthetics": "Facial aesthetics",
+      "hair_restoration": "Hair restoration",
+      "dental_smile": "Dental and smile",
+      "weight_management": "Weight management",
+      "fitness_recovery": "Fitness and recovery",
+      "preventive_checkup": "Preventive check-up",
+      "longevity": "Longevity",
+      "mental_wellbeing": "Mental wellbeing"
+    },
+    "goalBody": {
+      "skin_health": "See a verified dermatology practitioner about your skin.",
+      "facial_aesthetics": "Discuss aesthetic options with a verified practitioner.",
+      "hair_restoration": "Consult a verified practitioner about hair and scalp.",
+      "dental_smile": "Dental care and smile consultations.",
+      "weight_management": "Work with a verified nutrition practitioner.",
+      "fitness_recovery": "Physiotherapy and recovery support.",
+      "preventive_checkup": "A general check-up with a verified practitioner.",
+      "longevity": "A long-term health plan with a verified practitioner.",
+      "mental_wellbeing": "Speak with a verified wellbeing practitioner."
+    },
+    "yourGoals": "Your goals",
+    "progress": "{done} of {total} steps complete",
+    "progressLabel": "Journey progress",
+    "nextTitle": "Your next step",
+    "timelineTitle": "Your plan",
+    "phase": {
+      "understand": "Understand your needs",
+      "consult": "Consult a verified practitioner",
+      "care": "Receive your care",
+      "follow_up": "Follow up and review"
+    },
+    "phaseStatus": {
+      "pending": "Not started",
+      "in_progress": "Current stage",
+      "completed": "Done"
+    },
+    "step": {
+      "intake_assessment": "Tell us your preferences",
+      "consultation": "Consultation — {goal}",
+      "care": "Care agreed with your practitioner — {goal}",
+      "follow_up": "Follow-up visit — {goal}",
+      "progress_review": "Review your progress",
+      "other": "Plan step"
+    },
+    "stepBody": {
+      "intake_assessment": "A few questions about timing, location and preferences so we can coordinate around you.",
+      "consultation": "Book a consultation with a verified practitioner. They will advise what, if anything, comes next.",
+      "care": "Book the service you and your practitioner agreed on.",
+      "follow_up": "Book a follow-up visit when your practitioner recommends one.",
+      "progress_review": "Look back at what has been done and decide whether to continue.",
+      "other": "Part of your plan."
+    },
+    "stepStatus": {
+      "pending": "To do",
+      "scheduled": "Booked",
+      "in_progress": "In progress",
+      "completed": "Done",
+      "blocked": "On hold"
+    },
+    "answerQuestions": "Answer a few questions",
+    "findProviders": "Find verified providers",
+    "askConcierge": "Ask the concierge to arrange it",
+    "markDone": "Mark as done",
+    "markDoneTitle": "Mark this step as done?",
+    "markDoneBody": "Use this if the step was completed outside Healuxa. It cannot be undone.",
+    "marking": "Saving…",
+    "markedDone": "Step marked as done.",
+    "viewAppointment": "View appointment",
+    "scheduledFor": "Booked for {date}",
+    "completedOn": "Completed {date}",
+    "laterStage": "Opens when the earlier stage is complete.",
+    "updating": "Your preferences are saved. Your plan will update in a few moments — refresh this page if it has not.",
+    "allDoneTitle": "Every step in this journey is complete",
+    "allDoneBody": "You can end this journey and start a new one whenever you are ready.",
+    "endTitle": "End this journey",
+    "endLead": "Ending a journey keeps your bookings and history. You can then start a new journey with different goals.",
+    "endButton": "End journey",
+    "endConfirmBody": "Your plan will be closed. Existing appointments are not cancelled.",
+    "ending": "Ending…",
+    "intake": {
+      "title": "Your preferences",
+      "lead": "These answers help us coordinate bookings around you. They are not a medical assessment.",
+      "timeframe": "When would you like to start?",
+      "timeframe_asap": "As soon as possible",
+      "timeframe_within_month": "Within a month",
+      "timeframe_within_three_months": "Within three months",
+      "timeframe_flexible": "I am flexible",
+      "city": "Where would you prefer to be seen?",
+      "city_dubai": "Dubai",
+      "city_abu_dhabi": "Abu Dhabi",
+      "city_sharjah": "Sharjah",
+      "city_other": "Somewhere else",
+      "language": "Preferred language for your visits",
+      "practitioner_gender": "Practitioner preference",
+      "practitioner_gender_no_preference": "No preference",
+      "practitioner_gender_female": "Female practitioner",
+      "practitioner_gender_male": "Male practitioner",
+      "visit_mode": "How would you like to be seen?",
+      "visit_mode_in_person": "At a clinic",
+      "visit_mode_home_visit": "At home",
+      "visit_mode_no_preference": "No preference",
+      "notes": "Anything else a coordinator should know?",
+      "notesHint": "Optional. Do not include anything you would not want a care coordinator to read.",
+      "choose": "Choose…",
+      "errRequired": "Choose an option.",
+      "submit": "Save my preferences",
+      "saving": "Saving…",
+      "alreadyDone": "You have already answered these questions for this journey.",
+      "noJourney": "Start a journey first."
+    }
   }
 }

@@ -132,6 +132,19 @@ async def get_next_actions(
 
 
 @router.post(
+    "/{journey_id}/close",
+    response_model=Journey,
+    operation_id="closeJourney",
+)
+async def close_journey(
+    journey_id: str,
+    db: AsyncSession = Depends(get_db),
+    principal: Principal = Depends(require_journey_permission("journeys:write")),
+) -> Journey:
+    return await journey_service.close_journey(db, journey_id, principal=principal)
+
+
+@router.post(
     "/{journey_id}/reassess",
     status_code=status.HTTP_202_ACCEPTED,
     operation_id="reassessJourney",

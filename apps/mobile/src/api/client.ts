@@ -9,6 +9,8 @@ import { ApiError } from './errors';
 import { buildUrl, type FetchLike, type Query, request } from './http';
 import type {
   Appointment,
+  Assessment,
+  AssessmentResponse,
   Branch,
   CaseCreate,
   CaseMessage,
@@ -16,6 +18,10 @@ import type {
   CustomerTransition,
   DeviceToken,
   InboxNotification,
+  Journey,
+  JourneyCreate,
+  Milestone,
+  NextAction,
   NotificationPreferences,
   NotificationPreferencesUpdate,
   ProviderOption,
@@ -28,6 +34,7 @@ import type {
   Provider,
   ProviderSearch,
   RegisterRequest,
+  Roadmap,
   ServiceOffering,
   ServiceSearch,
   Session,
@@ -88,8 +95,11 @@ export interface AppointmentsApi {
   list(token: string, q?: { cursor?: string; sort?: 'scheduled_at' | '-scheduled_at' }): Promise<Page<Appointment>>;
   /** appointment: getAppointment */
   get(token: string, id: string): Promise<Appointment>;
-  /** appointment: createAppointment — places a short hold (status `held`) */
-  hold(token: string, body: { service_id: string; scheduled_at: string }, idempotencyKey: string): Promise<Appointment>;
+  /**
+   * appointment: createAppointment — places a short hold (status `held`). `milestone_id` links the
+   * booking to a journey step, which then follows the appointment's lifecycle.
+   */
+  hold(token: string, body: { service_id: string; scheduled_at: string; milestone_id?: string }, idempotencyKey: string): Promise<Appointment>;
   /** appointment: transitionAppointment — customer transitions only (submit, cancel) */
   transition(token: string, id: string, transition: CustomerTransition, idempotencyKey: string, reasonCode?: 'customer_request'): Promise<Appointment>;
   /** appointment: rescheduleAppointment — returns the NEW linked appointment */
@@ -140,12 +150,41 @@ export interface NotificationsApi {
   deleteDevice(token: string, id: string): Promise<void>;
 }
 
+/**
+ * transformation-engine: the customer's goal-driven coordination plan (phases and steps). It holds
+ * no clinical data. Always the signed-in customer's own journey, never cached.
+ */
+export interface JourneysApi {
+  /** transformation: createJourney (409 when the customer already has an active journey) */
+  create(token: string, body: JourneyCreate, idempotencyKey: string): Promise<Journey>;
+  /** transformation: getJourneyByUser — resolves null when there is no active journey (404) */
+  getActive(token: string, userId: string): Promise<Journey | null>;
+  /** transformation: getRoadmap */
+  roadmap(token: string, journeyId: string): Promise<Roadmap>;
+  /** transformation: getNextActions (pending steps of the current phase, most important first) */
+  nextActions(token: string, journeyId: string): Promise<NextAction[]>;
+  /** transformation: completeMilestone (409 when the step is already completed) */
+  completeMilestone(token: string, journeyId: string, milestoneId: string, idempotencyKey: string): Promise<Milestone>;
+  /** transformation: closeJourney — ends the journey so a new one can be started (idempotent) */
+  close(token: string, journeyId: string): Promise<Journey>;
+}
+
+/** assessment-service: only the non-clinical `intake` preferences form is used by the app. */
+export interface AssessmentsApi {
+  /** assessment: startAssessment (kind `intake`) */
+  startIntake(token: string, userId: string, idempotencyKey: string): Promise<Assessment>;
+  /** assessment: submitAssessment — completes the journey's intake step asynchronously */
+  submit(token: string, id: string, responses: AssessmentResponse[], idempotencyKey: string): Promise<Assessment>;
+}
+
 export interface ApiClient {
   identity: IdentityApi;
   directory: DirectoryApi;
   appointments: AppointmentsApi;
   concierge: ConciergeApi;
   notifications: NotificationsApi;
+  journeys: JourneysApi;
+  assessments: AssessmentsApi;
 }
 
 export interface ApiClientOptions {
@@ -154,6 +193,8 @@ export interface ApiClientOptions {
   appointmentBaseUrl?: string;
   conciergeBaseUrl?: string;
   notificationBaseUrl?: string;
+  journeyBaseUrl?: string;
+  assessmentBaseUrl?: string;
   fetch: FetchLike;
   cache?: PublicCache;
 }
@@ -279,5 +320,48 @@ export function createApiClient(opts: ApiClientOptions): ApiClient {
     },
   };
 
-  return { identity, directory, appointments, concierge, notifications };
+  const JO = opts.journeyBaseUrl ?? PV;
+  const AS = opts.assessmentBaseUrl ?? PV;
+
+  const journeys: JourneysApi = {
+    create: (accessToken, body, key) =>
+      request(f, JO, '/v1/journeys', { method: 'POST', accessToken, body, headers: { 'Idempotency-Key': key } }),
+    getActive: async (accessToken, userId) => {
+      try {
+        return await request<Journey>(f, JO, `/v1/journeys/${enc(userId)}`, { accessToken });
+      } catch (e) {
+        // 404 is the normal "no journey yet" answer, not a failure.
+        if (e instanceof ApiError && e.status === 404) return null;
+        throw e;
+      }
+    },
+    roadmap: (accessToken, journeyId) => request(f, JO, `/v1/journeys/${enc(journeyId)}/roadmap`, { accessToken }),
+    nextActions: (accessToken, journeyId) => request(f, JO, `/v1/journeys/${enc(journeyId)}/next-actions`, { accessToken }),
+    completeMilestone: (accessToken, journeyId, milestoneId, key) =>
+      request(f, JO, `/v1/journeys/${enc(journeyId)}/milestones/${enc(milestoneId)}/complete`, {
+        method: 'POST',
+        accessToken,
+        headers: { 'Idempotency-Key': key },
+      }),
+    close: (accessToken, journeyId) => request(f, JO, `/v1/journeys/${enc(journeyId)}/close`, { method: 'POST', accessToken }),
+  };
+
+  const assessments: AssessmentsApi = {
+    startIntake: (accessToken, userId, key) =>
+      request(f, AS, '/v1/assessments', {
+        method: 'POST',
+        accessToken,
+        body: { user_id: userId, kind: 'intake' },
+        headers: { 'Idempotency-Key': key },
+      }),
+    submit: (accessToken, id, responses, key) =>
+      request(f, AS, `/v1/assessments/${enc(id)}/submit`, {
+        method: 'POST',
+        accessToken,
+        body: { responses },
+        headers: { 'Idempotency-Key': key },
+      }),
+  };
+
+  return { identity, directory, appointments, concierge, notifications, journeys, assessments };
 }

@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from transformation_engine.api.journeys import router as journeys_router
 from transformation_engine.config import settings
+from transformation_engine.consumers.appointment_events import build_consumer as build_appointment_consumer
 from transformation_engine.consumers.assessment_completed import build_consumer
 from transformation_engine.infra.db import SessionLocal, engine
 from transformation_engine.infra.models import OUTBOX
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
         runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
         runtime.add_outbox(SqlOutboxStore(SessionLocal, OUTBOX))
         runtime.add_consumer(build_consumer(runtime.connection))
+        runtime.add_consumer(build_appointment_consumer(runtime.connection))
         await runtime.start()
     try:
         yield

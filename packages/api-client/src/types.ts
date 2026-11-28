@@ -7,6 +7,7 @@ import type { components as NotificationComponents } from "./generated/notificat
 import type { components as PaymentComponents } from "./generated/payment";
 import type { components as ProfileComponents } from "./generated/profile";
 import type { components as ProviderComponents } from "./generated/provider";
+import type { components as TransformationComponents } from "./generated/transformation";
 
 type P = ProviderComponents["schemas"];
 type I = IdentityComponents["schemas"];
@@ -92,3 +93,13 @@ export type Invoice = Pay["Invoice"];
 export type Dispute = Pay["Dispute"];
 export type ReconciliationReport = Pay["ReconciliationReport"];
 export type SettlementReport = Pay["SettlementReport"];
+
+type T = TransformationComponents["schemas"];
+
+export type GoalCode = T["GoalCode"];
+export type Journey = T["Journey"];
+export type JourneyStatus = T["JourneyStatus"];
+export type Roadmap = T["Roadmap"];
+export type RoadmapPhase = T["RoadmapPhase"];
+export type JourneyMilestone = T["Milestone"];
+export type JourneyNextAction = T["NextAction"];

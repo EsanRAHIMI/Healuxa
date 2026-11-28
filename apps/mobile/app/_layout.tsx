@@ -99,6 +99,8 @@ function Navigation() {
           <Stack.Screen name="concierge/new" options={{ presentation: 'modal', title: t('concierge.new') }} />
           <Stack.Screen name="concierge/[id]" options={{ title: '' }} />
           <Stack.Screen name="notifications" options={{ title: t('inbox.title') }} />
+          <Stack.Screen name="journey/index" options={{ title: t('journey.title') }} />
+          <Stack.Screen name="journey/intake" options={{ title: t('intake.title') }} />
         </Stack>
       )}
     </ThemeProvider>

@@ -1,14 +1,20 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { usePublic, useRemote } from '@/hooks/useRemote';
 import { useI18n } from '@/i18n';
+import { JourneyHomeCard } from '@/journey/JourneyHomeCard';
+import { loadJourneySummary } from '@/journey/load';
 import { usePrefs } from '@/prefs';
 import { useApi } from '@/services';
 import { AppText, Button, EmptyState, ErrorState, Loading, OfflineBanner, Row, Screen, Section } from '@/ui/primitives';
 import { ProviderCard } from '@/ui/ProviderCard';
 
-/** Home. Uses provider: searchProviders (limit 3) and notification: getUnreadNotificationCount. */
+/**
+ * Home. Uses provider: searchProviders (limit 3), notification: getUnreadNotificationCount and, for
+ * the journey card, transformation: getJourneyByUser → getRoadmap + getNextActions.
+ */
 export default function Home() {
   const { t } = useI18n();
   const router = useRouter();
@@ -23,12 +29,27 @@ export default function Home() {
     [api, signedIn, auth.withAuth]
   );
 
+  // transformation: the signed-in customer's journey summary (never cached); null when signed out.
+  const userId = auth.userId;
+  const journey = useRemote(
+    () => (signedIn && userId ? auth.withAuth((tk) => loadJourneySummary(api, tk, userId)) : Promise.resolve(null)),
+    [api, signedIn, userId, auth.withAuth]
+  );
+  // Refresh when the tab regains focus (after starting a journey, the intake form or a booking).
+  const reloadJourney = journey.reload;
+  useFocusEffect(useCallback(() => reloadJourney(), [reloadJourney]));
+  const refresh = () => {
+    featured.reload();
+    journey.reload();
+  };
+
   if (!prefs.welcomeSeen && auth.status === 'signedOut') return <Redirect href="/welcome" />;
 
   return (
-    <Screen testID="home-screen" onRefresh={featured.reload} refreshing={featured.refreshing}>
+    <Screen testID="home-screen" onRefresh={refresh} refreshing={featured.refreshing}>
       <AppText variant="title">{auth.status === 'signedIn' ? t('home.greetingSignedIn') : t('home.greeting')}</AppText>
       <AppText muted>{t('home.intro')}</AppText>
+      <JourneyHomeCard summary={journey} />
       {signedIn ? (
         <Button
           kind="secondary"

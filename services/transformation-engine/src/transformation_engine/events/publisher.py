@@ -11,12 +11,16 @@ from transformation_engine.infra.models import OUTBOX
 
 TRANSFORMATION_EVENTS = {
     "journey.created",
+    "journey.roadmap_updated",
     "journey.milestone_completed",
+    "journey.phase_completed",
     "journey.reassessment_due",
 }
 
 SCHEMA_REFS = {
     "journey.created": "https://contracts.healuxa.com/events/journey.schema.json#/$defs/JourneyCreated",
+    "journey.roadmap_updated": "https://contracts.healuxa.com/events/journey.schema.json#/$defs/JourneyRoadmapUpdated",
+    "journey.phase_completed": "https://contracts.healuxa.com/events/journey.schema.json#/$defs/JourneyPhaseCompleted",
     "journey.milestone_completed": "https://contracts.healuxa.com/events/journey.schema.json#/$defs/JourneyMilestoneCompleted",
     "journey.reassessment_due": "https://contracts.healuxa.com/events/journey.schema.json#/$defs/JourneyReassessmentDue",
 }

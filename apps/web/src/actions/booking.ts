@@ -13,6 +13,7 @@ import { act, actionSession, invalid } from "@/lib/actions";
 import { userApi } from "@/lib/api";
 import { str, type FormState } from "@/lib/forms";
 import { getT } from "@/lib/i18n";
+import { ULID } from "@/lib/journey";
 
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
 const TRANSITIONS = ["submit", "accept", "decline", "cancel", "check_in", "complete", "no_show"] as const;
@@ -27,15 +28,17 @@ export async function holdSlotAction(_prev: FormState, fd: FormData): Promise<Fo
     const slot = str(fd, "slot");
     if (!ISO.test(slot)) return invalid(locale, { slot: t("booking.errSlot") });
     const { getSession } = await import("@/lib/auth/session");
+    // Optional journey step this booking fulfils; transformation-engine verifies ownership.
+    const milestoneId = ULID.test(str(fd, "milestone_id")) ? str(fd, "milestone_id") : undefined;
     if (!(await getSession())) {
-      target = `/${locale}/login?next=${encodeURIComponent(`/${locale}/book/${serviceId}`)}`;
+      target = `/${locale}/login?next=${encodeURIComponent(`/${locale}/book/${serviceId}${milestoneId ? `?milestone=${milestoneId}` : ""}`)}`;
       return;
     }
     const api = await userApi();
     const appt = await unwrap(
       api.appointment.POST("/appointments", {
         params: { header: idempotencyHeader(str(fd, "idempotency_key") || undefined) },
-        body: { service_id: serviceId, scheduled_at: slot, channel: "web" },
+        body: { service_id: serviceId, scheduled_at: slot, channel: "web", ...(milestoneId ? { milestone_id: milestoneId } : {}) },
       }),
     );
     target = `/${locale}/account/bookings/${appt.id}?held=1`;

@@ -75,12 +75,15 @@ export function OfferingCard({
   provider,
   facility,
   branch,
+  bookQuery,
 }: {
   offering: ServiceOffering;
   locale: Locale;
   provider?: Provider;
   facility?: Facility;
   branch?: Branch;
+  /** Extra query string for the booking link, e.g. `milestone=<id>` when booking a journey step. */
+  bookQuery?: string;
 }) {
   const t = getT(locale);
   return (
@@ -114,7 +117,7 @@ export function OfferingCard({
         <FeeBreakdown offering={offering} locale={locale} />
       </div>
       {offering.status === "active" ? (
-        <Link href={`/${locale}/book/${offering.id}`} className={buttonClass("primary", "sm", "self-start")} data-testid="book-offering">
+        <Link href={`/${locale}/book/${offering.id}${bookQuery ? `?${bookQuery}` : ""}`} className={buttonClass("primary", "sm", "self-start")} data-testid="book-offering">
           {t("booking.book")}
         </Link>
       ) : null}

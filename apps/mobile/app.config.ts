@@ -15,6 +15,8 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  *   APPOINTMENT_BASE_URL    per-service override (local development: http://localhost:8207)
  *   CONCIERGE_BASE_URL      per-service override (local development: http://localhost:8221)
  *   NOTIFICATION_BASE_URL   per-service override (local development: http://localhost:8222)
+ *   JOURNEY_BASE_URL        per-service override (transformation-engine; local: http://localhost:8000)
+ *   ASSESSMENT_BASE_URL     per-service override (assessment-service; local: http://localhost:8003)
  *   SUPPORT_EMAIL           account-deletion / support mailbox        (placeholder until confirmed)
  *   FEATURE_PUSH            "0" hides the push opt-in (default on; token goes to notification-service)
  *   EAS_PROJECT_ID          Expo project id (needed for Expo push tokens; owner provides)
@@ -42,6 +44,8 @@ const providerBaseUrl = baseUrl(process.env.PROVIDER_BASE_URL, 'http://localhost
 const appointmentBaseUrl = baseUrl(process.env.APPOINTMENT_BASE_URL, 'http://localhost:8207');
 const conciergeBaseUrl = baseUrl(process.env.CONCIERGE_BASE_URL, 'http://localhost:8221');
 const notificationBaseUrl = baseUrl(process.env.NOTIFICATION_BASE_URL, 'http://localhost:8222');
+const journeyBaseUrl = baseUrl(process.env.JOURNEY_BASE_URL, 'http://localhost:8000');
+const assessmentBaseUrl = baseUrl(process.env.ASSESSMENT_BASE_URL, 'http://localhost:8003');
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -191,6 +195,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appointmentBaseUrl,
     conciergeBaseUrl,
     notificationBaseUrl,
+    journeyBaseUrl,
+    assessmentBaseUrl,
     linkDomain: LINK_DOMAIN,
     supportEmail: process.env.SUPPORT_EMAIL ?? 'privacy@healuxa.ae',
     privacyPolicyUrl: process.env.PRIVACY_POLICY_URL ?? `https://${LINK_DOMAIN}/privacy`,
