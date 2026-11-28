@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/domain/badges";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
 import { SelectField, SubmitButton, TextArea, TextField } from "@/components/forms/fields";
 import { Form } from "@/components/forms/Form";
-import { Alert, Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Section } from "@/components/ui/primitives";
 import { userApi } from "@/lib/api";
 import { requireSession } from "@/lib/auth/session";
 import { getT, resolveLocale } from "@/lib/i18n";
@@ -48,7 +48,7 @@ export default async function MyConcierge({ params }: { params: Promise<{ locale
       </Section>
       <Section title={t("concierge.newCase")} description={t("concierge.newCaseLead")} id="new">
         <Card className="max-w-3xl">
-          <Alert tone="warning" role="note" className="mb-5" title={t("concierge.noClinicalTitle")}>{t("concierge.noClinicalHint")}</Alert>
+          <p className="mb-5 text-sm text-text-muted">{t("concierge.noClinicalHint")}</p>
           <Form action={createCaseAction} locale={locale} label={t("concierge.newCase")} showSuccess={false} testId="case-form">
             <div className="grid gap-5 sm:grid-cols-2">
               <SelectField className="sm:col-span-2" name="category" label={t("concierge.category")} required requiredLabel={t("common.required")} options={CATEGORIES.map((c) => ({ value: c, label: t(`enums.caseCategory.${c}`) }))} />

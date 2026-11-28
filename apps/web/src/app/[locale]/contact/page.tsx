@@ -56,7 +56,7 @@ export default async function ContactPage({ params }: Props) {
           <p className="mt-6 text-sm text-text-muted">{t("contact.hours")}</p>
           <p className="mt-2 text-sm text-text-muted">{t("contact.privacyHint")}</p>
         </Card>
-        <Alert tone="danger" role="note" title={t("contact.emergencyTitle")}>
+        <Alert tone="info" role="note" title={t("contact.emergencyTitle")}>
           <p>{t("legal.emergency")}</p>
         </Alert>
       </div>

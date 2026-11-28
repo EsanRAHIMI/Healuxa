@@ -4,7 +4,7 @@ import { saveConsentAction } from "@/actions/account";
 import { CheckboxField, SubmitButton } from "@/components/forms/fields";
 import { Form } from "@/components/forms/Form";
 import { ServiceError, settle } from "@/components/domain/ServiceError";
-import { Alert, Card, PageHeader } from "@/components/ui/primitives";
+import { Card, PageHeader } from "@/components/ui/primitives";
 import { userApi } from "@/lib/api";
 import { requireSession } from "@/lib/auth/session";
 import { CONSENT_KEYS, CONSENT_LABEL_KEYS } from "@/lib/consent";
@@ -28,7 +28,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
   return (
     <>
       <PageHeader title={t("account.privacyPrefs")} lead={t("account.privacyLead")} />
-      <Alert tone="warning" role="note" className="mb-6 max-w-2xl" title={t("legal.reviewNotice")} />
+      <p className="mb-6 max-w-2xl text-sm text-text-muted">{t("legal.reviewNotice")}</p>
       {!loaded.ok ? (
         <ServiceError error={loaded.error} locale={locale} />
       ) : (

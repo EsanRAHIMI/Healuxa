@@ -1,7 +1,7 @@
 import type { Locale } from "@healuxa/i18n";
 import type { ReactNode } from "react";
 
-import { Alert, PageHeader } from "@/components/ui/primitives";
+import { PageHeader } from "@/components/ui/primitives";
 import { getT } from "@/lib/i18n";
 
 /**
@@ -25,7 +25,7 @@ export function ContentPage({
   return (
     <div className="hx-container py-12">
       <PageHeader title={t(`${ns}.title`)} lead={t(`${ns}.lead`)} />
-      {reviewNotice ? <Alert tone="warning" role="note" className="mb-8 max-w-3xl" title={t("legal.reviewNotice")} /> : null}
+      {reviewNotice ? <p className="mb-8 max-w-3xl text-sm text-text-muted">{t("legal.reviewNotice")}</p> : null}
       <div className="hx-prose max-w-3xl">
         {sections.map((id) => (
           <section key={id} aria-labelledby={`s-${id}`}>
