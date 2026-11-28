@@ -11,9 +11,13 @@ from healuxa_py_common.observability.metrics import metrics_payload
 from healuxa_py_common.observability.tracing import TraceMiddleware, configure_logging, get_trace_id
 
 from profile_service.api.profiles import router as profiles_router
+from profile_service.api.records import close_directory
+from profile_service.api.records import router as records_router
 from profile_service.config import settings
 from profile_service.consumers.user_deleted import build_consumer as build_user_deleted_consumer
+from profile_service.domain.records import purge_pending_blobs
 from profile_service.infra.mongo import close_client, ensure_indexes, get_database, ping_database
+from profile_service.infra.storage import GridFSRecordStore
 
 
 @asynccontextmanager
@@ -22,6 +26,8 @@ async def lifespan(app: FastAPI):
     runtime: EventRuntime | None = None
     if settings.mongodb_uri:
         await ensure_indexes()
+        # Finish any record byte deletions interrupted by a crash or restart.
+        await purge_pending_blobs(GridFSRecordStore(get_database()))
         if settings.nats_enabled:
             runtime = EventRuntime(nats_url=settings.nats_url, service_name=settings.service_name)
             runtime.add_outbox(MongoOutboxStore(get_database()[OUTBOX_COLLECTION]))
@@ -32,6 +38,7 @@ async def lifespan(app: FastAPI):
     finally:
         if runtime is not None:
             await runtime.stop()
+        await close_directory()
         await close_client()
 
 
@@ -44,6 +51,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(TraceMiddleware)
     app.include_router(profiles_router)
+    app.include_router(records_router)
 
     @app.exception_handler(ApiError)
     async def handle_api_error(request: Request, exc: ApiError) -> JSONResponse:

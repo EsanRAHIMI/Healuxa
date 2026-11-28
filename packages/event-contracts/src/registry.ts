@@ -120,6 +120,9 @@ export const EVENTS = {
 
   // ── Profile ────────────────────────────────────────────────────────────────
   "profile.updated": { type: "profile.updated", stream: "GROWTH", owner: "profile-service", version: 1, schema: "schemas/profile.schema.json#/$defs/ProfileUpdated", consumers: ["transformation-engine", "commercial-intelligence-engine", "ml-service", "monitoring-service"] },
+  "profile.record_grant_created": { type: "profile.record_grant_created", stream: "GROWTH", owner: "profile-service", version: 1, schema: "schemas/profile.schema.json#/$defs/ProfileRecordGrantCreated", consumers: ["notification-service", "monitoring-service"] },
+  "profile.record_grant_revoked": { type: "profile.record_grant_revoked", stream: "GROWTH", owner: "profile-service", version: 1, schema: "schemas/profile.schema.json#/$defs/ProfileRecordGrantRevoked", consumers: ["notification-service", "monitoring-service"] },
+  "profile.record_accessed": { type: "profile.record_accessed", stream: "GROWTH", owner: "profile-service", version: 1, schema: "schemas/profile.schema.json#/$defs/ProfileRecordAccessed", consumers: ["notification-service", "monitoring-service"] },
 
   // ── Identity ───────────────────────────────────────────────────────────────
   // ── Provider & Catalog (provider-service) ──────────────────────────────────

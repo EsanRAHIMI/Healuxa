@@ -9,11 +9,17 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from profile_service.config import settings
 from profile_service.infra.mongo import get_database
 
-PROFILE_EVENTS = {"profile.updated"}
+_SCHEMA = "https://contracts.healuxa.com/events/profile.schema.json#/$defs/"
 
 SCHEMA_REFS = {
-    "profile.updated": "https://contracts.healuxa.com/events/profile.schema.json#/$defs/ProfileUpdated",
+    "profile.updated": _SCHEMA + "ProfileUpdated",
+    # Records events carry identifiers only — never titles, file names, notes or content.
+    "profile.record_grant_created": _SCHEMA + "ProfileRecordGrantCreated",
+    "profile.record_grant_revoked": _SCHEMA + "ProfileRecordGrantRevoked",
+    "profile.record_accessed": _SCHEMA + "ProfileRecordAccessed",
 }
+
+PROFILE_EVENTS = set(SCHEMA_REFS)
 
 
 class EventPublisher:
