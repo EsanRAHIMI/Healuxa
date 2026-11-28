@@ -60,6 +60,9 @@ export const env = {
   get transformationApiUrl() {
     return read("TRANSFORMATION_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8000/v1");
   },
+  get aiApiUrl() {
+    return read("AI_API_URL", this.apiBaseUrl ?? "http://127.0.0.1:8017/v1");
+  },
   /** JWKS of identity-service, used to verify access tokens locally (no service secret in the web tier). */
   get identityJwksUrl() {
     return read("IDENTITY_JWKS_URL", `${this.identityApiUrl.replace(/\/v1$/, "")}/.well-known/jwks.json`);

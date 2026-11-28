@@ -12,8 +12,8 @@ staff access to medical documents.
 Chains after 0010_payment_permissions.
 """
 
-down_revision = "0010_payment_permissions"
-revision = "0011_records_permissions"
+down_revision = "0011_ai_permissions"
+revision = "0012_records_permissions"
 branch_labels = None
 depends_on = None
 

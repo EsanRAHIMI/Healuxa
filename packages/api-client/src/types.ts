@@ -1,4 +1,5 @@
 /** Convenience aliases for the generated contract schemas. */
+import type { components as AiComponents } from "./generated/ai";
 import type { components as AppointmentComponents } from "./generated/appointment";
 import type { components as AssessmentComponents } from "./generated/assessment";
 import type { components as ConciergeComponents } from "./generated/concierge";
@@ -120,3 +121,16 @@ export type RecordAccessLogEntry = R["RecordAccessLogEntry"];
 export type SharedGrant = R["SharedGrant"];
 export type SharedGrantDetail = R["SharedGrantDetail"];
 export type SharedRecord = R["SharedRecord"];
+
+type AI = AiComponents["schemas"];
+export type AiSession = AI["AiSession"];
+export type AiTurn = AI["AiTurn"];
+export type AiCard = AI["AiCard"];
+export type AiServiceCard = AI["AiServiceCard"];
+export type AiProviderCard = AI["AiProviderCard"];
+export type AiFacilityCard = AI["AiFacilityCard"];
+export type AiJourneyStepCard = AI["AiJourneyStepCard"];
+export type AiAppointmentCard = AI["AiAppointmentCard"];
+export type AiConciergeCaseCard = AI["AiConciergeCaseCard"];
+export type AiHandoffCard = AI["AiHandoffCard"];
+export type AiLocale = AI["AiLocale"];

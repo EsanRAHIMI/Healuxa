@@ -21,6 +21,7 @@ services:
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD}
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD}
       SUBSCRIPTION_DB_PASSWORD: ${SUBSCRIPTION_DB_PASSWORD:?set SUBSCRIPTION_DB_PASSWORD}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?set AI_DB_PASSWORD}
     volumes:
     - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -675,6 +676,82 @@ services:
     build:
       context: .
       dockerfile: services/transformation-engine/Dockerfile
+    pull_policy: build
+  ai-orchestrator-migrate:
+    restart: 'no'
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    build:
+      context: .
+      dockerfile: services/ai-orchestrator/Dockerfile
+    image: healuxa/ai-orchestrator:latest
+    entrypoint:
+    - alembic
+    - upgrade
+    - head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_ai:${AI_DB_PASSWORD:?set AI_DB_PASSWORD}@postgres:5432/ai
+      WEB_CONCURRENCY: '1'
+    pull_policy: build
+  ai-orchestrator:
+    restart: unless-stopped
+    networks:
+    - healuxa
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    image: healuxa/ai-orchestrator:latest
+    environment:
+      APP_ENV: production
+      TENANT_DEFAULT: healuxa-dubai
+      LOG_LEVEL: INFO
+      NATS_ENABLED: 'true'
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/0
+      SERVICE_AUTH_CLIENT_ID: healuxa-internal
+      SERVICE_AUTH_CLIENT_SECRET: ${SERVICE_AUTH_CLIENT_SECRET:?set SERVICE_AUTH_CLIENT_SECRET}
+      IDENTITY_INTROSPECT_URL: http://identity-service:8001/v1/auth/introspect
+      DATABASE_URL: postgresql+asyncpg://hx_ai:${AI_DB_PASSWORD:?set AI_DB_PASSWORD}@postgres:5432/ai
+      WEB_CONCURRENCY: '1'
+      # Optional: without a key the assistant answers 503 and the web page says so (no crash).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
+      LLM_PROVIDER: anthropic
+      PROVIDER_API_URL: http://provider-service:8005/v1
+      APPOINTMENT_API_URL: http://appointment-service:8007/v1
+      TRANSFORMATION_API_URL: http://transformation-engine:8000/v1
+      CONCIERGE_API_URL: http://concierge-service:8021/v1
+    expose:
+    - '8017'
+    depends_on:
+      nats:
+        condition: service_healthy
+      ai-orchestrator-migrate:
+        condition: service_completed_successfully
+      identity-service:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: services/ai-orchestrator/Dockerfile
     pull_policy: build
   profile-service:
     restart: unless-stopped

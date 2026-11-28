@@ -206,6 +206,51 @@ jobs:
           pytest -q -rs
           python -c "from transformation_engine.main import app; print('app ok', app.title)"
 
+  ai-orchestrator:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healuxa
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: healuxa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Create ai_e2e_test database
+        env:
+          PGPASSWORD: dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          psql -h localhost -U healuxa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE ai_e2e_test;"
+      - name: Install packages and ai-orchestrator
+        run: |
+          pip install -e packages/py-common
+          pip install -e "services/ai-orchestrator[dev]"
+      - name: Migrate and test (fake LLM; no API key in CI)
+        env:
+          DATABASE_URL: postgresql+asyncpg://healuxa:dev@localhost:5432/ai_e2e_test
+          TENANT_DEFAULT: healuxa-dubai
+          SERVICE_AUTH_CLIENT_ID: healuxa-internal
+          SERVICE_AUTH_CLIENT_SECRET: ci-service-secret
+        working-directory: services/ai-orchestrator
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          pytest -q -rs
+          python -c "from ai_orchestrator.main import app; print('app ok', app.title)"
+
   provider-service:
     runs-on: ubuntu-latest
     services:

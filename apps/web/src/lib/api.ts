@@ -25,6 +25,7 @@ function baseUrls() {
     payment: env.paymentApiUrl,
     subscription: env.subscriptionApiUrl,
     transformation: env.transformationApiUrl,
+    ai: env.aiApiUrl,
   };
 }
 

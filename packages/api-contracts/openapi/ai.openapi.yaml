@@ -1,57 +1,133 @@
 openapi: 3.1.0
 info:
   title: Healuxa AI Orchestrator API
-  version: 3.3.0
+  version: 3.4.0
   description: >
-    AI Execution Open Host Service (Generic). Routes to AI modules with guardrails + 3-tier memory.
-    Wraps OpenAI/Anthropic behind an ACL. Human-in-the-loop for clinical outputs.
-    See Healuxa_DDD_Boundaries.md §3.18 and Healuxa_TechSpec.md §16.1.
+    AI Execution context (Generic; Healuxa_DDD_Boundaries.md §3.18): an anti-corruption layer to the
+    LLM provider (Anthropic Claude) with its own database. It has **no clinical authority**.
+
+
+    **Customer assistant.** A signed-in customer holds AiSessions made of Turns. Each turn is
+    answered by the model using server-side tools that read verified platform data **with the
+    caller's own identity** (provider-service catalog and directory, appointment-service slots and
+    the caller's appointments, transformation-engine journey/roadmap/next actions) and, on request,
+    hand off to a human by opening a concierge case. The assistant never books, holds, cancels or
+    pays; it returns **action cards** that link into the normal booking UI.
+
+
+    **Guardrails enforced in code:** cards are built only from entities returned by a tool in the
+    same turn (never from model text); prices in reply text must match a tool result, otherwise the
+    reply is replaced; urgent-symptom language gets a brief emergency pointer and clinical
+    questions (diagnosis, medication, dosing, treatment choice) a one-sentence redirect, both without
+    calling the model; per-user rate limits (429 with Retry-After); message size limits; a tool-call
+    loop cap; timeouts. With no model configured the message endpoint answers 503 and
+    `assistant_available` is false. Message text is not logged; sessions are erased on
+    `auth.user_deleted`.
 servers:
   - url: https://api.healuxa.com/v1
-    description: Production edge (Traefik)
+    description: Production edge (nginx gateway)
   - url: http://ai-orchestrator:8017/v1
     description: Internal mesh
 security:
   - bearerAuth: []
 tags:
+  - name: assistant
   - name: ai
 paths:
-  /ai/concierge:
+  /ai/sessions:
     post:
-      operationId: aiConcierge
-      summary: Concierge chat turn (streamed via realtime-gateway)
-      tags: [ai]
-      x-required-permission: ai:use
+      operationId: createAiSession
+      summary: Start an assistant conversation for the caller
+      tags: [assistant]
+      x-required-permission: ai:chat
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiSessionCreate" }
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location: { $ref: "./_shared/components.yaml#/components/headers/Location" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiSession" }
+        "401": { $ref: "./_shared/components.yaml#/components/responses/Unauthorized" }
+        "403": { $ref: "./_shared/components.yaml#/components/responses/Forbidden" }
+        "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+  /ai/sessions/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    get:
+      operationId: getAiSession
+      summary: Get one of the caller's conversations with its turns (oldest first)
+      description: Sessions of other users or tenants answer 404 (no existence leaks).
+      tags: [assistant]
+      x-required-permission: ai:chat
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiSession" }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+    delete:
+      operationId: deleteAiSession
+      summary: Delete one of the caller's conversations and all its turns
+      tags: [assistant]
+      x-required-permission: ai:chat
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+  /ai/sessions/{id}/messages:
+    parameters:
+      - { name: id, in: path, required: true, schema: { $ref: "./_shared/components.yaml#/components/schemas/Id" } }
+    post:
+      operationId: postAiMessage
+      summary: Send a customer message and receive the assistant's reply (SSE stream or JSON)
+      description: >
+        With `Accept: text/event-stream` the reply is streamed as Server-Sent Events:
+        `turn` (`{user_turn_id}`), any number of `status` (`{tool}` — a tool is running) and
+        `delta` (`{text}` — append), at most one `replace` (`{text}` — a code guardrail replaced the
+        streamed text; show this instead), then exactly one terminal event: `done` (`{turn}` — the
+        persisted AiTurn, whose `content` and `cards` are authoritative) or `error` (`{code}`).
+        Otherwise the persisted assistant AiTurn is returned as JSON. A reply that could not be
+        produced is not stored, and neither is the question. Replaying an `Idempotency-Key`
+        returns the stored answer without calling the model again.
+      tags: [assistant]
+      x-required-permission: ai:chat
       parameters:
         - $ref: "./_shared/components.yaml#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [user_id, message]
-              properties:
-                user_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-                session_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-                message: { type: string }
+            schema: { $ref: "#/components/schemas/AiMessageCreate" }
       responses:
         "200":
-          description: OK
+          description: The assistant's reply.
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  session_id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
-                  reply: { type: string }
-                  escalated: { type: boolean }
+              schema: { $ref: "#/components/schemas/AiTurn" }
+            text/event-stream:
+              schema: { type: string, description: "SSE stream (see operation description)." }
+        "404": { $ref: "./_shared/components.yaml#/components/responses/NotFound" }
+        "409": { $ref: "./_shared/components.yaml#/components/responses/Conflict" }
         "422": { $ref: "./_shared/components.yaml#/components/responses/Unprocessable" }
+        "429": { $ref: "./_shared/components.yaml#/components/responses/RateLimited" }
+        "503":
+          description: The assistant is unavailable (no model configured or the provider failed).
+          content:
+            application/json:
+              schema: { $ref: "./_shared/components.yaml#/components/schemas/Error" }
   /ai/roadmap:
     post:
       operationId: aiRoadmap
-      summary: Generate a roadmap draft (internal; consumed by Transformation)
+      summary: Generate a roadmap draft (internal; consumed by Transformation) — planned, not implemented
+      description: Reserved by the architecture; not served by ai-orchestrator yet.
       tags: [ai]
+      x-implementation-status: planned
       security:
         - serviceAuth: [service]
       requestBody:
@@ -76,3 +152,153 @@ components:
       $ref: "./_shared/components.yaml#/components/securitySchemes/bearerAuth"
     serviceAuth:
       $ref: "./_shared/components.yaml#/components/securitySchemes/serviceAuth"
+  schemas:
+    AiLocale:
+      type: string
+      enum: [en, ar, fa]
+    AiSessionCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        locale: { $ref: "#/components/schemas/AiLocale" }
+    AiMessageCreate:
+      type: object
+      additionalProperties: false
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          description: Customer message. The service enforces a lower configured limit (`AiSession.max_message_chars`, default 2000).
+    AiSession:
+      type: object
+      additionalProperties: false
+      required: [id, locale, turn_count, assistant_available, max_message_chars, created_at, updated_at, turns]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        locale: { $ref: "#/components/schemas/AiLocale" }
+        turn_count: { type: integer }
+        handoff_case_id: { type: [string, "null"], description: Concierge case opened by a hand-off in this session. }
+        assistant_available: { type: boolean, description: False when no model is configured; messages then answer 503. }
+        max_message_chars: { type: integer }
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        updated_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+        turns: { type: array, items: { $ref: "#/components/schemas/AiTurn" } }
+    AiTurn:
+      type: object
+      additionalProperties: false
+      required: [id, role, content, cards, created_at]
+      properties:
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+        cards: { type: array, items: { $ref: "#/components/schemas/AiCard" } }
+        guardrail:
+          type: [string, "null"]
+          enum: [emergency, clinical_redirect, ungrounded, refusal, limit, null]
+          description: Which code guardrail shaped this reply, if any.
+        created_at: { $ref: "./_shared/components.yaml#/components/schemas/Timestamp" }
+    AiCardMoney:
+      type: object
+      additionalProperties: false
+      required: [amount_minor, amount, currency]
+      properties:
+        amount_minor: { type: integer, description: "Amount in minor units, as in Money." }
+        amount: { type: string, description: "Decimal major units, e.g. \"450.00\"." }
+        currency: { type: string }
+    AiCard:
+      description: >
+        Action card built server-side from verified tool data of the same turn. `href` is a path
+        relative to the locale root of the client (e.g. `/book/{serviceId}?milestone=...`).
+      oneOf:
+        - { $ref: "#/components/schemas/AiServiceCard" }
+        - { $ref: "#/components/schemas/AiProviderCard" }
+        - { $ref: "#/components/schemas/AiFacilityCard" }
+        - { $ref: "#/components/schemas/AiJourneyStepCard" }
+        - { $ref: "#/components/schemas/AiAppointmentCard" }
+        - { $ref: "#/components/schemas/AiConciergeCaseCard" }
+        - { $ref: "#/components/schemas/AiHandoffCard" }
+      discriminator:
+        propertyName: kind
+        mapping:
+          service: "#/components/schemas/AiServiceCard"
+          provider: "#/components/schemas/AiProviderCard"
+          facility: "#/components/schemas/AiFacilityCard"
+          journey_step: "#/components/schemas/AiJourneyStepCard"
+          appointment: "#/components/schemas/AiAppointmentCard"
+          concierge_case: "#/components/schemas/AiConciergeCaseCard"
+          handoff: "#/components/schemas/AiHandoffCard"
+    AiServiceCard:
+      type: object
+      required: [kind, id, title, category, price_type, price, href, next_slots]
+      properties:
+        kind: { type: string, const: service }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: string }
+        category: { type: string }
+        duration_minutes: { type: [integer, "null"] }
+        price_type: { type: string, enum: [fixed, from, on_request] }
+        price: { oneOf: [{ $ref: "#/components/schemas/AiCardMoney" }, { type: "null" }] }
+        provider_id: { type: [string, "null"] }
+        provider_name: { type: [string, "null"] }
+        milestone_id: { type: [string, "null"], description: Open journey step of the caller this booking would complete. }
+        next_slots: { type: array, items: { type: string, format: date-time }, description: Up to three real slot start times (UTC) when slots were looked up. }
+        timezone: { type: [string, "null"] }
+        href: { type: string }
+    AiProviderCard:
+      type: object
+      required: [kind, id, title, href]
+      properties:
+        kind: { type: string, const: provider }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: [string, "null"] }
+        subtitle: { type: [string, "null"] }
+        specialties: { type: array, items: { type: string } }
+        href: { type: string }
+    AiFacilityCard:
+      type: object
+      required: [kind, id, title, href]
+      properties:
+        kind: { type: string, const: facility }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: [string, "null"] }
+        facility_type: { type: [string, "null"] }
+        href: { type: string }
+    AiJourneyStepCard:
+      type: object
+      required: [kind, id, href]
+      properties:
+        kind: { type: string, const: journey_step }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        code: { type: [string, "null"] }
+        goal: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        service_category: { type: [string, "null"] }
+        href: { type: string }
+    AiAppointmentCard:
+      type: object
+      required: [kind, id, href]
+      properties:
+        kind: { type: string, const: appointment }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        title: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        scheduled_at: { type: [string, "null"], format: date-time }
+        timezone: { type: [string, "null"] }
+        href: { type: string }
+    AiConciergeCaseCard:
+      type: object
+      required: [kind, id, href]
+      properties:
+        kind: { type: string, const: concierge_case }
+        id: { $ref: "./_shared/components.yaml#/components/schemas/Id" }
+        status: { type: [string, "null"] }
+        first_response_due_at: { type: [string, "null"], format: date-time }
+        href: { type: string }
+    AiHandoffCard:
+      type: object
+      required: [kind, href]
+      properties:
+        kind: { type: string, const: handoff }
+        href: { type: string }

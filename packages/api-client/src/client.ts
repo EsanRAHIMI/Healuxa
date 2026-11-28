@@ -1,6 +1,7 @@
 import createClient, { type Client } from "openapi-fetch";
 
 import { HealuxaApiError, networkError, toApiError } from "./errors";
+import type { paths as AiPaths } from "./generated/ai";
 import type { paths as AppointmentPaths } from "./generated/appointment";
 import type { paths as AssessmentPaths } from "./generated/assessment";
 import type { paths as ConciergePaths } from "./generated/concierge";
@@ -23,7 +24,8 @@ export type ServiceName =
   | "notification"
   | "payment"
   | "subscription"
-  | "transformation";
+  | "transformation"
+  | "ai";
 
 export interface ServicePaths {
   identity: IdentityPaths;
@@ -36,6 +38,7 @@ export interface ServicePaths {
   payment: PaymentPaths;
   subscription: SubscriptionPaths;
   transformation: TransformationPaths;
+  ai: AiPaths;
 }
 
 export type ServiceClient<S extends ServiceName> = Client<ServicePaths[S], "application/json">;
@@ -138,7 +141,7 @@ export function createHealuxaClient(options: HealuxaClientOptions): HealuxaClien
     return client;
   };
 
-  const names: ServiceName[] = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription", "transformation"];
+  const names: ServiceName[] = ["identity", "provider", "profile", "assessment", "appointment", "concierge", "notification", "payment", "subscription", "transformation", "ai"];
   const out = {} as Record<ServiceName, unknown>;
   for (const name of names) Object.defineProperty(out, name, { enumerable: true, get: () => make(name) });
   return out as HealuxaClient;

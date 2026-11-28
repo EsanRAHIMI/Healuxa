@@ -162,6 +162,7 @@ export default async function JourneyPage({ params, searchParams }: Props) {
               {t("journey.allDoneBody")}
             </Alert>
           ) : null}
+          <ButtonLink href={`/${locale}/assistant`} variant="secondary" data-testid="journey-ask-assistant">{t("assistant.askLink")}</ButtonLink>
           <Alert tone="info" role="note">
             {t("journey.coordinationNote")}
           </Alert>
